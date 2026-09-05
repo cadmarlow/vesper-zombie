@@ -1148,8 +1148,8 @@ export class World {
     this.time = time;
     if (this.power) this.powerTime += dt;
     this.powerLevel = this.power ? Math.min(1, this.powerTime / 3.2) : 0;
-    // Soften the station's cyan highlights while keeping ambient visibility.
-    const poweredBrightness = this.id === "station" ? 0.84 : 1;
+    // Soften powered highlights on both maps while keeping ambient visibility.
+    const poweredBrightness = this.id === "abbey" ? 0.86 : 0.84;
     const glowLevel = this.powerLevel * poweredBrightness;
     for (const c of this.circuits) {
       const ramp = this.power

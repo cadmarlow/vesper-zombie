@@ -133,6 +133,10 @@ Pour les scénarios précis de combat, d’économie et de vagues, `e2e`, `feel`
 
 L’émulation ne mesure pas les performances d’un téléphone physique. Le navigateur WebKit fourni à l’automatisation refuse la capture de souris sur ce Mac, y compris dans une page de test minimale : le tir et la visée à la souris y sont signalés comme non vérifiés. Ils sont testés dans Chrome ; les équivalents tactiles sont testés dans WebKit.
 
+## Correctif 1.2.1 — éclairage de l’abbaye
+
+Les sources électriques et leurs halos dans l’Abbaye des Cendres sont atténués d’environ 14 %. L’éclairage ambiant conserve la lisibilité du décor et les quatre circuits gardent leur allumage progressif. Le réglage du Complexe Boréal est conservé.
+
 ## Version 1.2.0 — refonte mobile
 
 L’interface en portrait, le HUD de bureau surdimensionné et les touches R/E/G/V superposées sont remplacés par les commandes à deux pouces décrites ci-dessus. Le bouton de tir permet aussi de tourner la caméra ; le joystick est analogique avec zone morte et sprint vers l’avant. Chaque doigt conserve sa propre capture jusqu’au relâchement ou à l’annulation.

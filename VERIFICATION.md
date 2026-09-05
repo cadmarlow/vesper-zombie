@@ -2,6 +2,11 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Correctif 1.2.1 — lumières de l’abbaye
+
+- Réduction de 14 % du facteur d’intensité des sources alimentées de l’abbaye ; éclairage ambiant et réglage du Complexe Boréal conservés. Captures de l’abbaye avant/après inspectées.
+- Compilation Node.js 24 et 33 contrôles de `test:feel` réussis sur la compilation de production : activation du générateur, allumage des quatre circuits, machines, déplacements, couteau et audio sur les deux cartes. Rapport : `artifacts/feel-1788643476795/report.json`.
+
 ## Version 1.2.0 — refonte de l’expérience tactile
 
 Le retour sur téléphone a montré que les anciens contrôles de dimensions ne suffisaient pas à valider le confort de jeu. Cette version remplace les commandes et le HUD mobiles, impose le paysage en partie, corrige le tampon de rendu Retina et ajoute le lancement autonome depuis l’écran d’accueil.
