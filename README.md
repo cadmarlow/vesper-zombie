@@ -102,6 +102,30 @@ Les captures et les rapports de chaque exécution se trouvent dans les sous-doss
 
 `npm run test:release` vérifie le menu et le démarrage de la compilation servie sur le port 4173, puis la lunette de précision sur le serveur de développement 5173. Lancez `node scripts/serve.mjs` et `npm run dev` dans deux terminaux avant ce contrôle.
 
+## Tester le site déployé
+
+```sh
+npx playwright install webkit
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:online
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:menu
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:mobile
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:e2e
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:feel
+VESPER_URL=https://vesper-zombie.vercel.app npm run test:waves
+```
+
+Les contrôles `online`, `menu` et `mobile` testent les écrans et commandes du site. `online` couvre Chrome et WebKit, avec des profils tactiles Android, iPhone et iPad, et vérifie également le signal audio réel, les erreurs et les requêtes de ressources.
+
+Pour les scénarios précis de combat, d’économie et de vagues, `e2e`, `feel` et `waves` chargent le module de jeu effectivement publié. Un crochet d’observation dans la page de test permet de préparer les situations ; il ne modifie ni le serveur ni le jeu des autres visiteurs. Ces scénarios assistés complètent les essais des commandes normales. Les rapports restent dans `artifacts/`, hors de Git.
+
+L’émulation ne mesure pas les performances d’un téléphone physique. Le navigateur WebKit fourni à l’automatisation refuse la capture de souris sur ce Mac, y compris dans une page de test minimale : le tir et la visée à la souris y sont signalés comme non vérifiés. Ils sont testés dans Chrome ; les équivalents tactiles sont testés dans WebKit.
+
+## Correctif 1.1.3 — audit du site en ligne
+
+- Le menu garde le titre, le lancement, les destinations et le pied de page dans un flux commun sur les fenêtres intermédiaires et les petits formats paysage. Les chevauchements reproduits, notamment en 900 × 780, sont corrigés.
+- Les commandes tactiles sont reconnues à partir du pointeur principal ou d’un toucher sur le bouton de lancement, même quand le navigateur annonce zéro point de contact. Un lancement tactile reste également reconnu sur un appareil hybride avec souris.
+- Des scripts reproductibles permettent de vérifier le déploiement, les seuils de mise en page et les scénarios du jeu en ligne.
+
 ## Correctif 1.1.2 — éclairage et préparation Vercel
 
 Les néons, l’éclairage direct et les halos alimentés du Complexe Boréal sont atténués d’environ 16 %. L’éclairage ambiant reste identique pour garder les décors lisibles ; les quatre circuits conservent leur allumage progressif. Le dépôt contient la configuration Vercel et le verrouillage des dépendances pour une installation reproductible.

@@ -1,6 +1,7 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { openGameAudit } from "./game-audit.mjs";
 const out = `artifacts/feel-${Date.now()}`;
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({
@@ -39,7 +40,7 @@ async function render(name) {
   await page.screenshot({ path: `${out}/${name}.png` });
 }
 try {
-  await page.goto("http://localhost:5173");
+  await openGameAudit(page);
   await page.locator("#play-button").click();
   await page.waitForFunction(() => window.__vesper?.state === "playing");
   await page.evaluate(() => {
@@ -263,7 +264,7 @@ try {
   const audioReports = [];
   for (const map of ["abbey", "station"]) {
     const audio = await page.evaluate(async (map) => {
-      const { Score } = await import("/src/music.js");
+      const Score = window.__vesper.sound.score.constructor;
       const rate = 22050,
         ctx = new OfflineAudioContext(2, rate * 20, rate);
       const score = new Score(ctx, ctx.destination);
@@ -339,7 +340,7 @@ try {
     ["station", 844, 390],
   ]) {
     await mobile.setViewportSize({ width, height });
-    await mobile.goto("http://localhost:5173");
+    await openGameAudit(mobile);
     await mobile.locator(`[data-map="${map}"]`).tap();
     await mobile.locator("#play-button").tap();
     await mobile.waitForFunction(() => window.__vesper?.state === "playing");

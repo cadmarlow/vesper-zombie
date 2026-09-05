@@ -1,6 +1,7 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { openGameAudit } from "./game-audit.mjs";
 const browser = await chromium.launch({
   headless: true,
   executablePath:
@@ -46,7 +47,7 @@ async function teleport(x, z) {
   await page.waitForTimeout(60);
 }
 try {
-  await page.goto("http://localhost:5173");
+  await openGameAudit(page);
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${outputDir}/menu.png` });
   check(
@@ -422,7 +423,7 @@ try {
     deviceScaleFactor: 1,
   });
   mobile.on("pageerror", (e) => errors.push(e.message));
-  await mobile.goto("http://localhost:5173");
+  await openGameAudit(mobile);
   await mobile.waitForTimeout(500);
   await mobile.screenshot({ path: `${outputDir}/menu-mobile.png` });
   check(

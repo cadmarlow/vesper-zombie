@@ -1,6 +1,8 @@
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { openGameAudit } from "./game-audit.mjs";
+import { rng, inside, canStand } from "../src/logic.js";
 const browser = await chromium.launch({
   headless: true,
   executablePath:
@@ -16,14 +18,18 @@ page.on("console", (message) => {
   else if (message.text().startsWith("WAVES ")) console.log(message.text());
 });
 try {
-  await page.goto("http://localhost:5173");
+  await openGameAudit(page);
+  // Keep the test oracle independent of the bundled navigation under test.
+  await page.addScriptTag({
+    content: `window.__waveOracle = (() => { ${rng.toString()} ${inside.toString()} ${canStand.toString()} return { rng, canStand }; })();`,
+  });
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing");
   const reports = await page.evaluate(async () => {
     const g = window.__vesper;
     g.emit = () => {};
     g.sound.setVolume(0);
-    const { rng, canStand } = await import("/src/logic.js");
+    const { rng, canStand } = window.__waveOracle;
     const reports = [],
       originalRandom = Math.random;
     try {

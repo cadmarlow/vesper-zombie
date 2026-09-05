@@ -3277,7 +3277,9 @@ kbd {
 .menu-content {
   display: contents;
 }
-@media (min-width: 901px) and (min-height: 781px) {
+@media (min-width: 901px) and (min-height: 781px),
+  (min-width: 601px) and (max-width: 1100px) and (min-height: 561px),
+  (max-width: 650px) and (orientation: landscape) {
   .menu-art,
   .menu-shade {
     position: fixed;
@@ -3313,6 +3315,17 @@ kbd {
     position: relative;
     inset: auto;
     margin: 0 4.2%;
+  }
+}
+@media (min-width: 601px) and (max-width: 1100px) and (min-height: 561px),
+  (max-width: 650px) and (orientation: landscape) {
+  .menu-content {
+    width: 86%;
+    margin: 32px 7%;
+    gap: 32px;
+  }
+  .menu-footer {
+    margin: 0 7%;
   }
 }
 @media (min-width: 901px) and (max-width: 1100px) and (min-height: 781px) {

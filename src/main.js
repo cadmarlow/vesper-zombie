@@ -77,7 +77,7 @@ app.innerHTML = `
     )
     .join("")}</div></div></section>
   </div><div class="menu-coordinate"><span id="map-coordinates">48° 04′ N / 07° 01′ E</span><div class="coordinate-line"></div><span id="map-condition">ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ</span></div>
-  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.1.1.2</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
+  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.1.1.3</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
  </main>
  <section id="panel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Informations"><div class="panel-shell"><div class="panel-top"><a class="wordmark" href="#">${icon("eclipse")}<span>VESPER</span></a><button class="close-button" id="close-panel">FERMER ${icon("close")}</button></div><div id="panel-content"></div></div></section>
  <section id="loading" class="screen loading-screen hidden"><div class="loading-symbol">${icon("eclipse")}</div><div class="eyebrow">OUVERTURE DU PROTOCOLE</div><h2 id="loading-map">L’Abbaye des Cendres</h2><div class="loading-track"><span></span></div><p>Gardez vos munitions. Faites compter chaque balle.</p></section>
@@ -194,8 +194,12 @@ function onEvent(type, payload) {
       break;
   }
 }
-async function startGame() {
+async function startGame(event) {
   if (game?.state === "loading") return;
+  // Some touch browsers report zero maxTouchPoints. A touch launch also covers
+  // hybrid devices whose primary pointer is a mouse or trackpad.
+  const touch =
+    event?.pointerType === "touch" || matchMedia("(pointer: coarse)").matches;
   // Unlock audio in the actual click/tap, before loading the 3D engine.
   sound.setVolume(settings.volume);
   sound.setMusicVolume(settings.musicVolume);
@@ -214,11 +218,7 @@ async function startGame() {
         window.__vesper = game;
       }
     }
-    await game.start(
-      selectedMap,
-      difficulty,
-      navigator.maxTouchPoints > 0 && matchMedia("(pointer: coarse)").matches,
-    );
+    await game.start(selectedMap, difficulty, touch);
     $("#hud-map").textContent = MAPS.find((m) => m.id === selectedMap).short;
   } catch (e) {
     console.error(e);

@@ -2,6 +2,19 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Correctif 1.1.3 — audit du déploiement Vercel
+
+Audit du 5 septembre 2026 sur `https://vesper-zombie.vercel.app/`. Les 29 fichiers de l’application et ressources principales téléchargés correspondaient octet pour octet au build 1.1.2 attendu, soit environ 5,26 Mo.
+
+- Sur l’URL publique : 361 contrôles tactiles sur neuf formats × deux cartes (`artifacts/mobile-1788628199632/report.json`), 40 contrôles d’intégration (`artifacts/verification-1788628418660/test-results.json`) et 33 contrôles des sensations (`artifacts/feel-1788628737059/report.json`) réussis.
+- 120 vagues terminées avec le module réellement déployé : douze scénarios de dix vagues, cinq types d’ennemis, aucun spawn invalide ni blocage (`artifacts/waves-regression-1788628645158.json`). Les scénarios utilisent un défenseur invulnérable qui élimine uniquement les ennemis arrivés à portée et en ligne de tir ; les achats et l’extraction utilisent également des situations préparées dans la page de test.
+- Deux défauts reproduits : chevauchement du menu sur certaines fenêtres intermédiaires/courtes et commandes tactiles absentes dans WebKit quand `maxTouchPoints` vaut zéro malgré un pointeur tactile.
+- Après correction locale : aucun chevauchement sur 391 combinaisons de dimensions (`artifacts/menu-audit-1788628914130/report.json`). Captures inspectées, notamment en 900 × 780 et sur les formats mobiles.
+- La compilation 1.1.3 passe 173 contrôles Chrome/WebKit : ordinateur, profil Android, iPhone SE, iPhone 13 portrait/paysage et iPad, sur les deux cartes (`artifacts/online-1788629088587/report.json`). Signal audio réel non nul après le geste de lancement, commandes, réglages, pause, rotation, retour au menu et sauvegardes ; aucune erreur JavaScript/WebGL ni requête de ressource en échec.
+- Compilation et 12 tests unitaires réussis. Les scripts d’audit sont exclus du bundle de jeu ; l’accès de diagnostic reste absent de la version publique normale.
+
+Limites : essais mobiles émulés sur Mac, sans mesure sur téléphone physique. Le navigateur WebKit d’automatisation refuse la capture de souris même sur une page minimale indépendante du jeu, en mode visible comme sans fenêtre. Le tir et la visée à la souris n’y sont donc pas validés ; ils passent sur Chrome et leurs équivalents tactiles passent sur WebKit. Cela ne constitue pas une validation complète de Safari sur Mac.
+
 ## Correctif 1.1.2 — éclairage et dépôt de production
 
 Vérifié le 5 septembre 2026 depuis le dépôt `vesper-zombie`, après une installation propre des dépendances.
