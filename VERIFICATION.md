@@ -2,6 +2,23 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 1.2.0 — refonte de l’expérience tactile
+
+Le retour sur téléphone a montré que les anciens contrôles de dimensions ne suffisaient pas à valider le confort de jeu. Cette version remplace les commandes et le HUD mobiles, impose le paysage en partie, corrige le tampon de rendu Retina et ajoute le lancement autonome depuis l’écran d’accueil.
+
+Vérification locale de la compilation de production, le 5 septembre 2026 :
+
+- **60 contrôles tactiles** réussis (`artifacts/touch-native-1788632702075/report.json`). Événements CDP avec deux contacts simultanés sur les deux cartes : déplacement, caméra et tir maintenu ; relâchement, annulation système, absence de dérive au bord de la zone, course, saut, accroupissement et rechargement. Portrait avant lancement sans départ de vague ; rotation en partie avec pause, libération des actions et reprise explicite.
+- Commandes et boutons de pause d’au moins 44 pixels sur sept formats paysage, de 568 × 320 à 1080 × 810. Zones d’encoche et d’indicateur d’accueil simulées. Captures inspectées ; guide opaque et lisible, sans texte de pause superposé.
+- WebKit avec profils iPhone SE, iPhone 13 et iPad : rotation, tir, rechargement, pause, guide. Manifeste et deux icônes présents. L’installation effective depuis l’écran d’accueil nécessite encore une vérification sur appareil physique.
+- Les deux scènes alimentées avec 28 ennemis gardent leur rendu à 2× dans cet essai Mac : environ 60 images/s médianes. Le ralentissement CPU artificiel à 8× déclenche la réduction progressive de résolution ; sa désactivation rétablit le rendu maximal. Sensibilité et options tactiles persistantes. **Ces chiffres ne mesurent pas les performances d’un téléphone.**
+- **187 contrôles Chrome/WebKit** réussis sur le build (`artifacts/online-1788631934228/report.json`) : deux cartes, commandes normales, audio, réglages, rotation, archives et ressources ; aucune erreur JavaScript/WebGL ni requête en échec. Le contrôle supplémentaire final des boutons de pause tablette est inclus dans la suite tactile ci-dessus.
+- **41 contrôles d’intégration**, **33 contrôles de sensations** et **21 contrôles de livraison** réussis : combat, économie, Reliquaire, courant, animations, musique, progression, lunette et interface ordinateur. Rapports : `artifacts/verification-1788631535375/`, `artifacts/feel-1788631520694/`, `artifacts/release-1788631564203/`.
+- **120 vagues** terminées dans douze scénarios sur les deux cartes, cinq types d’ennemis, aucun spawn invalide ni blocage (`artifacts/waves-regression-1788632785306.json`). Scénarios assistés par un défenseur invulnérable : ce test vérifie la progression et la navigation, pas l’équilibrage pour un humain.
+- Compilation Node.js 24 et 12 tests unitaires réussis. Les outils d’observation et rapports ne sont pas distribués avec le jeu.
+
+Les essais tactiles sont émulés sur Mac. Ils vérifient les événements et le rendu, mais ne remplacent pas un test ergonomique avec les pouces sur l’iPhone de l’utilisateur. Le refus de capture souris dans le WebKit d’automatisation reste la limite décrite ci-dessous ; Chrome couvre les tirs et la visée sur ordinateur.
+
 ## Correctif 1.1.3 — audit du déploiement Vercel
 
 Audit du 5 septembre 2026 sur `https://vesper-zombie.vercel.app/`. Les 29 fichiers de l’application et ressources principales téléchargés correspondaient octet pour octet au build 1.1.2 attendu, soit environ 5,26 Mo.

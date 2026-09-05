@@ -336,7 +336,7 @@ try {
   });
   mobile.on("pageerror", (e) => errors.push(e.message));
   for (const [map, width, height] of [
-    ["abbey", 390, 844],
+    ["abbey", 844, 390],
     ["station", 844, 390],
   ]) {
     await mobile.setViewportSize({ width, height });
@@ -355,7 +355,7 @@ try {
       `${map}: touch crouch lowers the viewpoint`,
       await mobile.evaluate(() => window.__vesper.camera.position.y < 1.1),
     );
-    await mobile.locator('[data-action="sprint"]').tap();
+    await mobile.locator('[data-action="crouch"]').tap();
     const rect = await mobile.locator("#touch-move").boundingBox();
     const cdp = await mobile.context().newCDPSession(mobile);
     const point = {
@@ -372,11 +372,11 @@ try {
     });
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: [{ ...point, y: point.y - 22 }],
+      touchPoints: [{ ...point, y: point.y - 60 }],
     });
     await mobile.waitForTimeout(300);
     check(
-      `${map}: run button stands up and enables sprint below the joystick auto-run threshold`,
+      `${map}: forward joystick edge sprints and consumes stamina`,
       await mobile.evaluate(() => {
         const g = window.__vesper;
         return (
@@ -400,8 +400,8 @@ try {
     await mobile.waitForTimeout(800);
     await mobile.locator("#hud-pause").tap();
     check(
-      `${map}: pausing clears the run toggle`,
-      await mobile.evaluate(() => !window.__vesper.touchRun),
+      `${map}: pausing clears joystick sprint`,
+      await mobile.evaluate(() => !window.__vesper.touchSprint),
     );
   }
   await mobile.locator("#pause-settings").tap();

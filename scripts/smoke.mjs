@@ -430,7 +430,12 @@ try {
     "Mobile menu fits viewport",
     await mobile.evaluate(() => document.documentElement.scrollWidth === 390),
   );
-  await mobile.click("#play-button");
+  await mobile.locator("#play-button").tap();
+  check(
+    "Portrait launch waits for landscape",
+    await mobile.locator("#mobile-orientation").isVisible(),
+  );
+  await mobile.setViewportSize({ width: 844, height: 390 });
   await mobile.waitForFunction(() => window.__vesper?.state === "playing");
   check(
     "Touch controls appear on mobile",

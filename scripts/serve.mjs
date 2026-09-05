@@ -16,6 +16,7 @@ const mime = {
   ".woff2": "font/woff2",
   ".woff": "font/woff",
   ".json": "application/json",
+  ".webmanifest": "application/manifest+json",
   ".txt": "text/plain; charset=utf-8",
 };
 let port = Number(process.env.VESPER_PORT || 4173);

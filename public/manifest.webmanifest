@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "VESPER — Les derniers vivants",
+  "short_name": "VESPER",
+  "lang": "fr",
+  "start_url": "/?standalone=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c1113",
+  "theme_color": "#0c1113",
+  "icons": [
+    { "src": "/icons/vesper-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/vesper-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

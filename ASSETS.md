@@ -27,3 +27,8 @@ Barlow, Barlow Condensed and Rajdhani are bundled locally through Fontsource und
 - `src/assets.js`: original bevelled field knife, brushed-steel canvas texture, brass guard, wrapped grip, gloved hand and sleeve. Animation is authored in `src/game.js`.
 - `src/world.js`: suspended electrical fixtures, their supports and floor conductors, with four sequential circuits on each map.
 - `src/audio.js`: original generator startup, knife draw, swipe and material-impact synthesis.
+
+## Version 1.2.0 additions
+
+- `src/main.js`, `src/mobile.css`: original touch-control SVG symbols and interface styling.
+- `public/icons/vesper-192.png`, `public/icons/vesper-512.png`: PNG renderings of the project's original `public/favicon.svg`, used by the home-screen manifest. No external icon pack.

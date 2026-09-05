@@ -212,6 +212,17 @@ try {
         await press(`[data-map="${map}"]`, touch);
         const start = Date.now();
         await press("#play-button", touch);
+        if (touch && page.viewportSize().width < page.viewportSize().height) {
+          check(
+            `${label}: portrait waits for landscape`,
+            await page.locator("#mobile-orientation").isVisible(),
+          );
+          const portrait = page.viewportSize();
+          await page.setViewportSize({
+            width: portrait.height,
+            height: portrait.width,
+          });
+        }
         await page.locator("#hud:not(.hidden)").waitFor();
         report.timings.push({ label, launchMs: Date.now() - start });
         check(
@@ -300,7 +311,13 @@ try {
         if (touch) {
           const old = page.viewportSize();
           await page.setViewportSize({ width: old.height, height: old.width });
-          await press("#hud-help", true);
+          await page.locator("#mobile-orientation:not(.hidden)").waitFor();
+          check(
+            `${label}: portrait automatically pauses`,
+            await page.locator("#mobile-orientation").isVisible(),
+          );
+          await page.setViewportSize(old);
+          await press("#pause-help", true);
           check(
             `${label}: help remains reachable after rotation`,
             await page.locator("#panel").isVisible(),

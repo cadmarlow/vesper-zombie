@@ -62,13 +62,16 @@ export class Game {
     this.navTimer = 0;
     this.fps = 60;
     this.frameTimes = [];
+    this.mobileResolutionScale = 1;
+    this.mobileFrameMs = 16.7;
+    this.resolutionTimer = 0;
     this.renderer = new T.WebGLRenderer({
       canvas,
       antialias: true,
       powerPreference: "high-performance",
     });
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = T.PCFShadowMap;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.35;
     this.renderer.setClearColor(0x111d25);
@@ -253,27 +256,53 @@ export class Game {
   }
   resize() {
     const w = innerWidth,
-      h = innerHeight;
-    this.renderer.setPixelRatio(
-      Math.min(
-        devicePixelRatio,
-        this.settings.quality === "high"
-          ? 1.65
-          : this.settings.quality === "medium"
-            ? 1.15
-            : 1,
-      ),
+      h = window.visualViewport?.height || innerHeight;
+    const cap = this.touch
+      ? this.settings.quality === "high"
+        ? 2
+        : this.settings.quality === "medium"
+          ? 1.5
+          : 1
+      : this.settings.quality === "high"
+        ? 1.65
+        : this.settings.quality === "medium"
+          ? 1.15
+          : 1;
+    const budget = this.settings.quality === "high" ? 1600000 : 1000000;
+    const ratio = Math.min(
+      devicePixelRatio,
+      this.touch
+        ? Math.max(
+            1,
+            Math.min(cap, Math.sqrt(budget / (w * h))) *
+              this.mobileResolutionScale,
+          )
+        : cap,
     );
-    this.renderer.setSize(w, h);
-    this.composer.setSize(w, h);
+    const composerRatio = this.touch ? ratio : 1;
+    const previous = this.renderSize;
+    // Browser bars can emit both viewport and window resize events. Avoid
+    // allocating the same render targets twice for one viewport change.
+    if (!previous || previous.ratio !== ratio)
+      this.renderer.setPixelRatio(ratio);
+    if (!previous || previous.w !== w || previous.h !== h)
+      this.renderer.setSize(w, h);
+    // The composer otherwise stays at 1× and stretches the world on Retina screens.
+    if (!previous || previous.composerRatio !== composerRatio)
+      this.composer.setPixelRatio(composerRatio);
+    if (!previous || previous.w !== w || previous.h !== h)
+      this.composer.setSize(w, h);
+    this.renderSize = { w, h, ratio, composerRatio };
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.viewCamera.aspect = w / h;
+    this.viewCamera.fov = this.touch ? 58 : 62;
     this.viewCamera.updateProjectionMatrix();
     this.bloom.enabled = this.settings.quality !== "low";
   }
   applySettings(settings) {
     this.settings = settings;
+    this.mobileResolutionScale = 1;
     this.sound.setVolume(settings.volume);
     this.sound.setMusicVolume(settings.musicVolume ?? 0.75);
     this.camera.fov = settings.fov;
@@ -295,11 +324,27 @@ export class Game {
     this.emit("state", "loading");
     await this.sound.init();
     this.touch = touch;
+    this.mobileResolutionScale = 1;
+    this.mobileFrameMs = 16.7;
+    this.resolutionTimer = 0;
+    this.resize();
     this.cleanup();
     this.map = map;
     this.difficulty = DIFFICULTIES[difficulty];
     this.difficultyId = difficulty;
     this.world = new World(this.scene, map, this.settings.quality);
+    if (touch) {
+      const anisotropy = Math.min(
+        8,
+        this.renderer.capabilities.getMaxAnisotropy(),
+      );
+      this.world.root.traverse((o) => {
+        for (const material of Array.isArray(o.material)
+          ? o.material
+          : [o.material])
+          if (material?.map) material.map.anisotropy = anisotropy;
+      });
+    }
     this.navigation = new Navigation(this.world.obstacles, 64, 1, 0.36);
     this.largeNavigation = new Navigation(this.world.obstacles, 64, 1, 0.6);
     this.player = {
@@ -369,7 +414,9 @@ export class Game {
     });
     this.emit("toast", {
       title: "La nuit commence",
-      text: "Explorez les lieux. Appuyez sur N pour lancer la première vague.",
+      text: touch
+        ? "Glisse à gauche pour bouger. Maintiens le tir et glisse pour viser."
+        : "Explorez les lieux. Appuyez sur N pour lancer la première vague.",
     });
     if (!touch) this.lock();
   }
@@ -434,8 +481,12 @@ export class Game {
       disposeModel(this.gun);
     }
     this.gun = weaponModel(this.weapon.id, this.weapon.level);
-    this.gun.scale.setScalar(0.78);
-    this.gun.position.set(0.24, -0.24, -0.52);
+    this.gun.scale.setScalar(this.touch ? 0.68 : 0.78);
+    this.gun.position.set(
+      this.touch ? 0.18 : 0.24,
+      -0.24,
+      this.touch ? -0.56 : -0.52,
+    );
     this.viewScene.add(this.gun);
     this.reloadTime = 0;
     this.emit("weapon", this.weapon);
@@ -493,7 +544,9 @@ export class Game {
         this.shotTimer = 0.3;
         this.emit("toast", {
           title: "Munitions épuisées",
-          text: "Passez au couteau [V] ou rejoignez le ravitaillement.",
+          text: this.touch
+            ? "Utilise le couteau ou rejoins le ravitaillement."
+            : "Passez au couteau [V] ou rejoignez le ravitaillement.",
         });
       }
       return;
@@ -1292,6 +1345,27 @@ export class Game {
     this.player.vy = 5;
     this.player.grounded = false;
   }
+  touchAimFriction() {
+    if (!this.settings.touchAimAssist || !this.touch) return 1;
+    const forward = this.camera.getWorldDirection(new T.Vector3());
+    for (const enemy of this.enemies) {
+      if (enemy.dead || enemy.model.position.y < -0.1) continue;
+      const toward = enemy.model.position
+        .clone()
+        .add(new T.Vector3(0, 1.35, 0))
+        .sub(this.camera.position);
+      const distance = toward.length();
+      if (distance < 2 || distance > 25) continue;
+      toward.normalize();
+      if (
+        forward.dot(toward) > 0.993 &&
+        this.obstacleDistance(this.camera.position, toward, distance) >=
+          distance - 0.25
+      )
+        return 0.68;
+    }
+    return 1;
+  }
   updateKnife() {
     const progress = MELEE_DURATION - this.meleeTimer;
     this.knife.visible = this.meleeTimer > 0;
@@ -1418,11 +1492,24 @@ export class Game {
       this.settings.shake && sprint ? Math.sin(this.time * 8.5) * 0.008 : 0,
       "YXZ",
     );
+    const baseFov = this.touch
+      ? Math.min(
+          this.settings.fov,
+          T.MathUtils.radToDeg(
+            2 *
+              Math.atan(
+                (Math.tan(T.MathUtils.degToRad(this.settings.fov) / 2) *
+                  (16 / 9)) /
+                  this.camera.aspect,
+              ),
+          ),
+        )
+      : this.settings.fov;
     const targetFov = this.mouse.aim
       ? this.weapon.id === "longinus"
         ? 38
-        : this.settings.fov * 0.77
-      : this.settings.fov + (sprint ? 9 : 0);
+        : baseFov * 0.77
+      : baseFov + (sprint ? 9 : 0);
     this.camera.fov = T.MathUtils.lerp(this.camera.fov, targetFov, dt * 10);
     this.camera.updateProjectionMatrix();
     const aim =
@@ -1436,7 +1523,7 @@ export class Game {
     this.gun.position.x =
       T.MathUtils.lerp(
         this.gun.position.x,
-        aim ? 0 : sprint ? 0.12 : 0.24,
+        aim ? 0 : sprint ? 0.12 : this.touch ? 0.18 : 0.24,
         dt * 14,
       ) + (length > 0.05 ? Math.cos(this.time * 6) * 0.0007 : 0);
     this.gun.position.y =
@@ -1447,14 +1534,15 @@ export class Game {
               ? 0.17
               : this.weapon.id === "vigil"
                 ? 0.12
-                : 0.138) * 0.78
+                : 0.138) * (this.touch ? 0.68 : 0.78)
           : sprint
             ? -0.31
             : -0.24,
         dt * 14,
       ) -
       reloadProgress * 0.012;
-    this.gun.position.z = -0.52 + this.recoil * 0.7 + reloadProgress * 0.2;
+    this.gun.position.z =
+      (this.touch ? -0.56 : -0.52) + this.recoil * 0.7 + reloadProgress * 0.2;
     this.gun.rotation.set(
       -reloadProgress * 0.55 + sprint * 0.36,
       reloadProgress * -0.35 + sprint * -0.28,
@@ -1466,7 +1554,8 @@ export class Game {
     this.flashlight.target.position
       .copy(this.camera.position)
       .add(this.camera.getWorldDirection(dir).multiplyScalar(15));
-    if (this.mouse.fire && this.definition.automatic) this.shoot();
+    if (this.mouse.fire && (this.definition.automatic || this.touch))
+      this.shoot();
   }
   update(dt) {
     this.time += dt;
@@ -1548,7 +1637,9 @@ export class Game {
           this.sound.pickup();
           this.emit("toast", {
             title: `${WEAPONS[b.offered].rarity} · ${WEAPONS[b.offered].name}`,
-            text: "Appuyez sur E devant le Reliquaire pour prendre votre arme.",
+            text: this.touch
+              ? "Approche du Reliquaire et touche le bouton pour récupérer ton arme."
+              : "Appuyez sur E devant le Reliquaire pour prendre votre arme.",
           });
         }
       } else {
@@ -1652,7 +1743,8 @@ export class Game {
   }
   loop(now) {
     requestAnimationFrame(this.loop);
-    const delta = Math.min((now - this.last) / 1000, 0.05);
+    const elapsed = (now - this.last) / 1000;
+    const delta = Math.min(elapsed, 0.05);
     this.last = now;
     this.sound.music({
       map: this.map,
@@ -1665,6 +1757,33 @@ export class Game {
     if (this.state === "playing") {
       this.fps = T.MathUtils.lerp(this.fps, 1 / Math.max(delta, 0.001), 0.035);
       this.update(delta);
+      if (
+        this.touch &&
+        this.settings.touchAdaptiveQuality &&
+        this.time > 4 &&
+        elapsed > 0 &&
+        elapsed < 0.5
+      ) {
+        this.mobileFrameMs = T.MathUtils.lerp(
+          this.mobileFrameMs,
+          Math.min(elapsed * 1000, 100),
+          0.025,
+        );
+        this.resolutionTimer += elapsed;
+        if (this.resolutionTimer > 4) {
+          this.resolutionTimer = 0;
+          const next =
+            this.mobileFrameMs > 30
+              ? Math.max(0.72, this.mobileResolutionScale - 0.12)
+              : this.mobileFrameMs < 19
+                ? Math.min(1, this.mobileResolutionScale + 0.04)
+                : this.mobileResolutionScale;
+          if (next !== this.mobileResolutionScale) {
+            this.mobileResolutionScale = next;
+            this.resize();
+          }
+        }
+      }
     }
     if (this.world) {
       this.film.uniforms.time.value = now;

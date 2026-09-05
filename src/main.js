@@ -1,4 +1,6 @@
 import "./style.css";
+import "./mobile.css";
+import { TouchControls } from "./touch.js";
 import { Sound } from "./audio.js";
 import {
   MAPS,
@@ -38,6 +40,13 @@ const icon = (name, cls = "") => {
     chevron: '<path d="m9 5 7 7-7 7"/>',
     shield:
       '<path d="m12 2 8 3v7c0 5-8 10-8 10S4 17 4 12V5z"/><path d="m8 12 3 3 5-6"/>',
+    bullet: '<path d="M9 7 12 2l3 5v14H9zM9 16h6"/>',
+    magazine: '<path d="M6 3h12l-1 18H7zM9 7h6m-6 4h6m-6 4h5"/>',
+    knife: '<path d="m18 2-2 10-4 4-4-4zM6 14l4 4-4 4-4-4z"/>',
+    grenade: '<path d="M10 7V3h6v3l4 3M9 8h7l3 5-1 7-6 2-6-3-1-6zM9 3H6v4"/>',
+    jump: '<path d="m7 9 5-6 5 6m-5-6v14M5 21h14"/>',
+    phone:
+      '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M10 17h4m6-16 3 3-3 3M1 17l3 3-3 3"/>',
     fullscreen: '<path d="M3 9V3h6m6 0h6v6m0 6v6h-6m-6 0H3v-6"/>',
     run: '<circle cx="15" cy="4" r="2"/><path d="m12 8 4 4 4 1M12 8l-4 4-4-1m8-3-1 7 5 3 2 4m-7-7-4 5H3"/>',
     crouch:
@@ -77,7 +86,7 @@ app.innerHTML = `
     )
     .join("")}</div></div></section>
   </div><div class="menu-coordinate"><span id="map-coordinates">48° 04′ N / 07° 01′ E</span><div class="coordinate-line"></div><span id="map-condition">ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ</span></div>
-  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.1.1.3</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
+  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.1.2.0</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
  </main>
  <section id="panel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Informations"><div class="panel-shell"><div class="panel-top"><a class="wordmark" href="#">${icon("eclipse")}<span>VESPER</span></a><button class="close-button" id="close-panel">FERMER ${icon("close")}</button></div><div id="panel-content"></div></div></section>
  <section id="loading" class="screen loading-screen hidden"><div class="loading-symbol">${icon("eclipse")}</div><div class="eyebrow">OUVERTURE DU PROTOCOLE</div><h2 id="loading-map">L’Abbaye des Cendres</h2><div class="loading-track"><span></span></div><p>Gardez vos munitions. Faites compter chaque balle.</p></section>
@@ -93,8 +102,21 @@ app.innerHTML = `
   <div class="hud-bottom-right"><div class="weapon-class" id="weapon-class">PISTOLET</div><div class="weapon-name" id="weapon-name">VIGILE .45</div><div class="ammo-row"><span id="ammo-value">12</span><span class="ammo-slash">/</span><span id="reserve-value">84</span></div><div class="weapon-slots" id="weapon-slots"></div><div class="grenade-row">◇ <span id="grenade-count">3</span> <span>GRENADES</span><kbd>G</kbd></div></div>
   <div id="score-feed" class="score-feed"></div><div class="session-timer" id="session-timer">00:00</div>
  </section>
- <div id="touch-controls" class="touch-controls hidden"><div id="touch-move" class="touch-stick"><span></span></div><div id="touch-look" class="touch-look"></div><div class="touch-locomotion"><button data-action="sprint" aria-label="Activer la course" aria-pressed="false">${icon("run")}<small>COURIR</small></button><button data-action="crouch" aria-label="S’accroupir ou se relever" aria-pressed="false">${icon("crouch")}<small>ACCROUPIR</small></button></div><div class="touch-actions"><button data-action="reload">R</button><button data-action="interact">E</button><button data-action="grenade">G</button><button data-action="switch">⇄</button><button data-action="melee">V</button><button data-action="jump">↑</button><button data-action="aim">◎</button><button data-action="fire" class="touch-fire">${icon("target")}</button></div></div>
- <section id="pause" class="screen pause-screen hidden"><div class="pause-content"><div class="eyebrow">UN INSTANT DE SILENCE</div><h2>La nuit attend.</h2><p>Votre partie est en pause.</p><button class="primary-button" id="resume-button">REPRENDRE ${icon("arrow")}</button><button class="secondary-button" id="pause-settings">PARAMÈTRES</button><button class="text-button" id="quit-button">QUITTER LA PARTIE</button><div class="pause-hint">ÉCHAP POUR REPRENDRE</div></div></section>
+ <div id="touch-controls" class="touch-controls hidden" aria-label="Commandes tactiles">
+  <div id="touch-move" class="mobile-move-zone" aria-label="Joystick de déplacement"><div id="touch-stick" class="mobile-stick"><span class="stick-sprint">⌃⌃</span><span class="stick-knob"></span></div><span class="mobile-move-tip">GLISSE POUR BOUGER<br><b>POUSSE POUR COURIR</b></span></div>
+  <div id="touch-look" class="mobile-look-zone" aria-label="Glisser pour regarder"></div>
+  <button data-action="fire" class="mobile-button mobile-fire" aria-label="Tirer et glisser pour viser">${icon("bullet")}<small>TIRER</small></button>
+  <span class="mobile-fire-tip">MAINTIENS ET GLISSE POUR VISER</span>
+  <button data-action="aim" class="mobile-button mobile-aim" aria-label="Viser" aria-pressed="false">${icon("target")}</button>
+  <button data-action="jump" class="mobile-button mobile-jump" aria-label="Sauter">${icon("jump")}</button>
+  <button data-action="crouch" class="mobile-button mobile-crouch" aria-label="S’accroupir" aria-pressed="false">${icon("crouch")}</button>
+  <button data-action="grenade" class="mobile-button mobile-grenade" aria-label="Lancer une grenade">${icon("grenade")}<b id="mobile-grenades">3</b></button>
+  <button data-action="melee" class="mobile-button mobile-melee" aria-label="Coup de couteau">${icon("knife")}</button>
+  <div class="mobile-weapon"><button data-action="reload" aria-label="Recharger"><span id="mobile-weapon-name">VIGILE .45</span><span><b id="mobile-ammo">12</b><i id="mobile-reserve">/ 84</i>${icon("magazine")}</span></button><button data-action="switch" aria-label="Changer d’arme">${icon("arrow")}<small>1 / 2</small></button></div>
+  <button data-action="interact" id="mobile-interact" class="mobile-interact hidden">${icon("target")}<span></span></button>
+ </div>
+ <section id="mobile-orientation" class="mobile-orientation hidden" role="dialog" aria-modal="true" aria-labelledby="orientation-title"><div class="orientation-art"></div><div class="orientation-card">${icon("phone")}<span class="eyebrow">VESPER · ÉDITION TACTILE</span><h2 id="orientation-title">Toute la nuit.<br>Entre tes mains.</h2><p>Tourne ton téléphone pour jouer en paysage.</p><div class="orientation-controls"><span><b>POUCE GAUCHE</b>Déplacer · courir</span><span><b>POUCE DROIT</b>Viser · tirer</span></div><small id="orientation-status">La partie commencera après la rotation.</small><button id="orientation-back" class="text-button">RETOUR AU MENU</button></div></section>
+ <section id="pause" class="screen pause-screen hidden"><div class="pause-content"><div class="eyebrow">UN INSTANT DE SILENCE</div><h2>La nuit attend.</h2><p>Votre partie est en pause.</p><button class="primary-button" id="resume-button">REPRENDRE ${icon("arrow")}</button><button class="secondary-button" id="pause-settings">PARAMÈTRES</button><button class="text-button mobile-pause-help" id="pause-help">GUIDE TACTILE</button><button class="text-button" id="quit-button">QUITTER LA PARTIE</button><div class="pause-hint">ÉCHAP POUR REPRENDRE</div></div></section>
  <section id="gameover" class="screen gameover-screen hidden"><div class="gameover-content"><div class="eyebrow" id="end-eyebrow">TRANSMISSION INTERROMPUE</div><h2 id="end-title">La nuit vous a pris.</h2><p id="end-subtitle">D’autres entendront le signal.</p><div class="end-stats" id="end-stats"></div><div class="end-details" id="end-details"></div><button class="primary-button" id="retry-button">RETOURNER DANS LA NUIT ${icon("arrow")}</button><button class="text-button" id="end-menu">RETOUR AU MENU</button></div></section>
  <div id="toast-container" aria-live="polite"></div>`;
 const menuArt = $("#menu-art");
@@ -139,6 +161,8 @@ function state(s) {
     "hidden",
     !(s === "playing" && game.touch),
   );
+  if (s !== "playing") touchControls.reset();
+  else if (game.touch) queueMicrotask(updateViewport);
   document.body.classList.toggle("in-game", s === "playing");
   document.body.classList.toggle("touch-mode", !!game?.touch);
   if (s === "playing")
@@ -204,6 +228,15 @@ async function startGame(event) {
   sound.setVolume(settings.volume);
   sound.setMusicVolume(settings.musicVolume);
   void sound.init().catch(() => {});
+  if (touch && innerWidth < (window.visualViewport?.height || innerHeight)) {
+    awaitingLandscape = true;
+    $("#orientation-status").textContent =
+      "La partie commencera après la rotation.";
+    $("#mobile-orientation").classList.remove("hidden");
+    return;
+  }
+  if (touch && event?.isTrusted && !document.fullscreenElement)
+    document.documentElement.requestFullscreen?.().catch(() => {});
   closePanel();
   $("#loading-map").textContent = MAPS.find((m) => m.id === selectedMap).name;
   state("loading");
@@ -264,7 +297,16 @@ $$("[data-difficulty]").forEach(
     }),
 );
 $("#play-button").onclick = startGame;
-$("#resume-button").onclick = () => game.resume();
+$("#resume-button").onclick = () => {
+  if (
+    game.touch &&
+    innerWidth < (window.visualViewport?.height || innerHeight)
+  ) {
+    $("#mobile-orientation").classList.remove("hidden");
+    return;
+  }
+  game.resume();
+};
 $("#retry-button").onclick = startGame;
 $("#end-menu").onclick = () => game.menu();
 $("#quit-button").onclick = () => {
@@ -276,6 +318,7 @@ $("#hud-help").onclick = () => {
   openPanel("controls");
 };
 $("#settings-button").onclick = () => openPanel("settings");
+$("#pause-help").onclick = () => openPanel("controls");
 $("#pause-settings").onclick = () => openPanel("settings");
 $("#controls-button").onclick = () => openPanel("controls");
 $("#close-panel").onclick = closePanel;
@@ -339,7 +382,7 @@ function openPanel(kind) {
   $("#panel").classList.remove("hidden");
   const content = $("#panel-content");
   if (kind === "settings") {
-    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-quality">Qualité graphique<span>Élevée : halos lumineux et résolution supérieure.</span></label><select id="setting-quality">${[
+    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-quality">Qualité graphique<span>Élevée : halos lumineux et résolution supérieure.</span></label><select id="setting-quality">${[
       ["high", "Élevée"],
       ["medium", "Équilibrée"],
       ["low", "Performance"],
@@ -351,7 +394,13 @@ function openPanel(kind) {
       .join(
         "",
       )}</select></div>${toggle("shake", "Mouvements de recul", settings.shake)}${toggle("crosshair", "Réticule de visée", settings.crosshair)}</section></div><div class="panel-foot"><span>Vos réglages sont enregistrés automatiquement sur cet appareil.</span><button class="secondary-button" id="reset-settings">RÉGLAGES PAR DÉFAUT</button></div>`;
-    for (const key of ["volume", "musicVolume", "sensitivity", "fov"])
+    for (const key of [
+      "volume",
+      "musicVolume",
+      "sensitivity",
+      "touchSensitivity",
+      "fov",
+    ])
       $("#setting-" + key).oninput = (e) => {
         settings[key] = Number(e.target.value);
         $("#value-" + key).textContent =
@@ -367,7 +416,12 @@ function openPanel(kind) {
         settings[key] = e.target.value;
         persistSettings();
       };
-    for (const key of ["shake", "crosshair"])
+    for (const key of [
+      "shake",
+      "crosshair",
+      "touchAimAssist",
+      "touchAdaptiveQuality",
+    ])
       $("#setting-" + key).onchange = (e) => {
         settings[key] = e.target.checked;
         persistSettings();
@@ -413,6 +467,8 @@ function openPanel(kind) {
       game.menu();
     };
     $("#cancel-quit").onclick = closePanel;
+  } else if (game?.touch || matchMedia("(pointer: coarse)").matches) {
+    content.innerHTML = `<div class="eyebrow">DEUX POUCES. UNE DERNIÈRE NUIT.</div><h2>Prends le contrôle.</h2><p class="panel-description">Joue en paysage. Garde tes pouces dans les deux zones de jeu.</p><div class="mobile-guide-grid"><article>${icon("run")}<h3>BOUGER & COURIR</h3><p>Pose ton pouce où tu veux dans la zone gauche. Glisse doucement pour marcher, pousse franchement vers l’avant pour courir. Relâche pour t’arrêter.</p></article><article>${icon("bullet")}<h3>VISER EN TIRANT</h3><p>Glisse à droite pour regarder. Maintiens le grand bouton de tir et glisse dessus : tu peux suivre une cible en tirant, avec le même pouce.</p></article><article>${icon("magazine")}<h3>GARDER LE RYTHME</h3><p>Touche le compteur de munitions pour recharger. La flèche à côté change d’arme. La cible active la visée précise ; les autres icônes commandent saut, accroupissement, couteau et grenade.</p></article><article>${icon("target")}<h3>INTERAGIR</h3><p>Approche d’une grille ou d’une machine. Un bouton affiche l’action et son prix : touche-le pour acheter ou activer. L’icône Pause reste en haut à droite.</p></article></div><div class="guide-tip">Ouvre la grille avec 750 essences, puis cherche le générateur au fond à gauche. Le Reliquaire tire une arme pour 950 essences : récupère-la avant sa disparition. Après la vague 10, rejoins la balise de départ pour demander l’extraction.</div><div class="mobile-install-note">${icon("phone")}<div><b>Une place sur ton écran d’accueil</b><p>Sur iPhone : Partager → Sur l’écran d’accueil. Le jeu s’ouvre alors sans les barres du navigateur. Une connexion reste nécessaire au chargement.</p></div></div><div class="panel-foot"><span>La sensibilité tactile et l’aide à la précision se règlent dans les paramètres. Passer en portrait met la partie en pause.</span></div>`;
   } else {
     content.innerHTML = `<div class="eyebrow">MANUEL DE L’OPÉRATEUR</div><h2>Restez en mouvement.</h2><p class="panel-description">Éliminez les présences. Préparez la prochaine vague. Retrouvez la lumière.</p><div class="guide-grid"><section><h3>COMMANDES</h3><div class="controls-list">${[
       [settings.layout === "azerty" ? "Z Q S D" : "W A S D", "Se déplacer"],
@@ -434,7 +490,7 @@ function openPanel(kind) {
       .map(([key, desc]) => `<div><kbd>${key}</kbd><span>${desc}</span></div>`)
       .join(
         "",
-      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Le générateur se trouve au fond, dans l’aile gauche.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. Sang de fer augmente votre santé ; Nerfs d’acier améliore recharge et endurance.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur écran tactile : joystick gauche pour marcher, glissement à droite pour regarder. Poussez le joystick à fond ou activez COURIR. ACCROUPIR permet de s’accroupir ; appuyez à nouveau pour vous relever. Les boutons R, E, G, V reprennent les actions ci-dessus.</span></div>`;
+      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Le générateur se trouve au fond, dans l’aile gauche.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. Sang de fer augmente votre santé ; Nerfs d’acier améliore recharge et endurance.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur mobile, jouez en paysage : posez le pouce à gauche puis glissez pour vous déplacer. Poussez vers l’avant pour courir. Glissez à droite pour regarder, ou maintenez le bouton de tir et glissez dessus pour viser en tirant. Touchez les munitions pour recharger. Le bouton d’interaction apparaît à proximité des machines. Pour enlever les barres du navigateur sur iPhone : menu Partager, puis Sur l’écran d’accueil.</span></div>`;
   }
   $("#close-panel").focus();
 }
@@ -489,7 +545,7 @@ function renderHUD(h) {
   $("#wave-number").textContent = String(h.wave).padStart(2, "0");
   $("#wave-status").textContent =
     h.phase === "rest"
-      ? `PROCHAINE DANS ${h.timer} S · [N]`
+      ? `PROCHAINE DANS ${h.timer} S${game.touch ? "" : " · [N]"}`
       : "SURVIVEZ À LA HORDE";
   $("#enemy-count").textContent = h.phase === "wave" ? h.remaining : "—";
   $("#health-value").textContent = Math.ceil(h.health);
@@ -509,7 +565,6 @@ function renderHUD(h) {
     : "COURANT COUPÉ";
   $("#power-state").classList.toggle("powered", h.power);
   for (const [action, selected] of [
-    ["sprint", game.touchRun || h.sprinting],
     ["crouch", h.crouched],
     ["aim", game.mouse.aim],
   ]) {
@@ -517,6 +572,14 @@ function renderHUD(h) {
     button.classList.toggle("selected", !!selected);
     button.setAttribute("aria-pressed", String(!!selected));
   }
+  $("#mobile-weapon-name").textContent = h.definition.name;
+  $("#mobile-ammo").textContent = String(h.weapon.ammo).padStart(2, "0");
+  $("#mobile-reserve").textContent = `/ ${h.weapon.reserve}`;
+  $("#mobile-grenades").textContent = h.grenades;
+  $(".mobile-weapon").classList.toggle("reloading", h.reload !== null);
+  $("[data-action='switch']").disabled = h.slots.length < 2;
+  $("#mobile-interact").classList.toggle("hidden", !h.interaction);
+  $("#mobile-interact span").textContent = h.interaction || "";
   $("#points-value").textContent = h.points.toLocaleString("fr-FR");
   $("#weapon-name").textContent =
     h.definition.name + (h.weapon.level ? " ✦" : "");
@@ -672,102 +735,35 @@ function renderEnd(r) {
   $("#end-details").textContent =
     `${r.headshots} tirs à la tête · ${r.accuracy} % de précision · ${DIFFICULTIES[r.difficulty].name}`;
 }
-// Touch controls use independent pointer captures: movement, camera and firing can run simultaneously.
-const stick = $("#touch-move");
-let movePointer = null,
-  moveOrigin;
-stick.addEventListener("pointerdown", (e) => {
-  if (!game) return;
-  movePointer = e.pointerId;
-  moveOrigin = { x: e.clientX, y: e.clientY };
-  stick.setPointerCapture(e.pointerId);
-});
-stick.addEventListener("pointermove", (e) => {
-  if (e.pointerId !== movePointer) return;
-  const x = Math.max(-1, Math.min(1, (e.clientX - moveOrigin.x) / 42)),
-    y = Math.max(-1, Math.min(1, (e.clientY - moveOrigin.y) / 42));
-  game.touchMove = { x, y: -y };
-  game.touchSprint = Math.hypot(x, y) > 0.93;
-  stick.querySelector("span").style.transform =
-    `translate(${x * 30}px,${y * 30}px)`;
-});
-function stopMove() {
-  movePointer = null;
-  if (game) {
-    game.touchMove = { x: 0, y: 0 };
-    game.touchSprint = false;
+const touchControls = new TouchControls(
+  $("#touch-controls"),
+  () => game,
+  () => settings,
+);
+let awaitingLandscape = false;
+function updateViewport() {
+  const height = window.visualViewport?.height || innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+  if (awaitingLandscape && innerWidth > height) {
+    awaitingLandscape = false;
+    $("#mobile-orientation").classList.add("hidden");
+    void startGame({ pointerType: "touch" });
+  } else if (game?.touch && game.state === "playing" && innerWidth < height) {
+    game.pause();
+    $("#orientation-status").textContent =
+      "Partie en pause. Reprends une fois en paysage.";
+    $("#mobile-orientation").classList.remove("hidden");
+  } else if (game?.touch && game.state === "paused" && innerWidth > height) {
+    $("#mobile-orientation").classList.add("hidden");
   }
-  stick.querySelector("span").style.transform = "";
+  game?.resize();
 }
-stick.addEventListener("pointerup", stopMove);
-stick.addEventListener("pointercancel", stopMove);
-let lookPointer = null,
-  lastLook;
-const look = $("#touch-look");
-look.addEventListener("pointerdown", (e) => {
-  lookPointer = e.pointerId;
-  lastLook = { x: e.clientX, y: e.clientY };
-  look.setPointerCapture(e.pointerId);
-});
-look.addEventListener("pointermove", (e) => {
-  if (e.pointerId !== lookPointer || !game) return;
-  game.yaw -= (e.clientX - lastLook.x) * 0.004 * settings.sensitivity;
-  game.pitch = Math.max(
-    -1.35,
-    Math.min(
-      1.35,
-      game.pitch - (e.clientY - lastLook.y) * 0.004 * settings.sensitivity,
-    ),
-  );
-  lastLook = { x: e.clientX, y: e.clientY };
-});
-look.addEventListener("pointerup", () => (lookPointer = null));
-look.addEventListener("pointercancel", () => (lookPointer = null));
-$$("[data-action]").forEach((b) => {
-  b.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    if (!game || game.state !== "playing") return;
-    b.setPointerCapture(e.pointerId);
-    switch (b.dataset.action) {
-      case "fire":
-        game.mouse.fire = true;
-        game.shoot();
-        break;
-      case "aim":
-        game.mouse.aim = !game.mouse.aim;
-        b.classList.toggle("selected", game.mouse.aim);
-        break;
-      case "reload":
-        game.reload();
-        break;
-      case "interact":
-        game.interact();
-        break;
-      case "grenade":
-        game.grenade();
-        break;
-      case "melee":
-        game.melee();
-        break;
-      case "switch":
-        game.switchWeapon(1 - game.slot);
-        break;
-      case "jump":
-        game.jump();
-        break;
-      case "sprint":
-        game.toggleRun();
-        break;
-      case "crouch":
-        game.toggleCrouch();
-        break;
-    }
-  });
-  for (const event of ["pointerup", "pointercancel"])
-    b.addEventListener(event, () => {
-      if (b.dataset.action === "fire" && game) game.mouse.fire = false;
-    });
-});
-// Reset captured touch states whenever the simulation pauses.
-window.addEventListener("blur", stopMove);
+window.addEventListener("resize", updateViewport);
+window.visualViewport?.addEventListener("resize", updateViewport);
+$("#orientation-back").onclick = () => {
+  awaitingLandscape = false;
+  $("#mobile-orientation").classList.add("hidden");
+  if (game?.state === "paused") openPanel("quit");
+};
+updateViewport();
 persistSettings();

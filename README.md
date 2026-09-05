@@ -16,20 +16,20 @@ Le jeu s’ouvre sur `http://localhost:4173` (le port suivant est utilisé si ce
 
 Les illustrations et polices sont livrées avec le jeu ; les modèles et sons sont générés localement. Aucune ressource distante n’est chargée pendant la partie.
 
-**Conseillé :** ordinateur avec souris, navigateur récent prenant en charge WebGL 2 et accélération graphique active. Les commandes tactiles existent également ; le format paysage est préférable. Trois niveaux graphiques sont disponibles. Le mode équilibré ou performance convient aux appareils moins puissants.
+**Conseillé :** ordinateur avec souris, navigateur récent prenant en charge WebGL 2 et accélération graphique active. Sur téléphone et tablette, le jeu utilise une interface dédiée à deux pouces et se joue en paysage. Trois niveaux graphiques sont disponibles. Le mode équilibré ou performance convient aux appareils moins puissants.
 
 ## Mettre en ligne sur Vercel
 
 Importez le dépôt GitHub `cadmarlow/vesper-zombie` dans un nouveau projet Vercel, branche `main`, dossier racine du dépôt (`./`), puis lancez le déploiement. Les réglages sont déjà enregistrés dans `vercel.json` et `package.json` :
 
-| Réglage | Valeur |
-| --- | --- |
-| Framework | Vite |
-| Node.js | 24.x |
-| Installation | `npm ci` |
-| Compilation | `npm run build` |
-| Dossier publié | `dist` |
-| Variables d’environnement | Aucune |
+| Réglage                   | Valeur          |
+| ------------------------- | --------------- |
+| Framework                 | Vite            |
+| Node.js                   | 24.x            |
+| Installation              | `npm ci`        |
+| Compilation               | `npm run build` |
+| Dossier publié            | `dist`          |
+| Variables d’environnement | Aucune          |
 
 Le jeu est entièrement statique : aucun serveur de jeu ni base de données à configurer. Vercel compile le projet et publie uniquement `dist/`. Les sources, tests et documents du dépôt ne font pas partie des fichiers servis aux joueurs. Voir les documentations officielles [Vite sur Vercel](https://vercel.com/docs/frameworks/frontend/vite) et [version de Node.js](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions).
 
@@ -70,7 +70,18 @@ Le jeu est solo. Les archives enregistrent les résultats terminés et les meill
 | Appeler la prochaine vague             | N pendant le répit                                              |
 | Pause / libérer la souris              | Échap                                                           |
 
-Les déplacements suivent la position physique des touches. Le réglage AZERTY/QWERTY adapte les indications affichées. Sur écran tactile : joystick gauche, glissement à droite et boutons d’action. Poussez le joystick à fond ou activez COURIR pour sprinter. ACCROUPIR permet de se baisser ou de se relever. La pause désactive la course automatique.
+Les déplacements suivent la position physique des touches. Le réglage AZERTY/QWERTY adapte les indications affichées.
+
+### Téléphone et tablette
+
+- **Paysage** : le lancement attend la rotation. Repasser en portrait met la partie en pause et libère tous les doigts actifs ; la reprise est explicite.
+- **Pouce gauche** : posez-le dans la zone gauche pour placer le joystick flottant. Petit déplacement pour marcher ; poussez franchement vers l’avant pour courir. Relâchez pour vous arrêter.
+- **Pouce droit** : glissez dans la partie droite pour regarder. Maintenez le grand bouton de tir et glissez dessus pour suivre la cible tout en tirant. Le tir maintenu répète les coups, y compris avec le pistolet.
+- **Arme** : touchez le compteur de munitions en bas pour recharger. La flèche voisine change d’arme dès que vous en possédez deux.
+- **Actions** : icônes pour visée précise, saut, accroupissement, couteau et grenade. Les achats et activations apparaissent uniquement à proximité de l’objet, avec leur prix.
+- **Réglages** : sensibilité tactile indépendante de la souris, ralentissement de la visée près des ennemis désactivable, résolution adaptative désactivable. Le guide tactile est accessible depuis la pause.
+
+Sur iPhone, utilisez **Partager → Sur l’écran d’accueil**, puis ouvrez l’icône VESPER pour jouer sans les barres du navigateur. Le manifeste propose aussi le mode autonome en paysage aux navigateurs compatibles. Une connexion reste nécessaire au chargement ; aucune prise en charge hors ligne n’est annoncée.
 
 ## Progression
 
@@ -94,7 +105,9 @@ npm start
 - `src/logic.js` : navigation, collisions, vagues et inventaire.
 - `src/audio.js` : synthèse sonore originale.
 - `src/music.js` : compositions musicales et ambiance adaptative.
-- `src/main.js`, `src/style.css` : interfaces, HUD, contrôles et responsive.
+- `src/main.js`, `src/style.css` : interfaces et HUD ordinateur.
+- `src/touch.js`, `src/mobile.css` : contrôleur multitactile, interface mobile et orientation.
+- `public/manifest.webmanifest`, `public/icons/` : lancement depuis l’écran d’accueil.
 
 Les tests d’intégration utilisent Playwright et Chrome local. `CHROME_PATH` permet de choisir le binaire. Le serveur de développement doit tourner sur le port 5173. Les tests utilisent un accès de diagnostic présent uniquement en développement (`window.__vesper`) pour préparer des situations précises, puis vérifient les actions et les transitions. Cet accès est absent du build distribué.
 
@@ -114,11 +127,19 @@ VESPER_URL=https://vesper-zombie.vercel.app npm run test:feel
 VESPER_URL=https://vesper-zombie.vercel.app npm run test:waves
 ```
 
-Les contrôles `online`, `menu` et `mobile` testent les écrans et commandes du site. `online` couvre Chrome et WebKit, avec des profils tactiles Android, iPhone et iPad, et vérifie également le signal audio réel, les erreurs et les requêtes de ressources.
+Les contrôles `online` et `menu` testent les écrans et commandes du site sans accès au moteur. `mobile` teste de vrais événements multitactiles CDP simultanés, l’orientation, les annulations de contact, les cibles de 44 pixels, les zones protégées de l’écran et les commandes WebKit. Il prépare certaines situations avec le même crochet d’observation que les tests de combat. `online` couvre Chrome et WebKit, avec des profils tactiles Android, iPhone et iPad, et vérifie également le signal audio réel, les erreurs et les requêtes de ressources.
 
 Pour les scénarios précis de combat, d’économie et de vagues, `e2e`, `feel` et `waves` chargent le module de jeu effectivement publié. Un crochet d’observation dans la page de test permet de préparer les situations ; il ne modifie ni le serveur ni le jeu des autres visiteurs. Ces scénarios assistés complètent les essais des commandes normales. Les rapports restent dans `artifacts/`, hors de Git.
 
 L’émulation ne mesure pas les performances d’un téléphone physique. Le navigateur WebKit fourni à l’automatisation refuse la capture de souris sur ce Mac, y compris dans une page de test minimale : le tir et la visée à la souris y sont signalés comme non vérifiés. Ils sont testés dans Chrome ; les équivalents tactiles sont testés dans WebKit.
+
+## Version 1.2.0 — refonte mobile
+
+L’interface en portrait, le HUD de bureau surdimensionné et les touches R/E/G/V superposées sont remplacés par les commandes à deux pouces décrites ci-dessus. Le bouton de tir permet aussi de tourner la caméra ; le joystick est analogique avec zone morte et sprint vers l’avant. Chaque doigt conserve sa propre capture jusqu’au relâchement ou à l’annulation.
+
+Le rendu des effets utilisait auparavant un tampon à 1×, étiré sur les écrans Retina : il suit désormais la résolution du moteur sur mobile, jusqu’à 2× avec un budget de 1,6 million de pixels en qualité élevée. Le filtrage des textures au sol est amélioré. Une régulation progressive réduit la résolution si les images ralentissent, puis la remonte quand la charge baisse. Le cadrage de l’arme et le champ de vision sont adaptés au paysage large ; la géométrie et les éclairages des cartes sont conservés.
+
+Le contrôle reprend les principes décrits dans les guides officiels [Call of Duty: Mobile](https://blog.activision.com/call-of-duty/2019-10/Getting-a-Grip-on-the-Call-of-Duty-Mobile-Controls) et [Apple — Game controls](https://developer.apple.com/design/human-interface-guidelines/game-controls) : zones des pouces, caméra par glissement, commandes contextuelles et cibles tactiles accessibles. L’interface, les icônes et le code sont originaux.
 
 ## Correctif 1.1.3 — audit du site en ligne
 
