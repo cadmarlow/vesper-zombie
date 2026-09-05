@@ -1,0 +1,33 @@
+{
+  "name": "vesper-survival",
+  "version": "1.1.2",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node scripts/smoke.mjs",
+    "start": "node scripts/serve.mjs --open",
+    "format": "prettier --write src tests scripts index.html package.json vite.config.js",
+    "test:waves": "node scripts/waves-check.mjs",
+    "test:mobile": "node scripts/mobile-check.mjs",
+    "test:feel": "node scripts/feel-check.mjs",
+    "test:release": "node scripts/release-check.mjs"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/rajdhani": "^5.3.0",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "prettier": "^3.9.6",
+    "vite": "8.2.2"
+  }
+}

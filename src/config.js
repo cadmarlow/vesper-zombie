@@ -1,0 +1,247 @@
+export const MAPS = [
+  {
+    id: "abbey",
+    number: "01",
+    name: "L’Abbaye des Cendres",
+    short: "ABBAYE DES CENDRES",
+    region: "FRANCE · MASSIF DES VOSGES",
+    time: "03:47",
+    description: "Les cloches se sont tues. Ce qui dort sous la nef, non.",
+    tags: ["RUINES GOTHIQUES", "ÉCLIPSE ROUGE"],
+    color: "#ec9565",
+    coordinates: "48° 04′ N / 07° 01′ E",
+    threat: "Le rite inachevé",
+    intro:
+      "Le silence n’est pas l’absence de vie. Ici, c’est un avertissement.",
+  },
+  {
+    id: "station",
+    number: "02",
+    name: "Le Complexe Boréal",
+    short: "COMPLEXE BORÉAL",
+    region: "NORVÈGE · CERCLE ARCTIQUE",
+    time: "02:13",
+    description: "Une station oubliée. Un signal qui ne devrait plus émettre.",
+    tags: ["RECHERCHE SECRÈTE", "NUIT POLAIRE"],
+    color: "#78d6cf",
+    coordinates: "69° 38′ N / 18° 57′ E",
+    threat: "Le signal vivant",
+    intro:
+      "Le dernier message disait de ne pas venir. Vous l’avez reçu trop tard.",
+  },
+];
+export const WEAPONS = {
+  vigil: {
+    name: "VIGILE .45",
+    class: "PISTOLET",
+    damage: 42,
+    mag: 12,
+    reserve: 84,
+    rate: 0.25,
+    reload: 1.35,
+    spread: 0.006,
+    pellets: 1,
+    automatic: false,
+    color: 0xefbc82,
+    recoil: 0.055,
+    sound: 155,
+    rarity: "DOTATION",
+    description: "Précis, fiable. Votre dernier point de départ.",
+  },
+  spectre: {
+    name: "SPECTRE 9",
+    class: "PISTOLET-MITRAILLEUR",
+    damage: 28,
+    mag: 32,
+    reserve: 224,
+    rate: 0.082,
+    reload: 1.65,
+    spread: 0.018,
+    pellets: 1,
+    automatic: true,
+    color: 0x92b9b3,
+    recoil: 0.029,
+    sound: 200,
+    rarity: "RARE",
+    description: "Une cadence frénétique pour les espaces clos.",
+  },
+  marauder: {
+    name: "MARAUDER",
+    class: "FUSIL D’ASSAUT",
+    damage: 48,
+    mag: 30,
+    reserve: 180,
+    rate: 0.125,
+    reload: 1.9,
+    spread: 0.009,
+    pellets: 1,
+    automatic: true,
+    color: 0xe2ab68,
+    recoil: 0.042,
+    sound: 105,
+    rarity: "RARE",
+    description: "Puissance et contrôle. La ligne ne cédera pas.",
+  },
+  requiem: {
+    name: "REQUIEM-12",
+    class: "FUSIL À POMPE",
+    damage: 30,
+    mag: 7,
+    reserve: 56,
+    rate: 0.8,
+    reload: 2.3,
+    spread: 0.075,
+    pellets: 8,
+    automatic: false,
+    color: 0xb189d3,
+    recoil: 0.12,
+    sound: 62,
+    rarity: "ÉPIQUE",
+    description: "Huit raisons de ne pas s’approcher.",
+  },
+  longinus: {
+    name: "LONGINUS",
+    class: "FUSIL DE PRÉCISION",
+    damage: 210,
+    mag: 6,
+    reserve: 48,
+    rate: 1,
+    reload: 2.15,
+    spread: 0.001,
+    pellets: 1,
+    automatic: false,
+    color: 0xb189d3,
+    recoil: 0.095,
+    sound: 48,
+    rarity: "ÉPIQUE",
+    description: "Une balle. Plusieurs vies de trop.",
+  },
+  eclipse: {
+    name: "ÉCLIPSE ∞",
+    class: "ARME ANOMALE",
+    damage: 135,
+    mag: 18,
+    reserve: 108,
+    rate: 0.27,
+    reload: 2.1,
+    spread: 0.004,
+    pellets: 1,
+    automatic: true,
+    color: 0x63fff0,
+    recoil: 0.04,
+    sound: 320,
+    rarity: "LÉGENDAIRE",
+    description: "La matière se souvient de ce qu’elle était avant.",
+  },
+};
+export const ENEMIES = {
+  walker: {
+    name: "Égaré",
+    health: 90,
+    speed: 1.35,
+    damage: 18,
+    score: 100,
+    scale: 1,
+    color: 0x5a6259,
+    eye: 0xff9e40,
+  },
+  runner: {
+    name: "Affamé",
+    health: 65,
+    speed: 3.15,
+    damage: 14,
+    score: 130,
+    scale: 0.88,
+    color: 0x60433c,
+    eye: 0xff3c22,
+  },
+  brute: {
+    name: "Pénitent",
+    health: 510,
+    speed: 1.1,
+    damage: 35,
+    score: 300,
+    scale: 1.45,
+    color: 0x383c3d,
+    eye: 0xffad30,
+  },
+  spitter: {
+    name: "Porte-peste",
+    health: 130,
+    speed: 1.45,
+    damage: 13,
+    score: 170,
+    scale: 1.05,
+    color: 0x566b3e,
+    eye: 0xaaff62,
+  },
+  wraith: {
+    name: "Rémanent",
+    health: 110,
+    speed: 2.55,
+    damage: 23,
+    score: 200,
+    scale: 1.03,
+    color: 0x3f6970,
+    eye: 0x71ffff,
+  },
+};
+export const DIFFICULTIES = {
+  story: {
+    name: "Éclaireur",
+    desc: "Pour découvrir la nuit.",
+    damage: 0.65,
+    health: 0.8,
+    count: 0.8,
+  },
+  normal: {
+    name: "Survivant",
+    desc: "La véritable expérience Vesper.",
+    damage: 1,
+    health: 1,
+    count: 1,
+  },
+  nightmare: {
+    name: "Cauchemar",
+    desc: "La nuit ne vous fera aucun cadeau.",
+    damage: 1.4,
+    health: 1.2,
+    count: 1.25,
+  },
+};
+export const DEFAULT_SETTINGS = {
+  volume: 0.65,
+  musicVolume: 0.75,
+  sensitivity: 1,
+  fov: 80,
+  quality: "high",
+  shake: true,
+  layout: "azerty",
+  crosshair: true,
+};
+export function readSave() {
+  try {
+    return JSON.parse(localStorage.getItem("vesper-save")) || {};
+  } catch {
+    return {};
+  }
+}
+export function saveRecord(record) {
+  const old = readSave();
+  const key = record.map;
+  const previous = old.records?.[key];
+  const best =
+    !previous ||
+    record.wave > previous.wave ||
+    (record.wave === previous.wave && record.kills > previous.kills);
+  const data = {
+    ...old,
+    totalKills: (old.totalKills || 0) + record.kills,
+    runs: (old.runs || 0) + 1,
+    records: { ...old.records, [key]: best ? record : previous },
+  };
+  try {
+    localStorage.setItem("vesper-save", JSON.stringify(data));
+  } catch {}
+  return data;
+}
