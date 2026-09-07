@@ -7,14 +7,20 @@ const FACES = {
   walker: {
     width: 0.119,
     height: 0.166,
-    mouth: 0.058,
-    gape: 0.026,
-    jaw: 0.055,
+    mouth: 0.05,
+    gape: 0.018,
+    jaw: 0.036,
   },
-  runner: { width: 0.108, height: 0.174, mouth: 0.065, gape: 0.035, jaw: 0.17 },
-  brute: { width: 0.133, height: 0.177, mouth: 0.066, gape: 0.026, jaw: 0.06 },
-  spitter: { width: 0.127, height: 0.168, mouth: 0.073, gape: 0.039, jaw: 0.2 },
-  wraith: { width: 0.11, height: 0.179, mouth: 0.054, gape: 0.033, jaw: 0.13 },
+  runner: { width: 0.108, height: 0.174, mouth: 0.061, gape: 0.026, jaw: 0.13 },
+  brute: { width: 0.133, height: 0.177, mouth: 0.056, gape: 0.019, jaw: 0.045 },
+  spitter: {
+    width: 0.127,
+    height: 0.168,
+    mouth: 0.068,
+    gape: 0.032,
+    jaw: 0.16,
+  },
+  wraith: { width: 0.11, height: 0.179, mouth: 0.049, gape: 0.02, jaw: 0.09 },
 };
 
 const faceTextures = new Map();
@@ -72,7 +78,8 @@ export function buildCreatureHead({
   const faceMaterial = skin.clone();
   faceMaterial.map = creatureSkinTexture(lite, "face") || skin.map;
   faceMaterial.bumpMap = faceMaterial.map;
-  faceMaterial.bumpScale = 0.00085;
+  faceMaterial.bumpScale = 0.0015;
+  faceMaterial.roughness = 0.78;
   faceMaterial.color.set(
     type === "spitter" ? 0xb5bd8a : type === "wraith" ? 0xb3c4c7 : 0xd1c6b5,
   );
@@ -150,6 +157,12 @@ export function buildCreatureHead({
       yn = (y - cy) / f.height;
     const front = Math.sqrt(Math.max(0, 1 - xn * xn - yn * yn));
     let z = depth * front - 0.01;
+    // Asymmetric atrophy and brow creases keep the silhouette from reading as
+    // a mirrored mask. These are geometry, so they survive every quality mode.
+    z -= gaussian(x, y, -0.073, 1.73, 0.022, 0.048) * 0.011;
+    z += gaussian(x, y, 0.081, 1.784, 0.021, 0.015) * 0.008;
+    z -= gaussian(x, y, -0.026, 1.863, 0.004, 0.025) * 0.003;
+    z -= gaussian(x, y, 0.021, 1.863, 0.004, 0.025) * 0.0025;
     // Bony planes, hollow temples and cheeks, orbital sockets, nasal bridge.
     z += gaussian(x, y, 0, 1.792, 0.018, 0.057) * 0.036;
     z += gaussian(x, y, 0, 1.764, 0.022, 0.018) * 0.031;
@@ -304,12 +317,12 @@ export function buildCreatureHead({
       const edge =
         my + (upper ? 1 : -1) * (f.gape * 0.71 - Math.abs(u) * 0.007);
       const length =
-        0.012 +
-        (i % 3) * 0.002 +
-        (type === "runner" && (i === 2 || i === 7) ? 0.009 : 0);
+        0.0085 +
+        (i % 3) * 0.0012 +
+        (type === "runner" && (i === 2 || i === 7) ? 0.006 : 0);
       const y = edge + (upper ? -1 : 1) * (length / 2 + 0.0015);
       const geo = new RoundedBoxGeometry(
-        0.0095 + (i % 2) * 0.001,
+        0.0073 + (i % 2) * 0.0007,
         length,
         0.009,
         1,
@@ -333,7 +346,7 @@ export function buildCreatureHead({
         upper ? "head" : "jaw",
         x,
         y,
-        faceZ(0, my) + 0.009 - u * u * 0.031,
+        faceZ(0, my) - 0.002 - u * u * 0.031,
         1,
         1,
         1,
@@ -347,17 +360,29 @@ export function buildCreatureHead({
     const x = s * 0.048,
       y = 1.809,
       z = faceZ(x, y);
-    ball(wound, "head", x, y, z + 0.003, 0.022, 0.0135, 0.013);
+    // An open orbital rim, not a dark ellipsoid enclosing the whole eyeball.
+    // The previous closed socket hid the sclera and left floating iris discs.
+    add(
+      new T.TorusGeometry(1, 0.16, lite ? 5 : 8, lite ? 18 : 28),
+      wound,
+      "head",
+      x,
+      y,
+      z + 0.002,
+      0.019,
+      0.0105,
+      0.012,
+    );
     // Emission belongs to the iris, not a glowing sphere filling the socket.
-    ball(tooth, "head", x, y, z + 0.007, 0.013, 0.0075, 0.008);
+    ball(tooth, "head", x, y, z + 0.01, 0.013, 0.0075, 0.008);
     ball(
       eye,
       "head",
       x - s * 0.001,
       y - 0.0005,
-      z + 0.015,
-      0.0063,
-      0.0057,
+      z + 0.018,
+      0.0048,
+      0.0043,
       0.003,
     );
     ball(
@@ -365,7 +390,7 @@ export function buildCreatureHead({
       "head",
       x - s * 0.001,
       y - 0.0005,
-      z + 0.0175,
+      z + 0.0205,
       0.0022,
       0.0033,
       0.0014,
@@ -380,7 +405,7 @@ export function buildCreatureHead({
           z + 0.013 - Math.abs(Math.cos(a)) * 0.006,
         ]);
       }
-      tube(skin, "head", pts, upper ? 0.0042 : 0.0026);
+      tube(skin, "head", pts, upper ? 0.0023 : 0.0017);
     }
     // Helix, concha and lobe give the ear depth in a three-quarter view.
     ball(

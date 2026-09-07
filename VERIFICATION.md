@@ -2,6 +2,56 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 2.4.0 — sang et headshots
+
+Vérifiée le 7 septembre 2026 sur la compilation locale avec Node.js 24.20.0. Les captures montrent les effets dans le jeu, avec situations préparées par l’outil de diagnostic. Aucun déploiement Vercel effectué.
+
+- **60 contrôles spécifiques réussis**, sur Chrome ordinateur/mobile émulé et WebKit mobile émulé : tirs réels au corps, headshots non mortels et mortels, destruction de la tête sur les cinq types sans toucher aux voisins, récompenses attribuées une fois, protection des murs, projections sur une surface visible, exclusion des limites invisibles, trois cartes, expiration et libération des ressources. Rapport : `artifacts/blood-1788809175027/report.json`.
+- **Charge de 28 zombies**, avec un effet de sang toutes les 80 ms pendant 12 secondes à Néréide : médiane arrondie de 60 images/s, 95e percentile de 18 ms sur ordinateur et 17,9 ms sur mobile émulé. Résolution adaptative active, ratios observés 1,35 et 2. Cette charge déclenche les effets et conserve les ennemis pour maintenir la horde ; elle ne simule pas 28 éliminations simultanées. Ces chiffres sont mesurés sur ce Mac et ne mesurent pas un téléphone physique.
+- **600 projections consécutives par profil** sans croissance des allocations GPU après chauffe. Réserves : 180 gouttes/fragments, 12 brumes et 80 traces sur ordinateur ; 96, 6 et 40 sur mobile. Trois géométries et deux textures réutilisées ; les traces durent 18–26 secondes et s’effacent progressivement. Toutes les ressources propres au sang sont libérées au menu.
+- **29 contrôles de mémoire/effets** et **34 contrôles de combat/audio** réussis : headshots répétés, disparition des corps, changements de qualité, couteau, collisions et commandes tactiles. Les textures GPU restent à 84 sur ordinateur et 78 sur mobile après chacun des trois cycles de horde. Rapports : `artifacts/graphics-lifecycle-1788809244154/` et `artifacts/feel-1788809273836/`.
+- Une erreur WebKit de texture d’ombre pendant le chargement a été corrigée : la boucle d’affichage attend désormais que la scène soit prête. Aucun message d’erreur JavaScript ou shader dans les rapports finaux. Les captures WebKit attendent trois images rendues pour éviter de photographier l’image précédente après un changement diagnostic ; **20 contrôles WebKit rejoués** avec ces captures : `artifacts/blood-1788809539855/`.
+- Compilation finale **2.4.0**, **12 tests unitaires**, formatage des fichiers de code modifiés et `git diff --check` réussis. Aucun ajout de dépendance ou d’asset externe. Le module du jeu passe à environ 54 Ko compressés ; l’avertissement de taille du module Three.js préexistant reste présent.
+
+Reproduction : `npm run build`, `npm start`, puis `npm run test:blood`. `VESPER_BLOOD_PROFILE=webkit-mobile npm run test:blood` limite le contrôle à WebKit. Les suites GPU se lancent séquentiellement.
+
+## Version 2.3.0 — architecture, matières et fluidité
+
+Vérifiée le 7 septembre 2026 sur la compilation locale, construite avec Node.js 24.20.0 et servie sur `http://localhost:4173`. Les captures montrent le rendu WebGL du jeu. Galerie des trois cartes et de la horde : `artifacts/remaster-1788797399714/gallery.html` ; gros plans des personnages : `artifacts/zombies-1788797322619/gallery.html`.
+
+### Rendu et charge
+
+Le nouveau contrôle `npm run test:remaster` couvre **18 scénarios**, soit trois cartes × trois qualités × ordinateur/mobile émulé, avec 28 ennemis de cinq types, portes ouvertes et électricité rétablie. Les mesures portent sur 90 images, après 12 secondes de charge en qualité élevée. La résolution adaptative est active : ses ratios effectifs figurent dans le rapport, ce ne sont pas des mesures à résolution fixe.
+
+| Carte | Ordinateur élevé | Ordinateur équilibré / performance | Mobile émulé élevé / équilibré / performance |
+| --- | --- | --- | --- |
+| Abbaye | 56 images/s | 60 / 60 | 60 / 60 / 60 |
+| Boréal | 53 images/s | 60 / 60 | 60 / 60 / 60 |
+| Néréide | 60 images/s | 60 / 60 | 61 / 61 / 60 |
+
+Valeurs médianes arrondies sur ce Mac. Ordinateur : 1440 × 900 CSS, DPR 1,5, ratios élevés observés 1,13 / 1,27 / 1,42, GTAO actif. Mobile : 844 × 390 CSS, DPR 3, rendu plafonné à 2× en élevé, GTAO désactivé. Le 95e percentile atteint **22,3 ms** sur ordinateur élevé et **18,6 ms** sur mobile émulé. Le mode élevé ne tient donc pas constamment 60 images/s sur les deux premières cartes dans cette charge ; les modes équilibré et performance restent à environ 60.
+
+En élevé, environ 740 / 804 / 915 appels de dessin et 3,27 / 3,26 / 3,40 millions de triangles par image sur ordinateur ; 368 / 389 / 449 appels et 0,96 / 0,93 / 1,02 million de triangles sur mobile. Les chiffres incluent les différentes passes. Les lampes sont plafonnées à dix sur les deux premières cartes, huit à Néréide et six sur mobile. Les géométries de zombies sont indexées : environ 23 500–29 700 sommets sur ordinateur et 13 700–15 900 sur mobile, soit environ 70–75 % de sommets en moins à animer que les mêmes modèles non indexés. Les triangles et les attributs des coutures restent conservés.
+
+**28 contrôles de rendu réussis** : sonde de reflet propre à chaque carte, exclusion et restauration des sprites dans l’occlusion, regroupement des grilles, calcul unique des ombres par image, réponse de la résolution adaptative desktop, désactivation volontaire de celle-ci, libération de la sonde et des ombres de contact au retour au menu. Aucune erreur JavaScript ou shader dans ce rapport.
+
+### Personnages, mémoire et jeu
+
+- **22 contrôles des zombies** réussis sur la compilation finale, avec 50 captures : cinq modèles, ordinateur/mobile, gros plans, poses d’attaque et captures de combat. Mâchoires indépendantes, ouverture pendant l’attaque, impacts à la tête et chargement des textures dans les qualités élevée et performance. Les yeux, dents, silhouette, semelles et plusieurs vues de combat ont été inspectés visuellement. Rapport : `artifacts/zombies-1788797322619/report.json`.
+- **29 contrôles de mémoire et effets** réussis sur la compilation finale : trois cycles de dix zombies sur chaque profil, disparition des corps, squelettes indépendants, 8 000 particules réutilisant les réserves, tir réel avec douille et impact au sol, changements de qualité. Après chaque cycle : 198 géométries / 82 textures GPU sur ordinateur ; 163 / 76 sur mobile. Rapport : `artifacts/graphics-lifecycle-1788797370872/report.json`.
+- **190 vagues terminées**, dans 19 scénarios couvrant les trois cartes, sans apparition invalide ni blocage : `artifacts/waves-regression-1788796547200.json`.
+- **75 contrôles tactiles**, dont déplacement/caméra/tir simultanés sur les trois cartes, annulation des contacts, rotation, actions et profils WebKit iPhone/iPad : `artifacts/touch-native-1788796401878/report.json`.
+- **34 contrôles de sensations et audio**, **21 contrôles de livraison** et **41 contrôles de Néréide** réussis. Rapports : `artifacts/feel-1788796381646/`, `artifacts/release-1788796548235/`, `artifacts/abyss-1788796765874/`. Le contrôle des changements de carte chauffe les deux ensembles de textures avant la première mesure ; leur premier chargement ne constitue pas une fuite. Après trois retours à Néréide : 105 textures sur ordinateur et 99 sur mobile, sans progression.
+- Compilation, **12 tests unitaires**, formatage des sources/scripts et `git diff --check` réussis. L’avertissement Vite sur le module Three.js reste présent : environ 589 Ko minifiés, 149 Ko compressés. Aucun ajout de dépendance.
+
+Les contrôles de vagues, commandes, audio, livraison et Néréide ont été exécutés pendant la refonte. Les suites de personnages, mémoire et charge ont été rejouées après les dernières retouches de géométrie, l’indexation et le réglage des lumières.
+
+### Ressources et limites
+
+Quatre matériaux scannés supplémentaires et un vitrail original sont fournis localement, en 512px et 1024px selon le profil. Les nouveaux fichiers publics occupent ensemble environ 4 Mio pour les deux résolutions ; seuls ceux nécessaires à la carte et au profil sont chargés. Sources, licences et prompt imagegen : `ASSETS.md` et `artwork/architecture/PROMPTS.md`.
+
+Les personnages et armes restent des modèles procéduraux : cette version ne constitue pas une production photoréaliste AAA équivalente à Call of Duty. Les reflets du décor proviennent d’une capture au chargement, sans mise à jour des ennemis ou de l’électricité ; il ne s’agit pas de ray tracing. Les essais mobiles sont des émulations sur Mac, sans validation de chauffe ou de fluidité sur téléphone physique. Les contrôles de cette version portent sur le build local ; **aucun commit, push ou déploiement Vercel n’a été effectué**.
+
 ## Contrôle avant mise en ligne — 7 septembre 2026
 
 La compilation 2.2.0 a été reconstruite avec Node.js 24.20.0 puis testée sur `http://localhost:4173`, avec les commandes et interfaces de production, sans accès de diagnostic au moteur. La suite `scripts/online-check.mjs` couvre maintenant les trois cartes.

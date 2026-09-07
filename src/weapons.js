@@ -1,9 +1,17 @@
 import * as T from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import {
+  mergeGeometries,
+  mergeVertices,
+} from "three/addons/utils/BufferGeometryUtils.js";
 import { surface } from "./surfaces.js";
 import { WEAPONS } from "./config.js";
-import { glowSprite, texture } from "./assets.js";
+import { glowSprite } from "./assets.js";
+import {
+  weaponFinish,
+  weaponMarking,
+  finishGeometry,
+} from "./weapon-finish.js";
 
 function add(parent, geometry, material, x = 0, y = 0, z = 0) {
   const m = new T.Mesh(geometry, material);
@@ -63,6 +71,7 @@ function batch(group) {
     if (!o.isMesh || o.children.length) continue;
     o.updateMatrix();
     const geo = o.geometry.clone().applyMatrix4(o.matrix);
+    finishGeometry(geo, o.material);
     const flat = geo.index ? geo.toNonIndexed() : geo;
     if (!buckets.has(o.material)) buckets.set(o.material, []);
     buckets.get(o.material).push(flat);
@@ -70,7 +79,9 @@ function batch(group) {
     group.remove(o);
   }
   for (const [material, geometries] of buckets) {
-    const geo = mergeGeometries(geometries, false);
+    const merged = mergeGeometries(geometries, false);
+    const geo = mergeVertices(merged, 0.00001);
+    merged.dispose();
     add(group, geo, material);
     geometries.forEach((g) => g.dispose());
   }
@@ -147,26 +158,33 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
     alien = id === "eclipse";
   g.name = `weapon-${id}`;
   const metal = new T.MeshStandardMaterial({
-    color: 0x62716e,
-    roughness: 0.38,
+    color: 0x687475,
+    roughness: 0.8,
     metalness: 0.88,
-    map: texture("steel", 47),
+    ...weaponFinish(),
   });
   const black = new T.MeshStandardMaterial({
-    color: 0x172027,
-    roughness: 0.51,
-    metalness: 0.65,
+    color: 0x283237,
+    roughness: 0.94,
+    metalness: 0.78,
+    ...weaponFinish(),
   });
   const edge = new T.MeshStandardMaterial({
-    color: 0x9da8a0,
-    roughness: 0.32,
+    color: 0x9ba5a4,
+    roughness: 0.68,
     metalness: 0.92,
+    ...weaponFinish(),
   });
-  const polymer = surface("cloth", 0x26312e, {
+  const polymer = new T.MeshStandardMaterial({
+    color: 0x333a36,
     roughness: 0.86,
     metalness: 0,
-    normalScale: new T.Vector2(0.22, 0.22),
+    ...weaponFinish(true),
   });
+  for (const m of [metal, black, edge, polymer]) {
+    m.userData.weaponFinish = m === polymer ? 2 : 1;
+    m.vertexColors = true;
+  }
   const cloth = surface("cloth", 0x596053, {
     roughness: 0.96,
     metalness: 0,
@@ -185,7 +203,7 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
   const luminous = new T.MeshStandardMaterial({
     color: upgraded ? 0xffb957 : alien ? 0x66ffcf : 0xa6bea7,
     emissive: upgraded ? 0xff963c : alien ? 0x49ffc9 : 0x4c8f70,
-    emissiveIntensity: upgraded || alien ? 2.4 : 0.3,
+    emissiveIntensity: upgraded || alien ? 2.1 : 0.12,
   });
   const slide = new T.Group();
   slide.name = "action";
@@ -299,7 +317,12 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
       ],
       0.006,
     );
-    block(slide, black, 0, 0.107, 0.029, 0.075, 0.027, 0.025, 0.003);
+    // Open rear notch, a beveled slide end and cocking hammer read at eye level.
+    for (const s of [-1, 1])
+      block(slide, black, s * 0.024, 0.107, 0.029, 0.026, 0.022, 0.022, 0.003);
+    block(slide, black, 0, 0.096, 0.029, 0.075, 0.008, 0.022, 0.002);
+    block(g, edge, 0, 0.057, 0.062, 0.023, 0.036, 0.019, 0.004).rotation.x =
+      -0.24;
     block(slide, black, 0, 0.101, -0.326, 0.018, 0.028, 0.025, 0.002);
     for (const s of [-1, 1])
       block(
@@ -631,6 +654,13 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
     f.rotation.z = i * 1.9;
   }
   batch(g);
+  const marking = new T.Mesh(
+    new T.PlaneGeometry(pistol ? 0.15 : 0.22, 0.038),
+    weaponMarking(id, upgraded),
+  );
+  marking.rotation.y = -Math.PI / 2;
+  marking.position.set(pistol ? -0.047 : -0.057, pistol ? 0.054 : 0.04, -0.166);
+  (pistol ? slide : g).add(marking);
   g.add(flash);
   flash.visible = false;
   g.userData = {

@@ -1,5 +1,12 @@
 VESPER 2.0 — Poly Haven surface textures
 
+Version 2.3 additions (2K JPEG sources resampled to 512px/1024px WebP):
+  https://polyhaven.com/a/large_sandstone_blocks
+  https://polyhaven.com/a/grey_plaster
+  https://polyhaven.com/a/rusty_painted_metal
+  https://polyhaven.com/a/concrete_floor_worn_02
+Exact source URLs and source MD5 hashes: artwork/architecture/sources.json.
+
 Source: https://polyhaven.com/
 License statement: https://polyhaven.com/license
 License: CC0 1.0 Universal

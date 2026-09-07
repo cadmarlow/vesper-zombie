@@ -1,0 +1,110 @@
+[
+  {
+    "prefix": "ashlar",
+    "asset": "large_sandstone_blocks",
+    "page": "https://polyhaven.com/a/large_sandstone_blocks",
+    "license": "CC0-1.0",
+    "sourceMaps": {
+      "Diffuse": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/large_sandstone_blocks/large_sandstone_blocks_diff_2k.jpg",
+        "size": 2700600,
+        "md5": "6341783d2d5dad5eea7f70852f27e6ce"
+      },
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/large_sandstone_blocks/large_sandstone_blocks_nor_gl_2k.jpg",
+        "size": 2517711,
+        "md5": "99004e9ecbec1a38f9516bb14b3c1f53"
+      },
+      "arm": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/large_sandstone_blocks/large_sandstone_blocks_arm_2k.jpg",
+        "size": 2581346,
+        "md5": "24770e74c11a4a056a6fe78bb5c7afc5"
+      }
+    },
+    "runtimeSizes": [
+      512,
+      1024
+    ]
+  },
+  {
+    "prefix": "plaster",
+    "asset": "grey_plaster",
+    "page": "https://polyhaven.com/a/grey_plaster",
+    "license": "CC0-1.0",
+    "sourceMaps": {
+      "Diffuse": {
+        "size": 3216521,
+        "md5": "42190a8b8a5b2749c0d7e3a7354abfc8",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grey_plaster/grey_plaster_diff_2k.jpg"
+      },
+      "nor_gl": {
+        "size": 1237098,
+        "md5": "0e39fd7528254ef19b8bad195d52514e",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grey_plaster/grey_plaster_nor_gl_2k.jpg"
+      },
+      "arm": {
+        "size": 1712870,
+        "md5": "886093afbb56ba0f604e7bf9575cf8dc",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/grey_plaster/grey_plaster_arm_2k.jpg"
+      }
+    },
+    "runtimeSizes": [
+      512,
+      1024
+    ]
+  },
+  {
+    "prefix": "steel",
+    "asset": "rusty_painted_metal",
+    "page": "https://polyhaven.com/a/rusty_painted_metal",
+    "license": "CC0-1.0",
+    "sourceMaps": {
+      "Diffuse": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_painted_metal/rusty_painted_metal_diff_2k.jpg",
+        "md5": "dd4f975d539100c4d31fa91d41e1ea71",
+        "size": 1930544
+      },
+      "nor_gl": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_painted_metal/rusty_painted_metal_nor_gl_2k.jpg",
+        "md5": "f9fe4bf3312f06b0eacd7c57470d6285",
+        "size": 2293576
+      },
+      "arm": {
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/rusty_painted_metal/rusty_painted_metal_arm_2k.jpg",
+        "md5": "1ae307c9293e24227313d18f857c226b",
+        "size": 1552679
+      }
+    },
+    "runtimeSizes": [
+      512,
+      1024
+    ]
+  },
+  {
+    "prefix": "concrete",
+    "asset": "concrete_floor_worn_02",
+    "page": "https://polyhaven.com/a/concrete_floor_worn_02",
+    "license": "CC0-1.0",
+    "sourceMaps": {
+      "Diffuse": {
+        "size": 2832505,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_floor_worn_02/concrete_floor_worn_02_diff_2k.jpg",
+        "md5": "2515d5685369b361640419892032647a"
+      },
+      "nor_gl": {
+        "size": 4470431,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_floor_worn_02/concrete_floor_worn_02_nor_gl_2k.jpg",
+        "md5": "210a016fb19b757196dbe8f0ccf9daad"
+      },
+      "arm": {
+        "size": 2641767,
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/concrete_floor_worn_02/concrete_floor_worn_02_arm_2k.jpg",
+        "md5": "b859e5d85361e29d45a5450377ca0d30"
+      }
+    },
+    "runtimeSizes": [
+      512,
+      1024
+    ]
+  }
+]

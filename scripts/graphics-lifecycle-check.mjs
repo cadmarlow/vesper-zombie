@@ -48,7 +48,7 @@ try {
             .filter((r) => r.name.includes("/textures/"))
             .map((r) => r.name);
         return (
-          urls.length === 17 &&
+          urls.length === 24 &&
           urls.every((url) => url.endsWith(`-${wanted}.webp`))
         );
       }, mobile),

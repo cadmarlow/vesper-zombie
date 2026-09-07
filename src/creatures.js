@@ -1,5 +1,8 @@
 import * as T from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import {
+  mergeGeometries,
+  mergeVertices,
+} from "three/addons/utils/BufferGeometryUtils.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { ENEMIES } from "./config.js";
@@ -13,6 +16,7 @@ import {
 
 const templates = new Map();
 let skinTexture;
+let stumpGeometry, stumpMaterial;
 function fleshTexture() {
   if (skinTexture) return skinTexture;
   const canvas = document.createElement("canvas");
@@ -95,13 +99,21 @@ function build(type, lite) {
       type === "spitter" ? 0xb5bd8a : type === "wraith" ? 0xb3c4c7 : 0xd1c6b5,
     map: creatureSkinTexture(lite) || fleshTexture(),
     bumpMap: creatureSkinTexture(lite) || fleshTexture(),
-    bumpScale: 0.0011,
-    roughness: 0.84,
+    bumpScale: 0.0018,
+    roughness: 0.8,
     metalness: 0,
   });
   const cloth = surface(
     "cloth",
-    type === "runner" ? 0x514b43 : type === "wraith" ? 0x283333 : 0x414c48,
+    type === "runner"
+      ? 0x625247
+      : type === "wraith"
+        ? 0x303537
+        : type === "spitter"
+          ? 0x969887
+          : type === "brute"
+            ? 0x434c47
+            : 0x61716a,
     { roughness: 1, metalness: 0, normalScale: new T.Vector2(0.42, 0.42) },
   );
   const leather = surface("cloth", 0x1b2423, {
@@ -121,7 +133,7 @@ function build(type, lite) {
   const eye = new T.MeshStandardMaterial({
     color: def.eye,
     emissive: def.eye,
-    emissiveIntensity: 2.4,
+    emissiveIntensity: 1.05,
     roughness: 0.3,
   });
   const tooth = new T.MeshStandardMaterial({
@@ -191,7 +203,19 @@ function build(type, lite) {
                 rgb[1] * authored.getY(i),
                 rgb[2] * authored.getZ(i),
               ]
-            : rgb,
+            : rgb.map((v, j) => {
+                // Mud darkens boots, hems and elbows; broad discoloration is
+                // authored per vertex and remains free of new texture fetches.
+                const y = p.getY(i),
+                  x = p.getX(i),
+                  z = p.getZ(i);
+                const soil = 1 - T.MathUtils.smoothstep(y, 0.1, 0.62);
+                const stain = Math.max(
+                  0,
+                  Math.sin(x * 17 + y * 9) * Math.sin(z * 23 - y * 7),
+                );
+                return v * (1 - soil * 0.4 - stain * (j === 0 ? 0.12 : 0.18));
+              }),
           i * 3,
         );
       }
@@ -284,7 +308,7 @@ function build(type, lite) {
       new T.Vector2(0.245, 1.46),
       new T.Vector2(0.12, 1.53),
     ],
-    28,
+    lite ? 22 : 36,
   );
   // Irregular cloth folds form part of the skinned silhouette.
   for (let i = 0; i < body.attributes.position.count; i++) {
@@ -294,7 +318,7 @@ function build(type, lite) {
       z = p.getZ(i),
       a = Math.atan2(z, x);
     const ripple =
-      1 + Math.sin(y * 48 + a * 4) * 0.017 + Math.cos(a * 9 + y * 22) * 0.012;
+      1 + Math.sin(y * 48 + a * 4) * 0.025 + Math.cos(a * 9 + y * 22) * 0.021;
     p.setXYZ(i, x * ripple, y, z * ripple * 0.66);
   }
   body.computeVertexNormals();
@@ -438,6 +462,30 @@ function build(type, lite) {
       0.9,
     );
     block(cloth, armWeight, x, 1.162, 0, 0.14, 0.052, 0.133);
+    if (type === "walker" || type === "spitter" || type === "wraith") {
+      add(
+        garment(
+          [
+            [0.045, 0.887],
+            [0.057, 0.93],
+            [0.065, 1.015],
+            [0.073, 1.065],
+            [0.068, 1.14],
+            [0.071, 1.18],
+          ],
+          22,
+        ),
+        cloth,
+        blend(`wrist${i}`, `elbow${i}`, 0.88, 1.05),
+        x,
+        0,
+        0,
+        1,
+        1,
+        1.04,
+      );
+      block(leather, `wrist${i}`, x, 0.91, 0, 0.104, 0.028, 0.1);
+    }
     ball(skin, `wrist${i}`, x, 0.835, 0.006, 0.059, 0.089, 0.032);
     for (let j = 0; j < 4; j++) {
       const fx = x + (j - 1.5) * 0.025,
@@ -460,8 +508,8 @@ function build(type, lite) {
         fx + s * 0.008,
         0.81 - length,
         0.06,
-        0.012,
-        type === "runner" ? 0.034 : 0.019,
+        0.009,
+        type === "runner" ? 0.025 : 0.012,
         0.003,
         new T.Euler(-0.3, 0, -s * 0.08),
       );
@@ -529,8 +577,57 @@ function build(type, lite) {
       0.005,
     );
     ball(cloth, thighWeights, s * 0.115, 0.464, 0.005, 0.081, 0.063, 0.076);
-    block(leather, `foot${i}`, s * 0.115, 0.092, 0.069, 0.171, 0.159, 0.303);
-    block(leather, `foot${i}`, s * 0.115, 0.039, 0.065, 0.177, 0.035, 0.31);
+    const boot = new T.SphereGeometry(1, lite ? 12 : 20, lite ? 8 : 12);
+    const bootPosition = boot.attributes.position;
+    for (let j = 0; j < bootPosition.count; j++) {
+      const x = bootPosition.getX(j),
+        y = bootPosition.getY(j),
+        z = bootPosition.getZ(j);
+      bootPosition.setXYZ(
+        j,
+        x * 0.085,
+        Math.max(0.033, 0.09 + y * 0.065),
+        0.066 + z * 0.145,
+      );
+    }
+    boot.computeVertexNormals();
+    add(boot, leather, `foot${i}`, s * 0.115, 0, 0);
+    add(
+      garment(
+        [
+          [0.059, 0.07],
+          [0.064, 0.105],
+          [0.062, 0.172],
+          [0.057, 0.187],
+        ],
+        16,
+      ),
+      leather,
+      `foot${i}`,
+      s * 0.115,
+      0,
+      -0.012,
+    );
+    // A shaped outsole follows heel and toe instead of a rectangular slab.
+    const soleOutline = new T.Shape();
+    soleOutline.moveTo(-0.05, -0.077);
+    soleOutline.quadraticCurveTo(-0.083, -0.071, -0.077, 0.005);
+    soleOutline.quadraticCurveTo(-0.098, 0.151, -0.054, 0.199);
+    soleOutline.quadraticCurveTo(0, 0.231, 0.054, 0.199);
+    soleOutline.quadraticCurveTo(0.098, 0.151, 0.077, 0.005);
+    soleOutline.quadraticCurveTo(0.083, -0.071, 0.05, -0.077);
+    soleOutline.closePath();
+    const sole = new T.ExtrudeGeometry(soleOutline, {
+      depth: 0.023,
+      bevelEnabled: true,
+      bevelThickness: 0.002,
+      bevelSize: 0.003,
+      bevelSegments: 1,
+      curveSegments: lite ? 4 : 7,
+      steps: 1,
+    });
+    sole.rotateX(Math.PI / 2);
+    add(sole, leather, `foot${i}`, s * 0.115, 0.049, 0);
     for (let j = 0; j < 4; j++)
       block(
         steel,
@@ -840,7 +937,11 @@ function build(type, lite) {
     );
   }
   for (const [material, parts] of buckets) {
-    const geometry = mergeGeometries(parts, false);
+    const merged = mergeGeometries(parts, false);
+    // Preserve UV/normal/skin-weight seams while reusing identical vertices.
+    // A horde must not run the bone shader three times for every triangle.
+    const geometry = mergeVertices(merged, 0.00001);
+    merged.dispose();
     const mesh = new T.SkinnedMesh(geometry, material);
     mesh.castShadow = material !== eye;
     mesh.receiveShadow = true;
@@ -861,6 +962,9 @@ export function zombieModel(type, lite = false) {
   const key = `${type}-${lite ? "mobile" : "desktop"}`;
   if (!templates.has(key)) templates.set(key, build(type, lite));
   const g = clone(templates.get(key));
+  const variation = Math.random();
+  g.scale.x *= 0.94 + variation * 0.12;
+  g.scale.y *= 0.97 + variation * 0.06;
   let sharedSkeleton;
   g.traverse((o) => {
     if (o.isSkinnedMesh) {
@@ -870,6 +974,9 @@ export function zombieModel(type, lite = false) {
   });
   g.userData = {
     type,
+    variation,
+    headDestroyed: false,
+    lite,
     torso: g.getObjectByName("torso"),
     head: g.getObjectByName("head"),
     jaw: g.getObjectByName("jaw"),
@@ -886,6 +993,44 @@ export function zombieModel(type, lite = false) {
   return g;
 }
 
+export function destroyZombieHead(g, position) {
+  if (g.userData.headDestroyed) return false;
+  g.updateWorldMatrix(true, true);
+  g.userData.head.getWorldPosition(position);
+  // Bone transforms belong to this clone; shared geometry/materials and every
+  // other zombie stay intact. A tiny non-zero scale avoids singular transforms.
+  g.userData.head.scale.setScalar(0.0001);
+  g.userData.headDestroyed = true;
+  if (!stumpGeometry) {
+    stumpGeometry = new T.CylinderGeometry(0.06, 0.056, 0.018, 12);
+    stumpMaterial = new T.MeshStandardMaterial({
+      color: 0x65181b,
+      roughness: 0.57,
+    });
+  }
+  const stump = new T.Mesh(stumpGeometry, stumpMaterial);
+  stump.name = "neck-wound";
+  stump.position.set(0, 0.078, 0);
+  g.getObjectByName("neck").add(stump);
+  g.updateWorldMatrix(true, true);
+  return true;
+}
+
+export function setZombieDetail(g, lite, castShadow = true) {
+  if (g.userData.lite !== lite) {
+    const key = `${g.userData.type}-${lite ? "mobile" : "desktop"}`;
+    if (!templates.has(key)) templates.set(key, build(g.userData.type, lite));
+    const source = templates.get(key).children.filter((o) => o.isSkinnedMesh);
+    let i = 0;
+    for (const o of g.children)
+      if (o.isSkinnedMesh) o.geometry = source[i++].geometry;
+    g.userData.lite = lite;
+  }
+  for (const o of g.children)
+    if (o.isSkinnedMesh)
+      o.castShadow = castShadow && o.material.emissive.getHex() === 0;
+}
+
 export function releaseZombie(g) {
   const skeletons = new Set();
   g.traverse((o) => {
@@ -895,21 +1040,37 @@ export function releaseZombie(g) {
 }
 
 export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
-  const { torso, head, jaw, hips, arms, elbows, wrists, legs, type } =
-    g.userData;
-  const phase = t * (type === "runner" ? 8.5 : 4.6) * Math.max(0.25, speed),
+  const {
+    torso,
+    head,
+    jaw,
+    hips,
+    arms,
+    elbows,
+    wrists,
+    legs,
+    type,
+    variation = 0.5,
+  } = g.userData;
+  const phase =
+      t *
+      (type === "runner" ? 8.5 : 4.6) *
+      Math.max(0.25, speed) *
+      (0.92 + variation * 0.16),
     stride = attacking ? 0.12 : 0.43;
-  hips.position.y = 0.88 + Math.abs(Math.sin(phase)) * 0.022;
-  hips.rotation.y = Math.sin(phase) * 0.06;
+  hips.position.y = 0.865 + Math.abs(Math.sin(phase)) * 0.025;
+  hips.rotation.y = Math.sin(phase) * 0.09;
+  hips.rotation.z = Math.sin(phase) * 0.025;
   torso.rotation.set(
-    (type === "runner" ? 0.22 : 0.14) - Math.max(0, stagger) * 0.28,
+    (type === "runner" ? 0.3 : type === "brute" ? 0.17 : 0.23) -
+      Math.max(0, stagger) * 0.28,
     Math.sin(phase) * -0.07,
     Math.sin(phase * 0.5) * 0.055,
   );
   head.rotation.set(
     -0.12 + Math.sin(t * 1.7) * 0.045,
     Math.sin(t * 0.75) * 0.07,
-    0.09 + Math.sin(phase * 0.5) * 0.065,
+    (variation - 0.5) * 0.3 + Math.sin(phase * 0.5) * 0.06,
   );
   jaw.rotation.x = jawOpening(type, t, attacking);
   jaw.rotation.z = Math.sin(t * 1.7) * (type === "runner" ? 0.025 : 0.008);
@@ -922,12 +1083,16 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
   arms.forEach((arm, i) => {
     arm.rotation.set(
       attacking
-        ? -1.35 + Math.sin(t * 8 + i * 0.7) * 0.43
-        : -0.85 + Math.sin(phase + i * Math.PI) * 0.19 + (i ? 0.12 : 0),
-      0,
-      (i ? 1 : -1) * 0.1,
+        ? -1.45 + Math.sin(t * 8 + i * 1.8) * 0.48
+        : type === "runner"
+          ? -0.45 + Math.sin(phase + i * Math.PI) * 0.52
+          : (i ? -0.24 : -0.67) + Math.sin(phase + i * Math.PI) * 0.24,
+      Math.sin(phase * 0.5 + i) * 0.07,
+      (i ? 1 : -1) * (0.08 + variation * 0.08),
     );
-    elbows[i].rotation.x = -0.27 - Math.max(0, Math.sin(phase + i)) * 0.22;
+    elbows[i].rotation.x =
+      (type === "runner" ? -0.7 : -0.22) -
+      Math.max(0, Math.sin(phase + i)) * 0.32;
     wrists[i].rotation.set(
       attacking ? 0.42 : 0.28,
       i ? -0.7 : 0.7,

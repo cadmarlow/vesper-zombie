@@ -5,24 +5,54 @@ import * as T from "three";
 const libraries = new Map();
 let active = null;
 const qualityMaps = new WeakMap();
-export async function prepareSurfaces(mobile = false) {
+const imageCache = new Map();
+async function loadTexture(url, color = false) {
+  if (!imageCache.has(url)) {
+    imageCache.set(
+      url,
+      new T.TextureLoader()
+        .loadAsync(url)
+        .then((texture) => {
+          texture.colorSpace = color ? T.SRGBColorSpace : T.NoColorSpace;
+          texture.wrapS = texture.wrapT = T.RepeatWrapping;
+          texture.anisotropy = 8;
+          texture.userData.sharedSurface = true;
+          return texture;
+        })
+        .catch((error) => {
+          imageCache.delete(url);
+          throw error;
+        }),
+    );
+  }
+  return imageCache.get(url);
+}
+export async function prepareSurfaces(mobile = false, map = "abbey") {
   const size = mobile ? 512 : 1024;
-  if (!libraries.has(size)) {
-    const loader = new T.TextureLoader();
+  const key = `${size}-${map}`;
+  if (!libraries.has(key)) {
+    const names = [
+      "stone",
+      "floor",
+      "metal",
+      "wood",
+      "cloth",
+      ...(map === "abbey"
+        ? ["ashlar", "plaster"]
+        : map === "station"
+          ? ["steel", "concrete", "plaster"]
+          : ["steel"]),
+    ];
     libraries.set(
-      size,
+      key,
       Promise.all(
-        ["stone", "floor", "metal", "wood", "cloth"].map(async (name) => {
+        names.map(async (name) => {
           const maps = await Promise.all(
             ["color", "normal", "arm"].map(async (channel) => {
-              const texture = await loader.loadAsync(
+              const texture = await loadTexture(
                 `/textures/${name}-${channel}-${size}.webp`,
+                channel === "color",
               );
-              texture.colorSpace =
-                channel === "color" ? T.SRGBColorSpace : T.NoColorSpace;
-              texture.wrapS = texture.wrapT = T.RepeatWrapping;
-              texture.anisotropy = 4;
-              texture.userData.sharedSurface = true;
               return texture;
             }),
           );
@@ -31,13 +61,23 @@ export async function prepareSurfaces(mobile = false) {
       )
         .then((entries) => new Map(entries))
         .catch((error) => {
-          libraries.delete(size);
+          libraries.delete(key);
           throw error;
         }),
     );
   }
-  active = await libraries.get(size);
+  active = await libraries.get(key);
+  if (map === "abbey") {
+    const glass = await loadTexture(
+      `/textures/architecture/vesper-glass-${size}.webp`,
+      true,
+    );
+    glass.wrapS = glass.wrapT = T.ClampToEdgeWrapping;
+    active.set("stainedGlass", [glass]);
+  }
 }
+
+export const surfaceTexture = (name) => active?.get(name)?.[0];
 
 export function surface(name, color = 0xffffff, options = {}) {
   const maps = active?.get(name);
@@ -64,6 +104,50 @@ export function surface(name, color = 0xffffff, options = {}) {
 export function worldSurface(name, color, meters, options = {}) {
   const m = surface(name, color, options);
   m.userData.worldMeters = meters;
+  // Metre-scale damp and weathering break repetition independently of the scan.
+  // A shared program is used by all architectural surfaces; no extra draw pass.
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        "#include <common>\nvarying vec3 vWeatherPosition;",
+      )
+      .replace(
+        "#include <project_vertex>",
+        `#include <project_vertex>
+        #ifdef USE_INSTANCING
+          vWeatherPosition=(modelMatrix*instanceMatrix*vec4(transformed,1.)).xyz;
+        #else
+          vWeatherPosition=(modelMatrix*vec4(transformed,1.)).xyz;
+        #endif`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+      varying vec3 vWeatherPosition;
+      float weatherNoise(vec2 p) { vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f);
+        vec4 h=fract(sin(vec4(dot(i,vec2(127.1,311.7)),dot(i+vec2(1,0),vec2(127.1,311.7)),dot(i+vec2(0,1),vec2(127.1,311.7)),dot(i+1.,vec2(127.1,311.7))))*43758.5453);
+        return mix(mix(h.x,h.y,f.x),mix(h.z,h.w,f.x),f.y); }
+    `,
+      )
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+      float macro=weatherNoise(vWeatherPosition.xz*.37+vWeatherPosition.y*.19);
+      float damp=(1.-smoothstep(.12,2.6,vWeatherPosition.y))*smoothstep(.25,.78,macro);
+      diffuseColor.rgb*=mix(vec3(.70,.73,.68),vec3(1.06,1.035,1.),macro);
+      diffuseColor.rgb*=mix(vec3(1.),vec3(.55,.61,.53),damp*.58);
+    `,
+      )
+      .replace(
+        "#include <roughnessmap_fragment>",
+        `#include <roughnessmap_fragment>
+      roughnessFactor=mix(roughnessFactor,max(.19,roughnessFactor*.5),damp*.58);
+    `,
+      );
+  };
+  m.customProgramCacheKey = () => "vesper-weathering-1";
   return m;
 }
 

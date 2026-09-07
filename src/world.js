@@ -16,6 +16,7 @@ import { rng } from "./logic.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
 import { enrichWorld } from "./world-detail.js";
 import { buildAbyss } from "./world-abyss.js";
+import { buildArchitecture } from "./world-architecture.js";
 
 export class World {
   constructor(scene, id, quality) {
@@ -31,7 +32,7 @@ export class World {
     this.lights = [];
     this.animated = [];
     this.doors = [];
-    this.materials = createMaterials();
+    this.materials = createMaterials(id);
     this.random = rng(id === "abbey" ? 37 : 72);
     this.power = false;
     this.powerTime = 0;
@@ -63,6 +64,8 @@ export class World {
       this.weather();
       this.detail = enrichWorld(this);
     }
+    buildArchitecture(this);
+    this.batchProps();
     this.batch();
   }
   obstacle(x, z, w, d, h = 3, extra = {}) {
@@ -72,14 +75,23 @@ export class World {
   }
   solid(mat, x, y, z, w, h, d) {
     const m = box(this.static, mat, x, y, z, w, h, d);
-    this.obstacle(x, z, w, d, h);
+    this.obstacle(x, z, w, d, h, {
+      bloodSurface: { minY: y - h / 2, maxY: y + h / 2 },
+    });
     return m;
   }
   environment() {
     const s = this.scene,
       abbey = this.id === "abbey";
     s.background = new T.Color(abbey ? 0x101b24 : 0x102330);
-    s.fog = new T.FogExp2(abbey ? 0x132027 : 0x18303b, 0.014);
+    s.fog = new T.FogExp2(abbey ? 0x151e21 : 0x142730, 0.012);
+    this.lighting = {
+      ambient: abbey ? 0.88 : 0.92,
+      powerAmbient: 0.2,
+      fill: 0.24,
+      powerFill: 0.35,
+      poweredBrightness: abbey ? 0.56 : 0.54,
+    };
     const hemi = new T.HemisphereLight(
       abbey ? 0xadc7de : 0x9ddef0,
       abbey ? 0x454238 : 0x344c58,
@@ -87,9 +99,9 @@ export class World {
     );
     this.root.add(hemi);
     this.hemi = hemi;
-    this.root.add(new T.AmbientLight(0x9faeac, 0.2));
-    const sun = new T.DirectionalLight(abbey ? 0xadcce4 : 0xa1d8f0, 2.15);
-    sun.position.set(-25, 42, -32);
+    this.root.add(new T.AmbientLight(0x9faeac, 0.08));
+    const sun = new T.DirectionalLight(abbey ? 0xc4d7e4 : 0xb4d7e6, 2.8);
+    sun.position.set(-19, 28, 8);
     sun.castShadow = true;
     sun.shadow.mapSize.setScalar(this.quality === "high" ? 2048 : 1024);
     Object.assign(sun.shadow.camera, {
@@ -1092,6 +1104,56 @@ export class World {
     this.root.remove(this.static);
     this.static.clear();
   }
+  batchProps() {
+    // A gate previously submitted 85 separate pieces in every beauty, shadow
+    // and AO pass. Merge pieces within their animated group, preserving the
+    // group transform and every interactable lever, screen and extraction ring.
+    const preserve = new Set();
+    for (const i of this.interactions)
+      for (const value of Object.values(i))
+        if (value?.isMesh || value?.isSprite) preserve.add(value);
+    const merge = (group) => {
+      for (const child of [...group.children]) if (child.isGroup) merge(child);
+      const buckets = new Map();
+      for (const o of [...group.children]) {
+        if (
+          !o.isMesh ||
+          o.isSkinnedMesh ||
+          o.isInstancedMesh ||
+          o.children.length ||
+          preserve.has(o) ||
+          o.material.transparent
+        )
+          continue;
+        o.updateMatrix();
+        const transformed = o.geometry.clone().applyMatrix4(o.matrix);
+        if (o.material.userData.worldMeters)
+          projectSurfaceUV(transformed, o.material.userData.worldMeters);
+        const geometry = transformed.index
+          ? transformed.toNonIndexed()
+          : transformed;
+        if (geometry !== transformed) transformed.dispose();
+        if (!buckets.has(o.material)) buckets.set(o.material, []);
+        buckets.get(o.material).push(geometry);
+        group.remove(o);
+      }
+      for (const [material, parts] of buckets) {
+        const model = new T.Mesh(mergeGeometries(parts, false), material);
+        model.castShadow = material.emissive?.getHex() === 0;
+        model.receiveShadow = true;
+        group.add(model);
+        parts.forEach((g) => g.dispose());
+      }
+    };
+    const groups = new Set([
+      ...this.doors.map((d) => d.bars),
+      ...this.interactions
+        .filter((i) => i.kind !== "door")
+        .map((i) => i.root)
+        .filter(Boolean),
+    ]);
+    groups.forEach(merge);
+  }
   electricalNetwork() {
     const color = this.id === "abbey" ? 0xffcf88 : 0x69ecf2;
     this.materials.cyan.emissiveIntensity = 0.035;
@@ -1158,7 +1220,7 @@ export class World {
     this.fill.intensity =
       (this.lighting?.fill ?? 0.2) +
       this.powerLevel * (this.lighting?.powerFill ?? 0.75);
-    this.scene.environmentIntensity = 0.25 + this.powerLevel * 0.18;
+    this.scene.environmentIntensity = 0.32 + this.powerLevel * 0.13;
     this.materials.cyan.emissiveIntensity = 0.035 + glowLevel * 3;
     this.coreHalo.material.opacity = 0.045 + glowLevel * 0.46;
     for (const i of this.interactions)
@@ -1266,18 +1328,21 @@ export class World {
       quality === "low" ? 320 : quality === "medium" || mobile ? 650 : 1600,
     );
     this.detail.setQuality(quality, mobile);
+    if (this.architectureDebris)
+      this.architectureDebris.count =
+        quality === "low" ? 80 : mobile ? 150 : 260;
     this.lightBudget =
       mobile || quality === "low"
         ? 6
         : quality === "medium"
           ? Math.min(this.maxLights || 10, 10)
-          : this.maxLights || 0;
+          : this.maxLights || 10;
     this.nextLightSelection = 0;
-    for (const l of [
+    for (const [i, l] of [
       ...this.lights.map((l) => l.light),
       ...this.circuits.map((c) => c.light),
-    ])
-      l.visible = true;
+    ].entries())
+      l.visible = i < this.lightBudget;
   }
   openDoor(d) {
     d.open = true;

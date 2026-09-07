@@ -351,7 +351,16 @@ try {
       ),
     );
     await page.click("#close-panel");
-    for (const map of ["abyss", "station", "abyss", "station", "abyss"]) {
+    // Warm both map-specific surface sets before taking the first memory
+    // baseline. Boréal now introduces six shared concrete/plaster textures.
+    for (const map of [
+      "station",
+      "abyss",
+      "station",
+      "abyss",
+      "station",
+      "abyss",
+    ]) {
       await page.evaluate(
         async ({ map, mobile }) => {
           const g = window.__vesper;

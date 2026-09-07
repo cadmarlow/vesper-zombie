@@ -5,13 +5,22 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
 import { prepareSurfaces, setSurfaceQuality } from "./surfaces.js";
-import { releaseZombie } from "./creatures.js";
+import {
+  releaseZombie,
+  setZombieDetail,
+  destroyZombieHead,
+} from "./creatures.js";
 import { prepareCreatureSkins } from "./creature-head.js";
 import { animateWeapon } from "./weapons.js";
 import { CombatEffects } from "./combat-effects.js";
+import {
+  captureEnvironment,
+  cinematicShader,
+  WorldOcclusionPass,
+  ContactShadows,
+} from "./rendering.js";
 import { World, disposeModel } from "./world.js";
 import {
   zombieModel,
@@ -70,6 +79,9 @@ export class Game {
     this.fps = 60;
     this.frameTimes = [];
     this.mobileResolutionScale = 1;
+    this.desktopResolutionScale = 1;
+    this.resolutionRecovery = 0;
+    this.adaptiveOcclusionOff = false;
     this.mobileFrameMs = 16.7;
     this.resolutionTimer = 0;
     this.renderer = new T.WebGLRenderer({
@@ -79,8 +91,9 @@ export class Game {
     });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.04;
     this.renderer.setClearColor(0x111d25);
     this.scene = new T.Scene();
     const pmrem = new T.PMREMGenerator(this.renderer);
@@ -99,12 +112,17 @@ export class Game {
     this.viewCamera = new T.PerspectiveCamera(62, 1, 0.01, 10);
     this.weaponAmbient = new T.HemisphereLight(0xc4dae7, 0x242929, 1.65);
     this.viewScene.add(this.weaponAmbient);
-    const key = new T.DirectionalLight(0xffc496, 1.7);
+    const key = new T.DirectionalLight(0xdce7ea, 2.1);
     key.position.set(-2, 3, -1);
     this.viewScene.add(key);
+    this.weaponKey = key;
     const rim = new T.DirectionalLight(0x779ea8, 1.5);
     rim.position.set(2, 0, 1);
     this.viewScene.add(rim);
+    this.weaponRim = rim;
+    this.weaponBounce = new T.PointLight(0xffbb77, 0, 5, 1.5);
+    this.weaponBounce.position.set(-0.7, 0.2, -1.3);
+    this.viewScene.add(this.weaponBounce);
     this.knife = knifeModel();
     this.viewScene.add(this.knife);
     this.knifeTrail = new T.Mesh(
@@ -122,10 +140,10 @@ export class Game {
     this.viewScene.add(this.knifeTrail);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.ao = new GTAOPass(this.scene, this.camera, 1, 1);
-    this.ao.blendIntensity = 0.85;
+    this.ao = new WorldOcclusionPass(this.scene, this.camera, 1, 1);
+    this.ao.blendIntensity = 1.1;
     this.ao.updateGtaoMaterial({
-      radius: 0.65,
+      radius: 0.48,
       distanceExponent: 1.5,
       thickness: 0.8,
       samples: 8,
@@ -148,18 +166,7 @@ export class Game {
     this.composer.addPass(new OutputPass());
     this.antialias = new ShaderPass(FXAAShader);
     this.composer.addPass(this.antialias);
-    this.film = new ShaderPass({
-      uniforms: {
-        tDiffuse: { value: null },
-        time: { value: 0 },
-        hurt: { value: 0 },
-        cold: { value: 0 },
-      },
-      vertexShader:
-        "varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
-      fragmentShader:
-        "uniform sampler2D tDiffuse; uniform float time; uniform float hurt; uniform float cold; varying vec2 vUv; void main(){vec2 uv=vUv;vec3 c=texture2D(tDiffuse,uv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));c=mix(vec3(l),c,.91);c*=mix(vec3(.92,1.025,1.045),vec3(1.055,1.018,.94),smoothstep(.05,.75,l));c*=mix(vec3(1.),vec3(.95,1.02,1.04),cold);float vignette=1.-smoothstep(.2,.78,length(uv-.5));c*=.82+.18*vignette;float n=fract(sin(dot(uv+time*.0001,vec2(12.9898,78.233)))*43758.5453);c+=(n-.5)*.009;c=mix(c,vec3(.42,.035,.02),hurt*(1.-vignette)*.8);gl_FragColor=vec4(c,1.);}",
-    });
+    this.film = new ShaderPass(cinematicShader);
     this.composer.addPass(this.film);
     this.flash = new T.PointLight(0xffb260, 0, 8, 1);
     this.scene.add(this.flash);
@@ -301,15 +308,15 @@ export class Game {
           ? 1.15
           : 1;
     const budget = this.settings.quality === "high" ? 1600000 : 1000000;
-    const ratio = Math.min(
+    const nativeRatio = Math.min(
       devicePixelRatio,
-      this.touch
-        ? Math.max(
-            1,
-            Math.min(cap, Math.sqrt(budget / (w * h))) *
-              this.mobileResolutionScale,
-          )
-        : Math.min(cap, Math.sqrt(2600000 / (w * h))),
+      cap,
+      Math.sqrt((this.touch ? budget : 2600000) / (w * h)),
+    );
+    const ratio = Math.max(
+      Math.min(nativeRatio, 0.75),
+      nativeRatio *
+        (this.touch ? this.mobileResolutionScale : this.desktopResolutionScale),
     );
     const composerRatio = ratio;
     const previous = this.renderSize;
@@ -329,7 +336,13 @@ export class Game {
       1 / (w * ratio),
       1 / (h * ratio),
     );
-    this.ao.enabled = !this.touch && this.settings.quality === "high";
+    this.film.uniforms.texel.value.copy(
+      this.antialias.uniforms.resolution.value,
+    );
+    this.ao.enabled =
+      !this.touch &&
+      this.settings.quality === "high" &&
+      !this.adaptiveOcclusionOff;
     this.ao.setSize(
       Math.max(1, Math.floor(w * ratio * 0.5)),
       Math.max(1, Math.floor(h * ratio * 0.5)),
@@ -344,6 +357,11 @@ export class Game {
   applySettings(settings) {
     this.settings = settings;
     this.mobileResolutionScale = 1;
+    this.desktopResolutionScale = 1;
+    this.adaptiveOcclusionOff = false;
+    this.mobileFrameMs = 16.7;
+    this.resolutionTimer = this.resolutionRecovery = 0;
+    this.renderer.shadowMap.needsUpdate = true;
     this.sound.setVolume(settings.volume);
     this.sound.setMusicVolume(settings.musicVolume ?? 0.75);
     this.camera.fov = settings.fov;
@@ -369,11 +387,19 @@ export class Game {
     await this.sound.init();
     this.touch = touch;
     this.mobileResolutionScale = 1;
+    this.desktopResolutionScale = 1;
+    this.adaptiveOcclusionOff = false;
+    this.resolutionRecovery = 0;
     this.mobileFrameMs = 16.7;
     this.resolutionTimer = 0;
+    this.nextWeaponLight = 0;
+    this.weaponBounce.intensity = 0;
     this.resize();
     this.cleanup();
-    await Promise.all([prepareSurfaces(touch), prepareCreatureSkins(touch)]);
+    await Promise.all([
+      prepareSurfaces(touch, map),
+      prepareCreatureSkins(touch),
+    ]);
     this.map = map;
     this.film.uniforms.cold.value =
       map === "station" ? 1 : map === "abyss" ? 0.45 : 0;
@@ -382,7 +408,33 @@ export class Game {
     this.world = new World(this.scene, map, this.settings.quality);
     this.world.viewer = this.camera;
     this.world.setQuality(this.settings.quality, touch);
-    this.combatEffects = new CombatEffects(this.scene, touch);
+    this.world.update(0, 0);
+    // Compilation and the one-off reflection capture happen behind the loader.
+    const warmup = Object.keys(ENEMIES).flatMap((type) =>
+      (touch || this.settings.quality === "low" ? [true] : [false, true]).map(
+        (lite) => zombieModel(type, lite),
+      ),
+    );
+    warmup.forEach((model) => {
+      this.scene.add(model);
+      setSurfaceQuality(model, this.settings.quality);
+    });
+    await this.renderer.compileAsync(this.scene, this.camera);
+    warmup.forEach((model) => {
+      this.scene.remove(model);
+      releaseZombie(model);
+    });
+    this.mapEnvironment = captureEnvironment(
+      this.renderer,
+      this.scene,
+      this.world,
+      touch,
+    );
+    this.scene.environment = this.mapEnvironment.texture;
+    this.viewScene.environment = this.environmentTarget.texture;
+    this.viewScene.environmentIntensity = 0.68;
+    this.combatEffects = new CombatEffects(this.scene, touch, this.camera);
+    this.contactShadows = new ContactShadows(this.scene);
     if (touch) {
       const anisotropy = Math.min(
         8,
@@ -466,10 +518,18 @@ export class Game {
     this.lastHurtEffect = 0;
     this.saved = false;
     this.navTimer = 0;
-    this.state = "playing";
     this.camera.position.copy(this.player.position);
     this.camera.rotation.set(0, 0, 0);
     this.setGun();
+    await this.renderer.compileAsync(
+      this.combatEffects.root,
+      this.camera,
+      this.scene,
+    );
+    await this.renderer.compileAsync(this.viewScene, this.viewCamera);
+    this.state = "playing";
+    this.last = performance.now();
+    this.nextShadowFrame = 0;
     this.updateHUD();
     this.emit("state", "playing");
     this.emit("announce", {
@@ -487,6 +547,12 @@ export class Game {
     if (!touch) this.lock();
   }
   cleanup() {
+    this.contactShadows?.dispose();
+    this.contactShadows = null;
+    this.scene.environment = this.environmentTarget.texture;
+    this.viewScene.environment = this.environmentTarget.texture;
+    this.mapEnvironment?.dispose();
+    this.mapEnvironment = null;
     this.combatEffects?.dispose();
     this.combatEffects = null;
     if (this.world) {
@@ -600,6 +666,7 @@ export class Game {
         if (distance < nearest) {
           nearest = distance;
           if (details) {
+            details.obstacle = o;
             const dx = Math.abs(Math.abs(hit.x - o.x) - o.w / 2),
               dz = Math.abs(Math.abs(hit.z - o.z) - o.d / 2),
               dy = Math.abs(hit.y - o.h);
@@ -724,8 +791,7 @@ export class Game {
           (1 + w.level * 1.5) *
           (head ? 2.35 : 1) *
           (this.powerups.insta > this.time ? 100 : 1);
-        this.damageEnemy(target, damage, head);
-        this.burst(end, head ? 0xd3a080 : 0x78443b, head ? 9 : 5, 0.55);
+        this.damageEnemy(target, damage, head, { position: end, direction });
         shotHit = true;
         this.emit("hit", { head });
         this.sound.hit(head);
@@ -765,10 +831,28 @@ export class Game {
     if (shotHit) this.player.hits++;
     this.updateHUD();
   }
-  damageEnemy(enemy, damage, head) {
+  damageEnemy(enemy, damage, head, hit = null) {
     if (enemy.dead) return;
     enemy.health -= damage;
     enemy.stagger = 0.16;
+    const headKill = head && enemy.health <= 0;
+    // Shotgun pellets still deal their own damage, but share one body spray in
+    // a short interval. A lethal headshot always gets its complete effect.
+    if (headKill || this.time >= (enemy.nextBloodFx || 0)) {
+      const position =
+        hit?.position?.clone() ||
+        enemy.model.position
+          .clone()
+          .add(new T.Vector3(0, (head ? 1.8 : 1.27) * enemy.model.scale.y, 0));
+      const direction =
+        hit?.direction ||
+        position.clone().sub(this.camera.position).normalize();
+      if (headKill) destroyZombieHead(enemy.model, position);
+      this.combatEffects.blood.hit(position, direction, headKill);
+      this.projectBlood(position, direction, headKill);
+      this.sound.flesh(headKill);
+      enemy.nextBloodFx = this.time + 0.055;
+    }
     const push = new T.Vector3(
       enemy.model.position.x - this.player.position.x,
       0,
@@ -803,6 +887,45 @@ export class Game {
         });
       }
     }
+  }
+  projectBlood(position, direction, headKill) {
+    const origin = position.clone().addScaledVector(direction, 0.06),
+      range = headKill ? 4 : 2.2,
+      hit = {};
+    let distance = this.obstacleDistance(origin, direction, range, hit),
+      size = headKill ? 0.85 : 0.42;
+    if (direction.y < -0.001) {
+      const floor = -origin.y / direction.y;
+      if (floor >= 0 && floor < distance) {
+        distance = floor;
+        hit.normal = new T.Vector3(0, 1, 0);
+        hit.obstacle = null;
+      }
+    }
+    if (!hit.normal || distance >= range) return;
+    const point = origin.addScaledVector(direction, distance),
+      o = hit.obstacle;
+    if (o) {
+      // Navigation boundaries and the broad colliders around machinery do
+      // not necessarily coincide with a rendered surface.
+      if (!o.bloodSurface) return;
+      const { minY, maxY } = o.bloodSurface;
+      if (Math.abs(hit.normal.y) > 0.5 && Math.abs(point.y - maxY) > 0.025)
+        return;
+      // Keep the full quad on the struck face, never hanging over a narrow
+      // pillar, tabletop or crate edge. World collision boxes supply the face.
+      const edgeX = o.w / 2 - Math.abs(point.x - o.x),
+        edgeZ = o.d / 2 - Math.abs(point.z - o.z),
+        edgeY = Math.min(point.y - minY, maxY - point.y),
+        edge =
+          hit.normal.y > 0.5
+            ? Math.min(edgeX, edgeZ)
+            : Math.abs(hit.normal.x) > 0.5
+              ? Math.min(edgeZ, edgeY)
+              : Math.min(edgeX, edgeY);
+      size = Math.min(size, Math.max(0, edge * 1.35));
+    }
+    if (size > 0.08) this.combatEffects.blood.stain(point, hit.normal, size);
   }
   melee() {
     if (this.meleeTimer > 0 || this.state !== "playing") return;
@@ -847,12 +970,6 @@ export class Game {
     }
     if (target) {
       this.damageEnemy(target, 145 + this.wave * 7, false);
-      this.burst(
-        target.model.position.clone().add(new T.Vector3(0, 1.3, 0)),
-        0x874635,
-        12,
-        0.5,
-      );
       this.sound.knifeImpact();
       this.knifeImpactTime = 0.09;
       this.emit("hit", { head: false });
@@ -1031,6 +1148,14 @@ export class Game {
         e.model.position.x - this.player.position.x,
         e.model.position.z - this.player.position.z,
       );
+      if (this.time >= (e.nextDetailCheck || 0)) {
+        e.nextDetailCheck = this.time + 0.4;
+        const lite =
+          this.touch ||
+          this.settings.quality === "low" ||
+          d > (e.model.userData.lite ? 8 : 10);
+        setZombieDetail(e.model, lite, d < (this.touch ? 17 : 28));
+      }
       let target = this.player.position;
       const direct = new T.Vector3().subVectors(
         this.player.position,
@@ -1690,8 +1815,8 @@ export class Game {
       (this.touch ? -0.63 : -0.62) + this.recoil * 0.7 + reloadProgress * 0.2;
     this.gun.rotation.set(
       -reloadProgress * 0.55 + sprint * 0.36,
-      reloadProgress * -0.35 + sprint * -0.28,
-      -reloadProgress * 0.52 + sprint * 0.27,
+      reloadProgress * -0.35 + sprint * -0.28 + (aim ? 0 : 0.055),
+      -reloadProgress * 0.52 + sprint * 0.27 + (aim ? 0 : -0.045),
     );
     this.gun.position.y += bob * 0.12;
     animateWeapon(
@@ -1703,7 +1828,30 @@ export class Game {
       this.time,
       aim,
     );
-    this.weaponAmbient.intensity = 1.35 + (this.world?.powerLevel || 0) * 0.45;
+    this.weaponAmbient.intensity = 1.1 + (this.world?.powerLevel || 0) * 0.25;
+    this.weaponKey.position.set(
+      -2 * Math.cos(this.yaw),
+      3,
+      -1 + Math.sin(this.yaw),
+    );
+    this.weaponKey.color.copy(this.world.sun.color);
+    if (this.time > (this.nextWeaponLight || 0)) {
+      this.nextWeaponLight = this.time + 0.1;
+      let nearest = null,
+        strength = 0;
+      for (const { light } of this.world.lights) {
+        const value =
+          light.intensity /
+          (2 + light.position.distanceToSquared(this.camera.position));
+        if (value > strength) {
+          strength = value;
+          nearest = light;
+        }
+      }
+      if (nearest) this.weaponBounce.color.lerp(nearest.color, 0.3);
+      this.weaponBounce.intensity =
+        Math.min(3.5, strength * 2.6) + this.recoil * 8;
+    }
     this.updateKnife();
     this.flashlight.position.copy(this.camera.position);
     this.flashlight.target.position
@@ -1917,11 +2065,17 @@ export class Game {
       hidden: document.hidden,
     });
     if (this.state === "playing") {
-      this.fps = T.MathUtils.lerp(this.fps, 1 / Math.max(delta, 0.001), 0.035);
+      this.fps = T.MathUtils.lerp(
+        this.fps,
+        1 / Math.max(elapsed, 0.001),
+        0.035,
+      );
       this.update(delta);
+      this.contactShadows?.update(this.enemies);
       if (
-        this.touch &&
-        this.settings.touchAdaptiveQuality &&
+        (this.touch
+          ? this.settings.touchAdaptiveQuality
+          : this.settings.adaptiveQuality !== false) &&
         this.time > 4 &&
         elapsed > 0 &&
         elapsed < 0.5
@@ -1932,28 +2086,52 @@ export class Game {
           0.025,
         );
         this.resolutionTimer += elapsed;
-        if (this.resolutionTimer > 4) {
+        this.resolutionRecovery += elapsed;
+        if (this.resolutionTimer > 2.5) {
           this.resolutionTimer = 0;
+          const current = this.touch
+            ? this.mobileResolutionScale
+            : this.desktopResolutionScale;
           const next =
-            this.mobileFrameMs > 30
-              ? Math.max(0.72, this.mobileResolutionScale - 0.12)
-              : this.mobileFrameMs < 19
-                ? Math.min(1, this.mobileResolutionScale + 0.04)
-                : this.mobileResolutionScale;
-          if (next !== this.mobileResolutionScale) {
-            this.mobileResolutionScale = next;
+            this.mobileFrameMs > 18.4
+              ? Math.max(0.65, current - 0.1)
+              : this.mobileFrameMs < 17.2 && this.resolutionRecovery > 12
+                ? Math.min(1, current + 0.04)
+                : current;
+          if (next !== current) {
+            this.resolutionRecovery = 0;
+            if (this.touch) this.mobileResolutionScale = next;
+            else this.desktopResolutionScale = next;
+            this.resize();
+          }
+          if (
+            !this.touch &&
+            next <= 0.66 &&
+            this.mobileFrameMs > 26 &&
+            !this.adaptiveOcclusionOff
+          ) {
+            this.adaptiveOcclusionOff = true;
             this.resize();
           }
         }
       }
     }
-    if (this.world) {
+    // compileAsync yields to animation frames while the new world and its
+    // shadow textures are still being prepared. Present only the ready scene.
+    if (this.world && this.state !== "loading") {
       this.film.uniforms.time.value = now;
       this.film.uniforms.hurt.value = Math.max(
         this.lastHurtEffect || 0,
         this.player && this.player.health < 35 ? 0.25 : 0,
       );
       this.renderer.autoClear = true;
+      // Render the shadow map once, not again for the GTAO normal pass.
+      // Phones update it at 30 Hz while simulation and presentation stay at 60.
+      if (now >= (this.nextShadowFrame || 0) && this.state === "playing") {
+        this.renderer.shadowMap.needsUpdate = true;
+        this.nextShadowFrame =
+          now + (this.touch || this.settings.quality === "low" ? 1000 / 30 : 0);
+      }
       this.viewPass.enabled =
         this.state === "playing" || this.state === "paused";
       this.composer.render();

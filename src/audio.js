@@ -137,6 +137,21 @@ export class Sound {
     this.noise(0.07, 0.07, 2800);
     this.tone(head ? 1400 : 850, 0.065, 0.05, "triangle", 450);
   }
+  flesh(headKill = false) {
+    this.noise(
+      headKill ? 0.18 : 0.075,
+      headKill ? 0.12 : 0.045,
+      headKill ? 1050 : 720,
+    );
+    this.tone(
+      headKill ? 110 : 150,
+      headKill ? 0.12 : 0.06,
+      headKill ? 0.09 : 0.025,
+      "triangle",
+      38,
+    );
+    if (headKill) this.noise(0.055, 0.065, 2400, 0.025);
+  }
   hurt() {
     this.noise(0.28, 0.26, 380);
     this.tone(65, 0.27, 0.26, "sine", 29);

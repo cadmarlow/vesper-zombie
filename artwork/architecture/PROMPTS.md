@@ -1,0 +1,9 @@
+# VESPER 2.3 — Original stained glass
+
+Generated on 2026-09-07 with the built-in imagegen tool. This is an original material texture, not a screenshot of the game or a scanned historic artwork.
+
+Source: `stained-glass-source.png`. Runtime: `public/textures/architecture/vesper-glass-{512,1024}.webp`, resized to 512 × 768 and 1024 × 1536 with Lanczos and encoded at WebP quality 89. The source is not served to players. The game maps the image onto authored lancet geometry; stone frames and lead crossbars remain 3D geometry.
+
+Exact generation prompt:
+
+Use case: photorealistic-natural. Asset type: game environment texture, single rectangular stained-glass panel albedo, portrait 1024x1536. A straight-on orthographic conservation photograph of an ancient French Gothic abbey stained glass window. Entire rectangular image filled edge to edge with glass and lead tracery, no stone surround, no outside scene, no perspective, no text. One central solemn hooded medieval figure, face mostly in shadow, hands holding a small glowing amber eclipse disc at chest height; elaborate Gothic botanical tracery, muted amber honey glass, dusty ivory pieces, deep desaturated teal and dark ruby accents. An original fictional religious allegory of the last light, dignified and intricate. Dense authentic hand-painted 14th-century grisaille linework, individual uneven mouth-blown glass pieces, fine dark lead joints, pitted glass, repaired cracks, a few tiny missing panes represented by almost black holes, accumulated soot near edges. Extremely tactile real photographed historic glass, luminous but not overexposed. Flat diffuse transmitted daylight for use as albedo and emissive map. No bloom, no photographic vignette, no room, no wall, no modern objects, no lettering, no watermark. The overall panel remains rectangular, ornate lancet tracery is contained within its top third.

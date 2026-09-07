@@ -176,7 +176,7 @@ export function buildAbyss(w) {
     roughness: 0.58,
     metalness: 0.2,
   });
-  const bark = worldSurface("wood", 0x3f5141, 1.2, {
+  const bark = worldSurface("wood", 0x85907a, 1.2, {
     roughness: 0.98,
     metalness: 0,
   });
@@ -455,13 +455,13 @@ export function buildAbyss(w) {
 
   const leaf = livingLeaf();
   const leafMaterial = new T.MeshStandardMaterial({
-    color: 0xc7ecd9,
+    color: 0xb2c3a0,
     map: leaf.map,
     emissiveMap: leaf.map,
     emissive: 0x72f9ce,
-    emissiveIntensity: 0.3,
-    roughness: 0.7,
-    metalness: 0.05,
+    emissiveIntensity: 0.08,
+    roughness: 0.87,
+    metalness: 0,
     side: T.DoubleSide,
   });
   const plantTime = { value: 0 };
@@ -1110,7 +1110,7 @@ export function buildAbyss(w) {
     update(dt, time) {
       oceanTime.value = plantTime.value = waterTime.value = time;
       const power = w.powerLevel;
-      leafMaterial.emissiveIntensity = 0.3 + power * 0.8;
+      leafMaterial.emissiveIntensity = 0.08 + power * 0.18;
       turquoise.emissiveIntensity = 0.4 + power * 1.7;
       astrolabe.rotation.y = time * (0.014 + power * 0.035);
       astrolabe.children.forEach((o, i) => {

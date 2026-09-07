@@ -2,6 +2,29 @@
 
 Gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. Version 2.0 also uses the CC0 surface scans listed below. No Call of Duty asset, map, logo or audio sample is included.
 
+## Version 2.4 — blood impacts
+
+Blood mist and splatter masks are original 256px canvas textures drawn once per session in `src/blood-effects.js`. Droplets and head fragments reuse instanced geometry; the neck wound uses shared original geometry in `src/creatures.js`. The impact sounds are synthesized in `src/audio.js`. No new external image, model or audio recording is used.
+
+## Version 2.3 — architecture and material response
+
+The abbey's vaults, clerestory, lancets, masonry joints and pew details, the station's roof, gantries, cargo hardware and pipe fittings, and the abyssal pressure fittings are original geometry in `src/world-architecture.js`.
+
+Four additional [Poly Haven CC0](https://polyhaven.com/license) scans are shipped locally:
+
+| Local prefix | Original scan | Use |
+| --- | --- | --- |
+| `ashlar` | [Large Sandstone Blocks](https://polyhaven.com/a/large_sandstone_blocks) | Abbey blockwork |
+| `plaster` | [Grey Plaster](https://polyhaven.com/a/grey_plaster) | Carved stone, vaults and cornices |
+| `steel` | [Rusty Painted Metal](https://polyhaven.com/a/rusty_painted_metal) | Industrial metal and pressure fittings |
+| `concrete` | [Concrete Floor Worn 02](https://polyhaven.com/a/concrete_floor_worn_02) | Boréal floor and foundations |
+
+Source channels are the 2K JPEG Diffuse, OpenGL normal and packed AO/roughness/metalness maps. They are resampled with Lanczos into 512px and 1024px WebP files (quality 88 for color, 91 for data). Original download URLs and hashes are recorded in `artwork/architecture/sources.json`. Only the sets needed by the selected map are requested. Together with both stained-glass resolutions, the new runtime assets occupy about 4 MiB; a session loads one resolution and a subset of these files.
+
+The original stained glass was generated with the built-in **imagegen** tool. Exact prompt, source and runtime paths: [`artwork/architecture/PROMPTS.md`](artwork/architecture/PROMPTS.md). Weapon microstructure, normal/roughness maps and worn markings are procedural original assets in `src/weapon-finish.js`.
+
+`src/rendering.js` captures a fixed local environment probe during loading for scene reflections. It is not ray tracing or a live planar reflection; moving enemies and later power changes are not recaptured. The weapon uses a separate studio environment with map-colored directional light and nearby lamp bounce. Occlusion excludes glow sprites and depthless transparency so their rectangles do not occlude the scene. This wrapper uses the visibility hooks of the pinned Three.js 0.185.1 GTAOPass; recheck it when upgrading Three.js.
+
 ## Version 2.2 — Néréide, Les Jardins Abyssaux
 
 `src/world-abyss.js` contains the original playable map: its pressure vault, tree, curved leaves with a locally drawn vein texture, astrolabes, specimen rigs, caustic/ocean shaders, manta and instanced fish. Materials reuse the CC0 surface scans below. The three fictional research journals and the new synthesized score in `src/music.js` are authored for this map; journals are displayed as text, not voice recordings.

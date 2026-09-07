@@ -98,7 +98,9 @@ try {
       await page.evaluate(() => {
         const w = window.__vesper.world;
         return (
-          w.circuits.every((c) => c.level === 1 && c.light.intensity >= 35) &&
+          // The remaster reduces fixture exposure; fully powered circuits
+          // remain bright without the old 35-unit overexposure requirement.
+          w.circuits.every((c) => c.level === 1 && c.light.intensity >= 24) &&
           w.interactions
             .filter((i) => i.powered)
             .every((i) => i.screen.material.emissiveIntensity > 2.9)

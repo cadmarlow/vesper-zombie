@@ -236,6 +236,7 @@ export const DEFAULT_SETTINGS = {
   touchSensitivity: 1,
   touchAimAssist: true,
   touchAdaptiveQuality: true,
+  adaptiveQuality: true,
   fov: 80,
   quality: "high",
   shake: true,

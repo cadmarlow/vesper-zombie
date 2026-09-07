@@ -2,6 +2,22 @@
 
 Un FPS solo de survie occulte, jouable dans le navigateur. Trois lieux, une dernière nuit. Création originale inspirée du principe de survie par vagues.
 
+## Version 2.4.0 — sang et headshots
+
+Les impacts sur les zombies produisent une projection de sang dans la direction du tir, une brume brève et des gouttes qui retombent. Un **headshot mortel fait éclater la tête**, avec fragments et blessure au cou ; les tirs non mortels conservent la tête. Les éclaboussures marquent temporairement le sol et les surfaces pleines proches, avec un son d’impact organique.
+
+Les effets emploient trois groupes de rendu et des réserves fixes, allégées sur mobile : les anciennes particules sont recyclées et les traces disparaissent progressivement. Aucun téléchargement ou moteur supplémentaire. `npm run test:blood` vérifie les tirs réels, les cinq types de zombies, les trois cartes, les effets répétés et leur libération sur Chrome et WebKit.
+
+## Version 2.3.0 — architecture, matières et fluidité
+
+- L’abbaye reçoit des voûtes partiellement effondrées, un étage de fenêtres, des vitraux originaux, des colonnes à joints et des bancs détaillés. Boréal gagne une toiture technique, des passerelles et des conteneurs équipés de renforts et de ferrures.
+- Quatre nouveaux matériaux scannés différencient pierre taillée, enduit, béton et métal peint. L’humidité et l’usure varient à l’échelle du décor ; un reflet du lieu est calculé au chargement. Néréide conserve sa géographie, avec une végétation moins lumineuse et des raccords de structure supplémentaires.
+- Les armes utilisent des microtextures de métal et de polymère, des arêtes usées, des marquages et une lumière liée à l’orientation et aux lampes proches. Les zombies ont des visages et dents mieux proportionnés, des manches longues selon le type et des mouvements plus asymétriques.
+- Les pièces des grilles et machines sont regroupées sans supprimer leurs animations. Les zombies lointains emploient une géométrie allégée ; les ombres de contact restent visibles sur mobile. Les ombres du soleil sont calculées une fois par image sur desktop et au maximum 30 fois par seconde sur mobile, indépendamment de la cadence du jeu.
+- La **fluidité adaptative desktop**, désactivable dans les paramètres, complète celle du mobile. Elle réduit progressivement la résolution en cas de ralentissement prolongé et la remonte plus lentement lorsque la marge revient. Sur les ordinateurs les plus limités, elle peut aussi désactiver l’occlusion ambiante pour le reste de la partie. L’interface reste à sa résolution native.
+
+Les captures et mesures se génèrent avec `npm run test:remaster` (compilation servie sur le port 4173). Ce contrôle couvre les trois cartes, les trois qualités et une horde de 28 ennemis sur desktop et mobile émulé. Les limites et résultats observés sont consignés dans [VERIFICATION.md](VERIFICATION.md). Cette version pousse les modèles procéduraux et le rendu WebGL ; elle n’est pas présentée comme une production photoréaliste AAA.
+
 ## Jouer
 
 Installez **Node.js 24**, puis lancez ces commandes depuis le dossier du dépôt :
@@ -107,8 +123,12 @@ npm start
 - `src/creatures.js` : zombies déformés par squelette, variantes de géométrie mobile et animations.
 - `src/weapons.js` : six armes, mains, pièces mobiles et rechargements.
 - `src/surfaces.js`, `public/textures/` : chargement des matériaux PBR, projection à l’échelle du monde et profils graphiques.
+- `src/world-architecture.js` : voûtes, vitraux, toitures et détails de construction.
+- `src/rendering.js` : occlusion, sonde de reflets, ombres de contact et traitement final.
+- `src/weapon-finish.js` : microtextures, usure des arêtes et marquages des armes.
 - `src/world-detail.js` : usure, débris, accessoires, brumes et faisceaux.
 - `src/combat-effects.js` : particules, douilles, fumée et impacts à allocations bornées.
+- `src/blood-effects.js` : sang, fragments et éclaboussures à réserves fixes.
 - `src/logic.js` : navigation, collisions, vagues et inventaire.
 - `src/audio.js` : synthèse sonore originale.
 - `src/music.js` : compositions musicales et ambiance adaptative.

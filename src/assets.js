@@ -165,19 +165,31 @@ export function texture(kind, seed = 7) {
   t.anisotropy = 4;
   return t;
 }
-export function createMaterials() {
+export function createMaterials(map = "abbey") {
   const floor = texture("floor");
   return {
-    stone: worldSurface("stone", 0x8a918e, 3.5),
-    trim: worldSurface("stone", 0xa5a394, 3.5, {
+    stone: worldSurface(
+      map === "abbey" ? "ashlar" : "stone",
+      0xb1afa2,
+      map === "abbey" ? 4.2 : 3.5,
+    ),
+    trim: worldSurface(map === "abyss" ? "stone" : "plaster", 0xb5ac96, 1.7, {
       normalScale: new T.Vector2(0.4, 0.4),
     }),
     dark: mat(0x1a2329, 0.63, 0.5),
-    floor: worldSurface("floor", 0x87908b, 4.5, { roughness: 0.88 }),
-    metal: worldSurface("metal", 0x8b9c9b, 3, { roughness: 0.82 }),
+    floor: worldSurface(
+      map === "station" ? "concrete" : "floor",
+      0xa2a39b,
+      map === "station" ? 5 : 3.2,
+      { roughness: 0.81 },
+    ),
+    metal: worldSurface(map === "abbey" ? "metal" : "steel", 0x8b9c9b, 2.8, {
+      roughness: 0.69,
+      metalness: 0.45,
+    }),
     rust: worldSurface("metal", 0x8a6651, 2.5),
     wood: worldSurface("wood", 0x938273, 2.5),
-    gold: mat(0x9a7342, 0.32, 0.8),
+    gold: mat(0x665d46, 0.47, 0.75),
     copper: mat(0xbf7a50, 0.42, 0.75),
     black: mat(0x0f171b, 0.48, 0.6),
     snow: mat(0xa8c2c9, 0.97, 0.03, { map: floor }),

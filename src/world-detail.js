@@ -97,8 +97,8 @@ export function enrichWorld(world) {
   ]);
   const wet = new T.MeshStandardMaterial({
     color: abbey ? 0x243332 : 0x35545b,
-    roughness: 0.12,
-    metalness: 0.3,
+    roughness: 0.16,
+    metalness: 0.08,
     map: decalTexture("water"),
     transparent: true,
     opacity: 0.68,

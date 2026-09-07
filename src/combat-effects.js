@@ -1,4 +1,5 @@
 import * as T from "three";
+import { BloodEffects } from "./blood-effects.js";
 
 function markTexture() {
   const c = document.createElement("canvas");
@@ -28,10 +29,11 @@ function markTexture() {
 
 // Fixed GPU allocations: automatic fire recycles slots instead of creating meshes.
 export class CombatEffects {
-  constructor(scene, mobile) {
+  constructor(scene, mobile, camera) {
     this.root = new T.Group();
     this.root.name = "combat-effects";
     scene.add(this.root);
+    this.blood = new BloodEffects(this.root, mobile, camera);
     this.limit = mobile ? 128 : 240;
     this.cursor = 0;
     this.markCursor = 0;
@@ -169,6 +171,7 @@ export class CombatEffects {
     this.marks.instanceMatrix.needsUpdate = true;
   }
   update(dt) {
+    this.blood.update(dt);
     const d = this.dummy;
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
