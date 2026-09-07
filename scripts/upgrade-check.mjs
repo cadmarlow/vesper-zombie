@@ -1,0 +1,60 @@
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+
+// Run against the actual distribution. Vite is needed only by release-check's
+// diagnostic scope scenario. Keep GPU tests sequential for meaningful results.
+const scripts = process.argv.slice(2).length
+  ? process.argv.slice(2)
+  : [
+      "smoke",
+      "feel-check",
+      "touch-native-check",
+      "release-check",
+      "waves-check",
+      "online-check",
+      "graphics-lifecycle-check",
+      "zombie-check",
+      "abyss-check",
+    ];
+const allowed = new Set([
+  "abyss-check",
+  "menu-check",
+  "zombie-check",
+  "visual-check",
+  "smoke",
+  "feel-check",
+  "touch-native-check",
+  "release-check",
+  "waves-check",
+  "online-check",
+  "graphics-lifecycle-check",
+]);
+const report = {
+  started: new Date().toISOString(),
+  node: process.version,
+  url: process.env.VESPER_URL || "http://localhost:4173",
+  suites: [],
+};
+for (const script of scripts) {
+  if (!allowed.has(script))
+    throw new Error(`Unknown verification suite: ${script}`);
+  console.log(`Running ${script}`);
+  const code = await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [`scripts/${script}.mjs`], {
+      stdio: "inherit",
+      env: { ...process.env, VESPER_URL: report.url },
+    });
+    child.on("error", reject);
+    child.on("exit", resolve);
+  });
+  report.suites.push({ script, exitCode: code });
+  if (code !== 0) {
+    process.exitCode = code || 1;
+    break;
+  }
+}
+fs.mkdirSync("artifacts", { recursive: true });
+fs.writeFileSync(
+  `artifacts/upgrade-${Date.now()}.json`,
+  JSON.stringify(report, null, 2),
+);

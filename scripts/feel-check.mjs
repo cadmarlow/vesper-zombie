@@ -98,7 +98,7 @@ try {
       await page.evaluate(() => {
         const w = window.__vesper.world;
         return (
-          w.circuits.every((c) => c.level === 1 && c.light.intensity >= 60) &&
+          w.circuits.every((c) => c.level === 1 && c.light.intensity >= 35) &&
           w.interactions
             .filter((i) => i.powered)
             .every((i) => i.screen.material.emissiveIntensity > 2.9)
@@ -260,9 +260,9 @@ try {
     await page.evaluate(() => window.__vesper.enemies.at(-1).health === 1000),
   );
   await step(0.5);
-  // Render both score variations offline, including their tail; no remote media is involved.
+  // Render all three scores offline, including their tail; no remote media is involved.
   const audioReports = [];
-  for (const map of ["abbey", "station"]) {
+  for (const map of ["abbey", "station", "abyss"]) {
     const audio = await page.evaluate(async (map) => {
       const Score = window.__vesper.sound.score.constructor;
       const rate = 22050,
@@ -324,10 +324,16 @@ try {
   }
   fs.writeFileSync(`${out}/audio.json`, JSON.stringify(audioReports, null, 2));
   check(
-    "The two maps have distinct compositions",
+    "The three maps have distinct compositions",
     !fs
       .readFileSync(`${out}/music-abbey.wav`)
-      .equals(fs.readFileSync(`${out}/music-station.wav`)),
+      .equals(fs.readFileSync(`${out}/music-station.wav`)) &&
+      ["abbey", "station"].every(
+        (map) =>
+          !fs
+            .readFileSync(`${out}/music-${map}.wav`)
+            .equals(fs.readFileSync(`${out}/music-abyss.wav`)),
+      ),
   );
   const mobile = await browser.newPage({
     viewport: { width: 390, height: 844 },

@@ -33,94 +33,117 @@ try {
     const reports = [],
       originalRandom = Math.random;
     try {
-      for (const map of ["abbey", "station"])
-        for (const [x, z, open] of [
-          [0, 20, false],
-          [-14.5, 18, false],
-          [14.5, 20, false],
-          [0, 8, false],
-          [0, 0, true],
-          [-14.5, -20, true],
-        ]) {
-          Math.random = rng(2026 + reports.length);
-          await g.start(map, "normal", true);
-          if (open) {
-            g.world.openDoor(g.world.doors[0]);
-            g.updateNavigation(true);
-          }
-          g.player.position.set(x, 1.7, z);
-          g.updateNavigation();
-          g.player.invulnerable = 1e9;
-          g.phaseTimer = 0;
-          let completed = 0,
-            lastKill = 0,
-            invalidSpawns = 0,
-            slowestWave = 0,
-            waveStart = 0;
-          const types = new Set();
-          for (let frame = 0; frame < 27000; frame++) {
-            g.update(1 / 30);
-            for (const e of g.enemies) {
-              if (e.dead) continue;
-              types.add(e.type);
-              if (
-                e.age < 0.05 &&
-                !canStand(
-                  e.model.position.x,
-                  e.model.position.z,
-                  g.world.obstacles,
-                  e.type === "brute" ? 0.6 : 0.36,
-                )
-              )
-                invalidSpawns++;
-              if (e.model.position.y < -0.1) continue;
-              const v = e.model.position
-                  .clone()
-                  .add({ x: 0, y: 1.3, z: 0 })
-                  .sub(g.player.position),
-                d = v.length();
-              // A stationary test defender can only eliminate an enemy that actually
-              // reaches it with an unobstructed shot. Never kill remote/stuck actors.
-              if (
-                d < 3.2 &&
-                g.obstacleDistance(g.player.position, v.normalize(), d) >=
-                  d - 0.15
-              ) {
-                g.damageEnemy(e, 1e9, false);
-                lastKill = g.time;
-              }
-            }
-            if (g.phase === "rest" && g.wave > completed) {
-              completed = g.wave;
-              slowestWave = Math.max(slowestWave, g.time - waveStart);
-              waveStart = g.time;
-              g.phaseTimer = 0;
-              if (completed >= 10) break;
-            }
-            if (g.time - lastKill > 100) break;
-          }
-          const stuck = g.enemies
-            .filter((e) => !e.dead)
-            .map((e) => ({
-              type: e.type,
-              position: e.model.position.toArray(),
-            }));
-          const report = {
-            map,
-            player: [x, z],
-            open,
-            completed,
-            invalidSpawns,
-            types: [...types],
-            slowestWave,
-            remaining: g.remaining,
-            stuck,
-          };
-          reports.push(report);
-          console.log(
-            `WAVES ${map} ${x},${z} ${open ? "open" : "closed"}: ${completed}/10, invalid spawns: ${invalidSpawns}`,
-          );
+      const scenarios = [
+        ...["abbey", "station"].flatMap((map) =>
+          [
+            [0, 20, false],
+            [-14.5, 18, false],
+            [14.5, 20, false],
+            [0, 8, false],
+            [0, 0, true],
+            [-14.5, -20, true],
+          ].map(([x, z, open]) => ({ map, x, z, gates: open ? [0] : [] })),
+        ),
+        ...[
+          [0, 36, []],
+          [-25, 34, []],
+          [0, 17, [0]],
+          [27, 8, [0]],
+          [-28, -11, [0, 1]],
+          [0, -29, [0, 2]],
+          [-28, -34, [0, 1, 2]],
+        ].map(([x, z, gates]) => ({ map: "abyss", x, z, gates })),
+      ];
+      for (const { map, x, z, gates } of scenarios) {
+        const open = gates.length > 0;
+        Math.random = rng(2026 + reports.length);
+        await g.start(map, "normal", true);
+        if (open) {
+          for (const index of gates) g.world.openDoor(g.world.doors[index]);
+          g.updateNavigation(true);
         }
+        g.player.position.set(x, 1.7, z);
+        g.updateNavigation();
+        g.player.invulnerable = 1e9;
+        g.phaseTimer = 0;
+        let completed = 0,
+          lastKill = 0,
+          invalidSpawns = 0,
+          slowestWave = 0,
+          waveStart = 0;
+        const types = new Set();
+        let stalled = false;
+        // Néréide's longer routes legitimately lengthen waves; retain the
+        // independent 100-second no-kill watchdog to detect actual stalls.
+        for (let frame = 0; frame < 42000; frame++) {
+          g.update(1 / 30);
+          for (const e of g.enemies) {
+            if (e.dead) continue;
+            types.add(e.type);
+            if (
+              e.age < 0.05 &&
+              !canStand(
+                e.model.position.x,
+                e.model.position.z,
+                g.world.obstacles,
+                e.type === "brute" ? 0.6 : 0.36,
+              )
+            )
+              invalidSpawns++;
+            if (e.model.position.y < -0.1) continue;
+            const v = e.model.position
+                .clone()
+                .add({ x: 0, y: 1.3, z: 0 })
+                .sub(g.player.position),
+              d = v.length();
+            // A stationary test defender can only eliminate an enemy that actually
+            // reaches it with an unobstructed shot. Never kill remote/stuck actors.
+            if (
+              d < 3.2 &&
+              g.obstacleDistance(g.player.position, v.normalize(), d) >=
+                d - 0.15
+            ) {
+              g.damageEnemy(e, 1e9, false);
+              lastKill = g.time;
+            }
+          }
+          if (g.phase === "rest" && g.wave > completed) {
+            completed = g.wave;
+            slowestWave = Math.max(slowestWave, g.time - waveStart);
+            waveStart = g.time;
+            g.phaseTimer = 0;
+            if (completed >= 10) break;
+          }
+          if (g.time - lastKill > 100) {
+            stalled = true;
+            break;
+          }
+        }
+        const stuck = g.enemies
+          .filter((e) => !e.dead)
+          .map((e) => ({
+            type: e.type,
+            position: e.model.position.toArray(),
+          }));
+        const report = {
+          map,
+          player: [x, z],
+          open,
+          gates,
+          completed,
+          invalidSpawns,
+          types: [...types],
+          slowestWave,
+          elapsed: g.time,
+          stalled,
+          remaining: g.remaining,
+          stuck,
+        };
+        reports.push(report);
+        console.log(
+          `WAVES ${map} ${x},${z} ${open ? "open" : "closed"}: ${completed}/10, invalid spawns: ${invalidSpawns}`,
+        );
+      }
     } finally {
       Math.random = originalRandom;
     }
@@ -142,7 +165,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: 120 completed waves across both maps, all five enemy types, no invalid spawns or stalled waves.",
+    `PASS: ${reports.length * 10} completed waves across three maps, all five enemy types, no invalid spawns or stalled waves.`,
   );
 } finally {
   await browser.close();

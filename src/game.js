@@ -5,6 +5,13 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
+import { prepareSurfaces, setSurfaceQuality } from "./surfaces.js";
+import { releaseZombie } from "./creatures.js";
+import { prepareCreatureSkins } from "./creature-head.js";
+import { animateWeapon } from "./weapons.js";
+import { CombatEffects } from "./combat-effects.js";
 import { World, disposeModel } from "./world.js";
 import {
   zombieModel,
@@ -73,7 +80,7 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFShadowMap;
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 1.12;
     this.renderer.setClearColor(0x111d25);
     this.scene = new T.Scene();
     const pmrem = new T.PMREMGenerator(this.renderer);
@@ -88,10 +95,11 @@ export class Game {
     this.scene.add(this.camera);
     this.viewScene = new T.Scene();
     this.viewScene.environment = this.environmentTarget.texture;
-    this.viewScene.environmentIntensity = 0.8;
+    this.viewScene.environmentIntensity = 0.52;
     this.viewCamera = new T.PerspectiveCamera(62, 1, 0.01, 10);
-    this.viewScene.add(new T.HemisphereLight(0xc4dae7, 0x384347, 2.6));
-    const key = new T.DirectionalLight(0xffc496, 2.1);
+    this.weaponAmbient = new T.HemisphereLight(0xc4dae7, 0x242929, 1.65);
+    this.viewScene.add(this.weaponAmbient);
+    const key = new T.DirectionalLight(0xffc496, 1.7);
     key.position.set(-2, 3, -1);
     this.viewScene.add(key);
     const rim = new T.DirectionalLight(0x779ea8, 1.5);
@@ -114,19 +122,43 @@ export class Game {
     this.viewScene.add(this.knifeTrail);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.36, 0.6, 1.1);
+    this.ao = new GTAOPass(this.scene, this.camera, 1, 1);
+    this.ao.blendIntensity = 0.85;
+    this.ao.updateGtaoMaterial({
+      radius: 0.65,
+      distanceExponent: 1.5,
+      thickness: 0.8,
+      samples: 8,
+    });
+    this.ao.updatePdMaterial({
+      lumaPhi: 5,
+      depthPhi: 2,
+      normalPhi: 3,
+      radius: 4,
+      samples: 8,
+    });
+    this.composer.addPass(this.ao);
+    // First-person models go through the same exposure, bloom and grading.
+    this.viewPass = new RenderPass(this.viewScene, this.viewCamera);
+    this.viewPass.clear = false;
+    this.viewPass.clearDepth = true;
+    this.composer.addPass(this.viewPass);
+    this.bloom = new UnrealBloomPass(new T.Vector2(1, 1), 0.23, 0.45, 1.35);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    this.antialias = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.antialias);
     this.film = new ShaderPass({
       uniforms: {
         tDiffuse: { value: null },
         time: { value: 0 },
         hurt: { value: 0 },
+        cold: { value: 0 },
       },
       vertexShader:
         "varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}",
       fragmentShader:
-        "uniform sampler2D tDiffuse; uniform float time; uniform float hurt; varying vec2 vUv; void main(){vec2 uv=vUv;vec3 c=texture2D(tDiffuse,uv).rgb;float vignette=smoothstep(.8,.18,length(uv-.5));c*=.65+.35*vignette;float n=fract(sin(dot(uv+time*.0001,vec2(12.9898,78.233)))*43758.5453);c+=(n-.5)*.021;c=mix(c,vec3(.42,.035,.02),hurt*(1.-vignette)*.8);gl_FragColor=vec4(c,1.);}",
+        "uniform sampler2D tDiffuse; uniform float time; uniform float hurt; uniform float cold; varying vec2 vUv; void main(){vec2 uv=vUv;vec3 c=texture2D(tDiffuse,uv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));c=mix(vec3(l),c,.91);c*=mix(vec3(.92,1.025,1.045),vec3(1.055,1.018,.94),smoothstep(.05,.75,l));c*=mix(vec3(1.),vec3(.95,1.02,1.04),cold);float vignette=1.-smoothstep(.2,.78,length(uv-.5));c*=.82+.18*vignette;float n=fract(sin(dot(uv+time*.0001,vec2(12.9898,78.233)))*43758.5453);c+=(n-.5)*.009;c=mix(c,vec3(.42,.035,.02),hurt*(1.-vignette)*.8);gl_FragColor=vec4(c,1.);}",
     });
     this.composer.addPass(this.film);
     this.flash = new T.PointLight(0xffb260, 0, 8, 1);
@@ -277,9 +309,9 @@ export class Game {
             Math.min(cap, Math.sqrt(budget / (w * h))) *
               this.mobileResolutionScale,
           )
-        : cap,
+        : Math.min(cap, Math.sqrt(2600000 / (w * h))),
     );
-    const composerRatio = this.touch ? ratio : 1;
+    const composerRatio = ratio;
     const previous = this.renderSize;
     // Browser bars can emit both viewport and window resize events. Avoid
     // allocating the same render targets twice for one viewport change.
@@ -293,6 +325,15 @@ export class Game {
     if (!previous || previous.w !== w || previous.h !== h)
       this.composer.setSize(w, h);
     this.renderSize = { w, h, ratio, composerRatio };
+    this.antialias.uniforms.resolution.value.set(
+      1 / (w * ratio),
+      1 / (h * ratio),
+    );
+    this.ao.enabled = !this.touch && this.settings.quality === "high";
+    this.ao.setSize(
+      Math.max(1, Math.floor(w * ratio * 0.5)),
+      Math.max(1, Math.floor(h * ratio * 0.5)),
+    );
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.viewCamera.aspect = w / h;
@@ -308,6 +349,9 @@ export class Game {
     this.camera.fov = settings.fov;
     this.camera.updateProjectionMatrix();
     this.resize();
+    this.world?.setQuality(this.settings.quality, this.touch);
+    setSurfaceQuality(this.scene, this.settings.quality);
+    setSurfaceQuality(this.viewScene, this.settings.quality);
   }
   async lock() {
     try {
@@ -329,10 +373,16 @@ export class Game {
     this.resolutionTimer = 0;
     this.resize();
     this.cleanup();
+    await Promise.all([prepareSurfaces(touch), prepareCreatureSkins(touch)]);
     this.map = map;
+    this.film.uniforms.cold.value =
+      map === "station" ? 1 : map === "abyss" ? 0.45 : 0;
     this.difficulty = DIFFICULTIES[difficulty];
     this.difficultyId = difficulty;
     this.world = new World(this.scene, map, this.settings.quality);
+    this.world.viewer = this.camera;
+    this.world.setQuality(this.settings.quality, touch);
+    this.combatEffects = new CombatEffects(this.scene, touch);
     if (touch) {
       const anisotropy = Math.min(
         8,
@@ -345,8 +395,24 @@ export class Game {
           if (material?.map) material.map.anisotropy = anisotropy;
       });
     }
-    this.navigation = new Navigation(this.world.obstacles, 64, 1, 0.36);
-    this.largeNavigation = new Navigation(this.world.obstacles, 64, 1, 0.6);
+    const navigationSize = Math.max(
+      64,
+      Math.ceil(
+        (Math.max(this.world.bounds.x, this.world.bounds.z) * 2 + 4) / 8,
+      ) * 8,
+    );
+    this.navigation = new Navigation(
+      this.world.obstacles,
+      navigationSize,
+      1,
+      0.36,
+    );
+    this.largeNavigation = new Navigation(
+      this.world.obstacles,
+      navigationSize,
+      1,
+      0.6,
+    );
     this.player = {
       position: this.world.spawn.clone(),
       health: 100,
@@ -390,7 +456,7 @@ export class Game {
     this.growlTimer = 3;
     this.powerups = { double: 0, insta: 0 };
     this.yaw = 0;
-    this.pitch = 0;
+    this.pitch = this.world.viewPitch || 0;
     this.time = 0;
     this.touchMove = { x: 0, y: 0 };
     this.touchSprint = false;
@@ -421,11 +487,16 @@ export class Game {
     if (!touch) this.lock();
   }
   cleanup() {
+    this.combatEffects?.dispose();
+    this.combatEffects = null;
     if (this.world) {
       this.world.dispose();
       this.world = null;
     }
-    for (const e of this.enemies) this.scene.remove(e.model);
+    for (const e of this.enemies) {
+      this.scene.remove(e.model);
+      releaseZombie(e.model);
+    }
     this.enemies = [];
     for (const e of [...this.effects, ...this.pickups, ...this.projectiles]) {
       if (e.mesh) {
@@ -480,12 +551,13 @@ export class Game {
       this.viewScene.remove(this.gun);
       disposeModel(this.gun);
     }
-    this.gun = weaponModel(this.weapon.id, this.weapon.level);
+    this.gun = weaponModel(this.weapon.id, this.weapon.level, true);
+    setSurfaceQuality(this.gun, this.settings.quality);
     this.gun.scale.setScalar(this.touch ? 0.68 : 0.78);
     this.gun.position.set(
       this.touch ? 0.18 : 0.24,
       -0.24,
-      this.touch ? -0.56 : -0.52,
+      this.touch ? -0.63 : -0.62,
     );
     this.viewScene.add(this.gun);
     this.reloadTime = 0;
@@ -515,7 +587,7 @@ export class Game {
     this.sound.reload(this.reloadDuration);
     this.updateHUD();
   }
-  obstacleDistance(origin, direction, max = 100) {
+  obstacleDistance(origin, direction, max = 100, details = null) {
     ray.set(origin, direction);
     let nearest = max;
     for (const o of this.world.obstacles) {
@@ -523,7 +595,23 @@ export class Game {
       aabb.min.set(o.x - o.w / 2, 0, o.z - o.d / 2);
       aabb.max.set(o.x + o.w / 2, o.h, o.z + o.d / 2);
       const hit = ray.intersectBox(aabb, point);
-      if (hit) nearest = Math.min(nearest, origin.distanceTo(hit));
+      if (hit) {
+        const distance = origin.distanceTo(hit);
+        if (distance < nearest) {
+          nearest = distance;
+          if (details) {
+            const dx = Math.abs(Math.abs(hit.x - o.x) - o.w / 2),
+              dz = Math.abs(Math.abs(hit.z - o.z) - o.d / 2),
+              dy = Math.abs(hit.y - o.h);
+            details.normal =
+              dy < dx && dy < dz
+                ? new T.Vector3(0, 1, 0)
+                : dx < dz
+                  ? new T.Vector3(Math.sign(hit.x - o.x), 0, 0)
+                  : new T.Vector3(0, 0, Math.sign(hit.z - o.z));
+          }
+        }
+      }
     }
     return nearest;
   }
@@ -557,11 +645,31 @@ export class Game {
     this.recoil = Math.min(0.22, this.recoil + d.recoil);
     this.sound.shot(d);
     this.gun.userData.flash.visible = true;
+    this.gun.userData.cycle = 1;
+    this.gun.userData.flash.rotation.z = Math.random() * Math.PI * 2;
     this.flashTimer = 0.05;
     this.flash.intensity = 12;
     this.flash.position
       .copy(this.player.position)
       .add(this.camera.getWorldDirection(dir).multiplyScalar(0.7));
+    const ejection = this.camera.position
+      .clone()
+      .add(
+        new T.Vector3(0.18, -0.17, -0.35).applyQuaternion(
+          this.camera.quaternion,
+        ),
+      );
+    if (w.id !== "eclipse")
+      this.combatEffects.casing(ejection, this.camera.quaternion);
+    this.combatEffects.puff(
+      this.camera.position
+        .clone()
+        .add(
+          new T.Vector3(0.12, -0.12, -0.75).applyQuaternion(
+            this.camera.quaternion,
+          ),
+        ),
+    );
     const aimed = this.mouse.aim;
     let shotHit = false;
     for (let pellet = 0; pellet < d.pellets; pellet++) {
@@ -572,9 +680,17 @@ export class Game {
       direction.y += (Math.random() - 0.5) * d.spread * (aimed ? 0.3 : 1);
       direction.normalize();
       const origin = this.camera.position.clone();
-      let distance = this.obstacleDistance(origin, direction, 90),
+      const impact = {};
+      let distance = this.obstacleDistance(origin, direction, 90, impact),
         target = null,
         head = false;
+      if (direction.y < -0.001) {
+        const ground = -origin.y / direction.y;
+        if (ground < distance) {
+          distance = ground;
+          impact.normal = new T.Vector3(0, 1, 0);
+        }
+      }
       ray.set(origin, direction);
       for (const e of this.enemies) {
         if (e.dead) continue;
@@ -623,8 +739,15 @@ export class Game {
             )
               this.damageEnemy(e, damage * 0.55, false);
         }
-      } else if (distance < 90)
+      } else if (distance < 90) {
         this.burst(end, w.id === "eclipse" ? 0x61ffdf : 0xdbb58b, 4, 0.3);
+        this.combatEffects.impact(
+          end,
+          impact.normal,
+          w.id === "eclipse" ? 0.4 : 0.16 + Math.random() * 0.08,
+        );
+        if (pellet === 0) this.combatEffects.puff(end);
+      }
       if (pellet === 0 || w.id === "eclipse")
         this.tracer(
           origin
@@ -662,7 +785,8 @@ export class Game {
     );
     if (enemy.health <= 0) {
       enemy.dead = true;
-      enemy.deathTime = 0.75;
+      enemy.deathTime = 2.4;
+      enemy.fallSide = Math.random() < 0.5 ? -1 : 1;
       this.player.kills++;
       if (head) this.player.headshots++;
       const points =
@@ -860,7 +984,11 @@ export class Game {
       // authored anchor even when it overlapped a column or scenery collider.
       pos = new T.Vector3(candidate.x, 0, candidate.z);
     }
-    const model = zombieModel(type);
+    const model = zombieModel(
+      type,
+      this.touch || this.settings.quality === "low",
+    );
+    setSurfaceQuality(model, this.settings.quality);
     model.position.copy(pos);
     model.position.y = -1.9;
     this.scene.add(model);
@@ -886,10 +1014,12 @@ export class Game {
       if (e.dead) {
         e.deathTime -= dt;
         e.model.rotation.x = Math.max(
-          -Math.PI / 2,
-          e.model.rotation.x - dt * 2.7,
+          -Math.PI / 2 + 0.06,
+          e.model.rotation.x - dt * 3.4,
         );
-        e.model.position.y -= dt * 0.6;
+        e.model.rotation.z =
+          (e.fallSide || 1) * 0.12 * (1 - Math.max(0, e.deathTime - 1.8) / 0.6);
+        if (e.deathTime < 0.65) e.model.position.y -= dt * 0.65;
         continue;
       }
       e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
@@ -954,7 +1084,13 @@ export class Game {
         this.player.position.x - e.model.position.x,
         this.player.position.z - e.model.position.z,
       );
-      animateZombie(e.model, this.time + e.seed, speed / 1.65, d < 1.65);
+      animateZombie(
+        e.model,
+        this.time + e.seed,
+        speed / 1.65,
+        d < 1.65,
+        Math.min(0.16, e.stagger),
+      );
       if (d < 1.65 && !blocked && e.attack <= 0) {
         this.hurt(ENEMIES[e.type].damage);
         e.attack = e.type === "runner" ? 0.85 : 1.15;
@@ -979,7 +1115,10 @@ export class Game {
       }
     }
     const gone = this.enemies.filter((e) => e.dead && e.deathTime <= 0);
-    for (const e of gone) this.scene.remove(e.model);
+    for (const e of gone) {
+      this.scene.remove(e.model);
+      releaseZombie(e.model);
+    }
     this.enemies = this.enemies.filter((e) => !gone.includes(e));
   }
   interact() {
@@ -987,6 +1126,13 @@ export class Game {
     const i = this.nearInteraction();
     if (!i) return;
     if (i.kind === "door" && i.open) return;
+    if (i.kind === "recording") {
+      i.read = true;
+      this.sound.click();
+      this.emit("toast", { title: i.name, text: i.text, duration: 11000 });
+      this.updateHUD();
+      return;
+    }
     const fail = (text) => {
       this.emit("toast", { title: "Impossible pour le moment", text });
       this.sound.click();
@@ -1058,7 +1204,10 @@ export class Game {
         this.updateNavigation(true);
         this.emit("toast", {
           title: "Nouvelle zone ouverte",
-          text: "Le générateur et les machines d’atouts sont accessibles.",
+          text:
+            this.map === "abyss"
+              ? `${i.name} · Cherchez les machines et les archives du secteur.`
+              : "Le générateur et les machines d’atouts sont accessibles.",
         });
         break;
       case "box":
@@ -1134,10 +1283,22 @@ export class Game {
       if (i.kind === "door" && i.open) continue;
       const dx =
         i.kind === "door"
-          ? Math.max(0, Math.abs(this.player.position.x) - 9)
+          ? Math.max(
+              0,
+              Math.abs(this.player.position.x - i.obstacle.x) -
+                i.obstacle.w / 2,
+            )
           : this.player.position.x - i.position.x;
-      const dz = this.player.position.z - i.position.z;
-      const d = Math.hypot(dx, dz);
+      const dz =
+        i.kind === "door"
+          ? Math.max(
+              0,
+              Math.abs(this.player.position.z - i.obstacle.z) -
+                i.obstacle.d / 2,
+            )
+          : this.player.position.z - i.position.z;
+      // Grilles are operated across their frame; machines use their centre.
+      const d = Math.max(0, Math.hypot(dx, dz) - (i.kind === "door" ? 1 : 0));
       if (d < distance) {
         near = i;
         distance = d;
@@ -1148,6 +1309,8 @@ export class Game {
   interactionText(i) {
     if (!i) return null;
     let action = `${i.name} · ${i.cost ? `${i.cost} essences` : "Activer"}`;
+    if (i.kind === "recording")
+      action = `${i.read ? "Relire" : "Lire"} · ${i.name}`;
     if (i.kind === "box" && i.busy)
       action = i.offered
         ? `Prendre ${WEAPONS[i.offered].name}`
@@ -1225,26 +1388,7 @@ export class Game {
     p.life = 0;
   }
   burst(position, color, count = 8, force = 1) {
-    for (let i = 0; i < count; i++) {
-      const m = new T.Mesh(
-        new T.OctahedronGeometry(0.025 + Math.random() * 0.035),
-        new T.MeshBasicMaterial({ color, transparent: true }),
-      );
-      m.position.copy(position);
-      this.scene.add(m);
-      const life = 0.3 + Math.random() * 0.45;
-      this.effects.push({
-        mesh: m,
-        velocity: new T.Vector3(
-          (Math.random() - 0.5) * force * 5,
-          Math.random() * force * 4,
-          (Math.random() - 0.5) * force * 5,
-        ),
-        life,
-        max: life,
-        type: "particle",
-      });
-    }
+    this.combatEffects.burst(position, color, count, force);
   }
   tracer(start, end, color, radius) {
     const delta = end.clone().sub(start),
@@ -1259,6 +1403,7 @@ export class Game {
     this.effects.push({ mesh: m, life: 0.045, max: 0.045, type: "tracer" });
   }
   updateEffects(dt) {
+    this.combatEffects.update(dt);
     for (const e of this.effects) {
       e.life -= dt;
       if (e.velocity) {
@@ -1537,18 +1682,28 @@ export class Game {
                 : 0.138) * (this.touch ? 0.68 : 0.78)
           : sprint
             ? -0.31
-            : -0.24,
+            : -0.18,
         dt * 14,
       ) -
       reloadProgress * 0.012;
     this.gun.position.z =
-      (this.touch ? -0.56 : -0.52) + this.recoil * 0.7 + reloadProgress * 0.2;
+      (this.touch ? -0.63 : -0.62) + this.recoil * 0.7 + reloadProgress * 0.2;
     this.gun.rotation.set(
       -reloadProgress * 0.55 + sprint * 0.36,
       reloadProgress * -0.35 + sprint * -0.28,
       -reloadProgress * 0.52 + sprint * 0.27,
     );
     this.gun.position.y += bob * 0.12;
+    animateWeapon(
+      this.gun,
+      dt,
+      this.reloadTime > 0 ? 1 - this.reloadTime / this.reloadDuration : 0,
+      this.recoil,
+      sprint,
+      this.time,
+      aim,
+    );
+    this.weaponAmbient.intensity = 1.35 + (this.world?.powerLevel || 0) * 0.45;
     this.updateKnife();
     this.flashlight.position.copy(this.camera.position);
     this.flashlight.target.position
@@ -1667,8 +1822,13 @@ export class Game {
       this.growlTimer = 1.3 + Math.random() * 2;
     }
     if (this.extraction) {
+      const beacon = this.world.interactions.find((i) => i.kind === "extract");
       const near =
-        Math.hypot(this.player.position.x, this.player.position.z - 26) < 4.5;
+        beacon &&
+        Math.hypot(
+          this.player.position.x - beacon.position.x,
+          this.player.position.z - beacon.position.z,
+        ) < 4.5;
       if (near) this.extractionTimer -= dt;
       if (this.extractionTimer <= 0) this.end(true);
     }
@@ -1682,6 +1842,8 @@ export class Game {
   updateHUD() {
     if (!this.player) return;
     this.emit("hud", {
+      map: this.map,
+      sector: this.world.sectorAt?.(this.player.position),
       health: this.player.health,
       maxHealth: this.player.maxHealth,
       stamina: this.player.stamina,
@@ -1792,13 +1954,9 @@ export class Game {
         this.player && this.player.health < 35 ? 0.25 : 0,
       );
       this.renderer.autoClear = true;
+      this.viewPass.enabled =
+        this.state === "playing" || this.state === "paused";
       this.composer.render();
-      if (this.state === "playing" || this.state === "paused") {
-        this.renderer.autoClear = false;
-        this.renderer.clearDepth();
-        this.renderer.render(this.viewScene, this.viewCamera);
-        this.renderer.autoClear = true;
-      }
     }
   }
   // Read-only state for diagnostics; debug mutations exist only behind Vite's development flag.

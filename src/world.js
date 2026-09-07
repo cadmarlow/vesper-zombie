@@ -13,6 +13,9 @@ import {
   weaponModel,
 } from "./assets.js";
 import { rng } from "./logic.js";
+import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
+import { enrichWorld } from "./world-detail.js";
+import { buildAbyss } from "./world-abyss.js";
 
 export class World {
   constructor(scene, id, quality) {
@@ -46,14 +49,20 @@ export class World {
       [19, -22],
       [0, -25],
     ];
-    this.environment();
-    this.floor();
-    if (id === "abbey") this.abbey();
-    else this.station();
-    this.machines();
-    this.dressing();
-    this.electricalNetwork();
-    this.weather();
+    if (id === "abyss") {
+      this.detail = buildAbyss(this);
+      this.machines();
+    } else {
+      this.environment();
+      this.floor();
+      if (id === "abbey") this.abbey();
+      else this.station();
+      this.machines();
+      this.dressing();
+      this.electricalNetwork();
+      this.weather();
+      this.detail = enrichWorld(this);
+    }
     this.batch();
   }
   obstacle(x, z, w, d, h = 3, extra = {}) {
@@ -70,15 +79,15 @@ export class World {
     const s = this.scene,
       abbey = this.id === "abbey";
     s.background = new T.Color(abbey ? 0x101b24 : 0x102330);
-    s.fog = new T.FogExp2(abbey ? 0x17242b : 0x183641, 0.019);
+    s.fog = new T.FogExp2(abbey ? 0x132027 : 0x18303b, 0.014);
     const hemi = new T.HemisphereLight(
       abbey ? 0xadc7de : 0x9ddef0,
       abbey ? 0x454238 : 0x344c58,
-      1.35,
+      1.05,
     );
     this.root.add(hemi);
     this.hemi = hemi;
-    this.root.add(new T.AmbientLight(0x9faeac, 0.38));
+    this.root.add(new T.AmbientLight(0x9faeac, 0.2));
     const sun = new T.DirectionalLight(abbey ? 0xadcce4 : 0xa1d8f0, 2.15);
     sun.position.set(-25, 42, -32);
     sun.castShadow = true;
@@ -179,11 +188,7 @@ export class World {
   }
   floor() {
     const m = this.materials;
-    const floor = m.floor.clone();
-    floor.map = m.floor.map.clone();
-    floor.map.repeat.set(18, 22);
-    floor.bumpMap = floor.map;
-    box(this.static, floor, 0, -0.22, 0, 50, 0.4, 60);
+    box(this.static, m.floor, 0, -0.22, 0, 50, 0.4, 60);
     this.obstacle(-25, 0, 2, 62);
     this.obstacle(25, 0, 2, 62);
     this.obstacle(0, -30, 52, 2);
@@ -195,23 +200,6 @@ export class World {
     }
     for (let z = -27; z < 29; z += 3)
       box(this.static, m.dark, 0, 0.006, z, 15, 0.012, 0.025);
-    const poolMat = mat(this.id === "abbey" ? 0x7a8b89 : 0x85bdc2, 0.12, 0.65, {
-      transparent: true,
-      opacity: 0.24,
-      depthWrite: false,
-    });
-    for (let i = 0; i < 25; i++) {
-      const puddle = mesh(
-        new T.CircleGeometry(0.7 + this.random() * 1.3, 18),
-        poolMat,
-        this.static,
-        (this.random() - 0.5) * 44,
-        0.012,
-        (this.random() - 0.5) * 54,
-      );
-      puddle.rotation.x = -Math.PI / 2;
-      puddle.scale.y = 0.3 + this.random() * 0.8;
-    }
   }
   column(x, z, height = 10) {
     const m = this.materials;
@@ -712,7 +700,8 @@ export class World {
       speed: [17, -3],
       extract: [0, 26],
     };
-    for (const [kind, [x, z]] of Object.entries(locations)) {
+    for (const [kind, [x, z]] of this.machineLocations ||
+      Object.entries(locations)) {
       const g = new T.Group();
       g.position.set(x, 0, z);
       this.root.add(g);
@@ -1038,7 +1027,7 @@ export class World {
     }
   }
   weather() {
-    const n = this.quality === "high" ? 1600 : 650,
+    const n = 1600,
       positions = new Float32Array(n * 3),
       r = this.random;
     for (let i = 0; i < n; i++) {
@@ -1076,6 +1065,8 @@ export class World {
       }
       const geo = o.geometry.clone();
       geo.applyMatrix4(o.matrixWorld);
+      if (o.material.userData.worldMeters)
+        projectSurfaceUV(geo, o.material.userData.worldMeters);
       if (!geo.getAttribute("uv"))
         geo.setAttribute(
           "uv",
@@ -1146,10 +1137,12 @@ export class World {
   }
   update(dt, time) {
     this.time = time;
+    this.detail.update(dt, time);
     if (this.power) this.powerTime += dt;
     this.powerLevel = this.power ? Math.min(1, this.powerTime / 3.2) : 0;
-    // Soften powered highlights on both maps while keeping ambient visibility.
-    const poweredBrightness = this.id === "abbey" ? 0.86 : 0.84;
+    // Soften powered highlights while keeping ambient visibility on each map.
+    const poweredBrightness =
+      this.lighting?.poweredBrightness ?? (this.id === "abbey" ? 0.86 : 0.84);
     const glowLevel = this.powerLevel * poweredBrightness;
     for (const c of this.circuits) {
       const ramp = this.power
@@ -1157,11 +1150,15 @@ export class World {
         : 0;
       c.level = ramp * ramp * (3 - 2 * ramp);
       c.material.emissiveIntensity = c.level * 4.5 * poweredBrightness;
-      c.light.intensity = c.level * 75 * poweredBrightness;
+      c.light.intensity = c.level * 48 * poweredBrightness;
     }
-    this.hemi.intensity = 1.35 + this.powerLevel * 0.65;
-    this.fill.intensity = 0.2 + this.powerLevel * 1.35;
-    this.scene.environmentIntensity = 0.27 + this.powerLevel * 0.28;
+    this.hemi.intensity =
+      (this.lighting?.ambient ?? 1.05) +
+      this.powerLevel * (this.lighting?.powerAmbient ?? 0.35);
+    this.fill.intensity =
+      (this.lighting?.fill ?? 0.2) +
+      this.powerLevel * (this.lighting?.powerFill ?? 0.75);
+    this.scene.environmentIntensity = 0.25 + this.powerLevel * 0.18;
     this.materials.cyan.emissiveIntensity = 0.035 + glowLevel * 3;
     this.coreHalo.material.opacity = 0.045 + glowLevel * 0.46;
     for (const i of this.interactions)
@@ -1178,6 +1175,27 @@ export class World {
         l.bulb.emissiveIntensity = 0.03 + glowLevel * 4;
         l.halo.material.opacity = 0.03 + glowLevel * 0.65;
       }
+    }
+    if (
+      this.lightBudget &&
+      this.viewer &&
+      time > (this.nextLightSelection || 0)
+    ) {
+      this.nextLightSelection = time + 0.4;
+      const sources = [
+        ...this.lights.map((l) => l.light),
+        ...this.circuits.map((c) => c.light),
+      ];
+      sources.sort(
+        (a, b) =>
+          b.intensity /
+            (12 + b.position.distanceToSquared(this.viewer.position)) -
+          a.intensity /
+            (12 + a.position.distanceToSquared(this.viewer.position)),
+      );
+      sources.forEach((light, i) => {
+        light.visible = i < this.lightBudget;
+      });
     }
     for (const a of this.animated) {
       if (a.kind === "banner") {
@@ -1204,7 +1222,7 @@ export class World {
     if (this.aurora) this.aurora.material.uniforms.time.value = time;
     const p = this.particles.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      p.array[i * 3 + 1] += dt * (this.id === "abbey" ? 0.3 : -1.1);
+      p.array[i * 3 + 1] += dt * (this.id === "station" ? -1.1 : 0.3);
       p.array[i * 3] += Math.sin(time * 0.5 + i) * dt * 0.14;
       if (p.array[i * 3 + 1] > 22) p.array[i * 3 + 1] = 0;
       if (p.array[i * 3 + 1] < 0) p.array[i * 3 + 1] = 22;
@@ -1233,6 +1251,34 @@ export class World {
     power.lever.rotation.x = 0.6;
     return true;
   }
+  setQuality(quality, mobile = false) {
+    this.quality = quality;
+    setSurfaceQuality(this.root, quality);
+    const shadowSize =
+      quality === "high" && !mobile ? 2048 : quality === "low" ? 512 : 1024;
+    if (this.sun.shadow.mapSize.x !== shadowSize) {
+      this.sun.shadow.mapSize.setScalar(shadowSize);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.particles.geometry.setDrawRange(
+      0,
+      quality === "low" ? 320 : quality === "medium" || mobile ? 650 : 1600,
+    );
+    this.detail.setQuality(quality, mobile);
+    this.lightBudget =
+      mobile || quality === "low"
+        ? 6
+        : quality === "medium"
+          ? Math.min(this.maxLights || 10, 10)
+          : this.maxLights || 0;
+    this.nextLightSelection = 0;
+    for (const l of [
+      ...this.lights.map((l) => l.light),
+      ...this.circuits.map((c) => c.light),
+    ])
+      l.visible = true;
+  }
   openDoor(d) {
     d.open = true;
     d.obstacle.active = false;
@@ -1250,6 +1296,9 @@ export class World {
     b.root.add(b.display);
   }
   dispose() {
+    // Render targets (including their depth texture) belong to the old light.
+    // Removing its meshes alone does not release the shadow allocation.
+    this.sun.shadow.dispose();
     disposeModel(this.root);
     this.scene.remove(this.root);
   }
@@ -1271,5 +1320,7 @@ export function disposeModel(root) {
   });
   geometries.forEach((g) => g.dispose());
   materials.forEach((m) => m.dispose());
-  textures.forEach((t) => t.dispose());
+  textures.forEach((t) => {
+    if (!t.userData.sharedSurface) t.dispose();
+  });
 }

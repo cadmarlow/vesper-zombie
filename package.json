@@ -1,6 +1,6 @@
 {
   "name": "vesper-survival",
-  "version": "1.2.1",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -19,7 +19,11 @@
     "test:feel": "node scripts/feel-check.mjs",
     "test:release": "node scripts/release-check.mjs",
     "test:online": "node scripts/online-check.mjs",
-    "test:menu": "node scripts/menu-check.mjs"
+    "test:menu": "node scripts/menu-check.mjs",
+    "test:visual": "node scripts/visual-check.mjs",
+    "test:upgrade": "node scripts/upgrade-check.mjs",
+    "test:zombies": "node scripts/zombie-check.mjs",
+    "test:abyss": "node scripts/abyss-check.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

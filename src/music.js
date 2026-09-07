@@ -1,4 +1,4 @@
-// Two original, evolving horror cues, performed locally by Web Audio.
+// Three original, evolving horror cues, performed locally by Web Audio.
 // An eight-bar motif, detuned strings, prepared bells and a wave-driven pulse.
 export class Score {
   constructor(ctx, destination) {
@@ -152,17 +152,26 @@ export class Score {
     beat,
     { map = "abbey", phase = "rest", wave = 0, power = false } = {},
   ) {
-    const base = map === "abbey" ? 38 : 37;
+    const base = map === "abyss" ? 41 : map === "abbey" ? 38 : 37;
     const bar = Math.floor(beat / 8) % 8,
       step = beat % 64;
     const tension = phase === "wave" ? Math.min(1, 0.35 + wave / 16) : 0;
     if (beat % 16 === 0) {
-      const chord = [
-        [0, 7, 12],
-        [0, 6, 13],
-        [-2, 5, 12],
-        [-1, 6, 12],
-      ][Math.floor(bar / 2)];
+      const chord = (
+        map === "abyss"
+          ? [
+              [0, 7, 14],
+              [-3, 4, 12],
+              [-5, 2, 11],
+              [-1, 6, 13],
+            ]
+          : [
+              [0, 7, 12],
+              [0, 6, 13],
+              [-2, 5, 12],
+              [-1, 6, 12],
+            ]
+      )[Math.floor(bar / 2)];
       chord.forEach((interval, i) =>
         this.note(
           base + interval,
@@ -176,43 +185,62 @@ export class Score {
       this.note(base - 12, at, 7.5, 0.08, "pad");
     }
     const motif =
-      map === "abbey"
+      map === "abyss"
         ? [
             24,
             null,
+            38,
             31,
-            27,
-            25,
+            null,
+            26,
             null,
             19,
-            null,
-            24,
-            27,
             36,
             null,
-            25,
-            19,
-            24,
+            31,
             null,
+            26,
+            21,
+            null,
+            14,
           ]
-        : [
-            24,
-            25,
-            null,
-            31,
-            18,
-            null,
-            24,
-            null,
-            36,
-            null,
-            30,
-            25,
-            19,
-            null,
-            13,
-            null,
-          ];
+        : map === "abbey"
+          ? [
+              24,
+              null,
+              31,
+              27,
+              25,
+              null,
+              19,
+              null,
+              24,
+              27,
+              36,
+              null,
+              25,
+              19,
+              24,
+              null,
+            ]
+          : [
+              24,
+              25,
+              null,
+              31,
+              18,
+              null,
+              24,
+              null,
+              36,
+              null,
+              30,
+              25,
+              19,
+              null,
+              13,
+              null,
+            ];
     if (step % 4 === 0) {
       const note = motif[Math.floor(step / 4)];
       if (note !== null)

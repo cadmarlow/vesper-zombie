@@ -1,0 +1,21 @@
+VESPER 2.0 — Poly Haven surface textures
+
+Source: https://polyhaven.com/
+License statement: https://polyhaven.com/license
+License: CC0 1.0 Universal
+Legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Assets:
+  https://polyhaven.com/a/old_stone_wall
+  https://polyhaven.com/a/large_grey_tiles
+  https://polyhaven.com/a/rusty_metal_04
+  https://polyhaven.com/a/rough_wood
+  https://polyhaven.com/a/denim_fabric
+
+Diffuse, OpenGL normal and AO/roughness/metalness maps, sourced as 1K JPEGs,
+resampled to 512px and 1024px and encoded as WebP for this game.
+Source images are not included separately. All runtime assets are hosted
+locally with the application, without a runtime connection to Poly Haven.
+
+Poly Haven releases these assets under CC0; attribution is not required.
+This notice records their provenance and acknowledges the original creators.

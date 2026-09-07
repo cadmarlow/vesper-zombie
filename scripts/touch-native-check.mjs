@@ -57,11 +57,11 @@ try {
       })),
     });
   }
-  for (const map of ["abbey", "station"]) {
-    if (map === "station")
-      await page.evaluate(async () => {
-        await window.__vesper.start("station", "normal", true);
-      });
+  for (const map of ["abbey", "station", "abyss"]) {
+    if (map !== "abbey")
+      await page.evaluate(async (map) => {
+        await window.__vesper.start(map, "normal", true);
+      }, map);
     await page.evaluate(() => {
       const g = window.__vesper;
       g.phaseTimer = 1000;
@@ -175,7 +175,7 @@ try {
     check(`${map}: tapping weapon strip reloads`, true);
     await page.evaluate(() => {
       const g = window.__vesper;
-      g.player.position.set(0, 1.7, 20);
+      g.player.position.copy(g.world.spawn);
       g.yaw = g.pitch = 0;
       g.updatePlayer(0.016);
     });
@@ -207,7 +207,8 @@ try {
       await page.locator("#mobile-interact").isHidden(),
     );
     await page.evaluate(() => {
-      window.__vesper.player.position.set(0, 1.7, 7);
+      const g = window.__vesper;
+      g.player.position.set(0, 1.7, g.world.doors[0].obstacle.z + 4);
     });
     await page.waitForFunction(
       () =>
@@ -221,7 +222,7 @@ try {
     );
     await page.evaluate(() => {
       const g = window.__vesper;
-      g.player.position.set(0, 1.7, 20);
+      g.player.position.copy(g.world.spawn);
       g.world.openDoor(g.world.doors[0]);
       g.world.setPower();
       g.world.update(4, g.time);
@@ -456,6 +457,7 @@ try {
     page = await browser.newPage(options);
     page.on("pageerror", (e) => report.errors.push(e.message));
     await page.goto(process.env.VESPER_URL);
+    await page.locator('[data-map="abyss"]').tap();
     await page.locator("#play-button").tap();
     check(
       `${profile}: rotation screen on WebKit`,

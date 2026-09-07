@@ -36,6 +36,24 @@ try {
           launchCards: overlaps(a, b),
           cardsFooter: overlaps(b, c),
           launchFooter: overlaps(a, c),
+          cardContent: [...document.querySelectorAll(".map-card")].some(
+            (card) => {
+              const frame = card.getBoundingClientRect();
+              const number = card
+                .querySelector(".map-number")
+                .getBoundingClientRect();
+              const copy = card
+                .querySelector(".map-card-copy")
+                .getBoundingClientRect();
+              const title = card.querySelector("h2").getBoundingClientRect();
+              return (
+                overlaps(number, copy) ||
+                title.top < frame.top ||
+                title.bottom > frame.bottom ||
+                title.right > frame.right
+              );
+            },
+          ),
         };
       });
       count++;

@@ -75,9 +75,9 @@ app.innerHTML = `
  <main id="menu" class="screen menu-screen">
   <div class="menu-art" id="menu-art"></div><div class="menu-shade"></div><div class="grain"></div><div class="embers"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="menu-header"><a class="wordmark" href="#" aria-label="Accueil Vesper">${icon("eclipse")}<span>VESPER<span class="brand-divider"> / </span><small>SURVIVAL PROTOCOL</small></span></a><nav aria-label="Navigation principale"><button class="nav-button active" data-panel="home">JOUER</button><button class="nav-button" data-panel="arsenal">ARSENAL</button><button class="nav-button" data-panel="archives">ARCHIVES</button></nav><button class="icon-button" id="settings-button" aria-label="Paramètres">${icon("gear")}</button></header>
-  <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>2 CARTES</span></div></section>
+  <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
   <aside class="transmission"><span class="tiny">TRANSMISSION <b>00<span id="transmission-number">1</span></b></span><div class="signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p id="map-quote">« Les cloches se sont tues.<br>Ce qui dort sous la nef, non. »</p><span class="transmission-source">DERNIER CONTACT · <b id="map-time">03:47</b></span></aside>
-  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — 02</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="/art/${m.id}.png" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
+  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.png`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
     DIFFICULTIES,
   )
     .map(
@@ -86,7 +86,7 @@ app.innerHTML = `
     )
     .join("")}</div></div></section>
   </div><div class="menu-coordinate"><span id="map-coordinates">48° 04′ N / 07° 01′ E</span><div class="coordinate-line"></div><span id="map-condition">ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ</span></div>
-  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.1.2.1</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
+  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.2.2.0</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
  </main>
  <section id="panel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Informations"><div class="panel-shell"><div class="panel-top"><a class="wordmark" href="#">${icon("eclipse")}<span>VESPER</span></a><button class="close-button" id="close-panel">FERMER ${icon("close")}</button></div><div id="panel-content"></div></div></section>
  <section id="loading" class="screen loading-screen hidden"><div class="loading-symbol">${icon("eclipse")}</div><div class="eyebrow">OUVERTURE DU PROTOCOLE</div><h2 id="loading-map">L’Abbaye des Cendres</h2><div class="loading-track"><span></span></div><p>Gardez vos munitions. Faites compter chaque balle.</p></section>
@@ -124,14 +124,14 @@ menuArt.style.backgroundImage = "url(/art/abbey.png)";
 const formatTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 let toastTimer, announceTimer, hitTimer, damageTimer, panelReturnFocus;
-function toast({ title, text }) {
+function toast({ title, text, duration = 4300 }) {
   const root = $("#toast-container");
   root.innerHTML = `<div class="toast"><div class="toast-icon">${icon("eclipse")}</div><div><strong></strong><p></p></div></div>`;
   $(".toast strong").textContent = title;
   $(".toast p").textContent = text || "";
   root.classList.add("visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => root.classList.remove("visible"), 4300);
+  toastTimer = setTimeout(() => root.classList.remove("visible"), duration);
 }
 function announce(a) {
   const root = $("#announcement");
@@ -265,7 +265,7 @@ async function startGame(event) {
 function selectMap(id) {
   selectedMap = id;
   const map = MAPS.find((m) => m.id === id);
-  menuArt.style.backgroundImage = `url(/art/${id}.png)`;
+  menuArt.style.backgroundImage = `url(${map.art || `/art/${id}.png`})`;
   document.documentElement.style.setProperty("--map-accent", map.color);
   $$("[data-map]").forEach((b) => {
     b.classList.toggle("selected", b.dataset.map === id);
@@ -276,9 +276,10 @@ function selectMap(id) {
   $("#transmission-number").textContent = map.number.slice(1);
   $("#map-coordinates").textContent = map.coordinates;
   $("#map-condition").textContent =
-    id === "abbey"
+    map.condition ||
+    (id === "abbey"
       ? "ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ"
-      : "NUIT POLAIRE · SIGNAL NON IDENTIFIÉ";
+      : "NUIT POLAIRE · SIGNAL NON IDENTIFIÉ");
 }
 $$("[data-map]").forEach(
   (b) =>
@@ -382,7 +383,7 @@ function openPanel(kind) {
   $("#panel").classList.remove("hidden");
   const content = $("#panel-content");
   if (kind === "settings") {
-    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-quality">Qualité graphique<span>Élevée : halos lumineux et résolution supérieure.</span></label><select id="setting-quality">${[
+    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-quality">Qualité graphique<span>Textures détaillées, ombres et atmosphère. Les effets s’adaptent au mobile.</span></label><select id="setting-quality">${[
       ["high", "Élevée"],
       ["medium", "Équilibrée"],
       ["low", "Performance"],
@@ -447,7 +448,7 @@ function openPanel(kind) {
     content.innerHTML = `<div class="eyebrow">CE QUI RESTE APRÈS LA NUIT</div><h2>Archives du signal.</h2><p class="panel-description">Vos expéditions sont enregistrées sur cet appareil.</p><div class="archive-summary"><div><strong>${save.runs || "00"}</strong><span>EXPÉDITIONS</span></div><div><strong>${save.totalKills || "00"}</strong><span>ÉLIMINATIONS</span></div><div><strong>${Math.max(0, ...Object.values(save.records || {}).map((r) => r.wave))}</strong><span>MEILLEURE VAGUE</span></div></div><div class="archive-maps">${MAPS.map(
       (m) => {
         const r = save.records?.[m.id];
-        return `<article><img src="/art/${m.id}.png" alt=""/><div><span class="eyebrow">${m.region}</span><h3>${m.name}</h3><p>${r ? `Vague ${r.wave} · ${r.kills} éliminations · ${formatTime(r.time)} · ${r.victory ? "Extraction réussie" : "Signal perdu"}` : "Aucune expédition enregistrée. Le signal vous attend."}</p></div></article>`;
+        return `<article><img src="${m.art || `/art/${m.id}.png`}" alt=""/><div><span class="eyebrow">${m.region}</span><h3>${m.name}</h3><p>${r ? `Vague ${r.wave} · ${r.kills} éliminations · ${formatTime(r.time)} · ${r.victory ? "Extraction réussie" : "Signal perdu"}` : "Aucune expédition enregistrée. Le signal vous attend."}</p></div></article>`;
       },
     ).join(
       "",
@@ -468,7 +469,7 @@ function openPanel(kind) {
     };
     $("#cancel-quit").onclick = closePanel;
   } else if (game?.touch || matchMedia("(pointer: coarse)").matches) {
-    content.innerHTML = `<div class="eyebrow">DEUX POUCES. UNE DERNIÈRE NUIT.</div><h2>Prends le contrôle.</h2><p class="panel-description">Joue en paysage. Garde tes pouces dans les deux zones de jeu.</p><div class="mobile-guide-grid"><article>${icon("run")}<h3>BOUGER & COURIR</h3><p>Pose ton pouce où tu veux dans la zone gauche. Glisse doucement pour marcher, pousse franchement vers l’avant pour courir. Relâche pour t’arrêter.</p></article><article>${icon("bullet")}<h3>VISER EN TIRANT</h3><p>Glisse à droite pour regarder. Maintiens le grand bouton de tir et glisse dessus : tu peux suivre une cible en tirant, avec le même pouce.</p></article><article>${icon("magazine")}<h3>GARDER LE RYTHME</h3><p>Touche le compteur de munitions pour recharger. La flèche à côté change d’arme. La cible active la visée précise ; les autres icônes commandent saut, accroupissement, couteau et grenade.</p></article><article>${icon("target")}<h3>INTERAGIR</h3><p>Approche d’une grille ou d’une machine. Un bouton affiche l’action et son prix : touche-le pour acheter ou activer. L’icône Pause reste en haut à droite.</p></article></div><div class="guide-tip">Ouvre la grille avec 750 essences, puis cherche le générateur au fond à gauche. Le Reliquaire tire une arme pour 950 essences : récupère-la avant sa disparition. Après la vague 10, rejoins la balise de départ pour demander l’extraction.</div><div class="mobile-install-note">${icon("phone")}<div><b>Une place sur ton écran d’accueil</b><p>Sur iPhone : Partager → Sur l’écran d’accueil. Le jeu s’ouvre alors sans les barres du navigateur. Une connexion reste nécessaire au chargement.</p></div></div><div class="panel-foot"><span>La sensibilité tactile et l’aide à la précision se règlent dans les paramètres. Passer en portrait met la partie en pause.</span></div>`;
+    content.innerHTML = `<div class="eyebrow">DEUX POUCES. UNE DERNIÈRE NUIT.</div><h2>Prends le contrôle.</h2><p class="panel-description">Joue en paysage. Garde tes pouces dans les deux zones de jeu.</p><div class="mobile-guide-grid"><article>${icon("run")}<h3>BOUGER & COURIR</h3><p>Pose ton pouce où tu veux dans la zone gauche. Glisse doucement pour marcher, pousse franchement vers l’avant pour courir. Relâche pour t’arrêter.</p></article><article>${icon("bullet")}<h3>VISER EN TIRANT</h3><p>Glisse à droite pour regarder. Maintiens le grand bouton de tir et glisse dessus : tu peux suivre une cible en tirant, avec le même pouce.</p></article><article>${icon("magazine")}<h3>GARDER LE RYTHME</h3><p>Touche le compteur de munitions pour recharger. La flèche à côté change d’arme. La cible active la visée précise ; les autres icônes commandent saut, accroupissement, couteau et grenade.</p></article><article>${icon("target")}<h3>INTERAGIR</h3><p>Approche d’une grille ou d’une machine. Un bouton affiche l’action et son prix : touche-le pour acheter ou activer. L’icône Pause reste en haut à droite.</p></article></div><div class="guide-tip">Ouvre la grille avec 750 essences, puis suis l’objectif vers le générateur. À Néréide, ouvre aussi le sas de l’Atelier des marées pour 1 000 essences. Le Reliquaire tire une arme pour 950 essences : récupère-la avant sa disparition. Après la vague 10, rejoins la balise de départ pour demander l’extraction.</div><div class="mobile-install-note">${icon("phone")}<div><b>Une place sur ton écran d’accueil</b><p>Sur iPhone : Partager → Sur l’écran d’accueil. Le jeu s’ouvre alors sans les barres du navigateur. Une connexion reste nécessaire au chargement.</p></div></div><div class="panel-foot"><span>La sensibilité tactile et l’aide à la précision se règlent dans les paramètres. Passer en portrait met la partie en pause.</span></div>`;
   } else {
     content.innerHTML = `<div class="eyebrow">MANUEL DE L’OPÉRATEUR</div><h2>Restez en mouvement.</h2><p class="panel-description">Éliminez les présences. Préparez la prochaine vague. Retrouvez la lumière.</p><div class="guide-grid"><section><h3>COMMANDES</h3><div class="controls-list">${[
       [settings.layout === "azerty" ? "Z Q S D" : "W A S D", "Se déplacer"],
@@ -490,7 +491,7 @@ function openPanel(kind) {
       .map(([key, desc]) => `<div><kbd>${key}</kbd><span>${desc}</span></div>`)
       .join(
         "",
-      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Le générateur se trouve au fond, dans l’aile gauche.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. Sang de fer augmente votre santé ; Nerfs d’acier améliore recharge et endurance.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur mobile, jouez en paysage : posez le pouce à gauche puis glissez pour vous déplacer. Poussez vers l’avant pour courir. Glissez à droite pour regarder, ou maintenez le bouton de tir et glissez dessus pour viser en tirant. Touchez les munitions pour recharger. Le bouton d’interaction apparaît à proximité des machines. Pour enlever les barres du navigateur sur iPhone : menu Partager, puis Sur l’écran d’accueil.</span></div>`;
+      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Suis l’objectif vers le générateur. À Néréide, l’Atelier des marées demande un second sas à 1 000 essences ; le Belvédère s’ouvre pour 1 250 essences.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. Sang de fer augmente votre santé ; Nerfs d’acier améliore recharge et endurance.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur mobile, jouez en paysage : posez le pouce à gauche puis glissez pour vous déplacer. Poussez vers l’avant pour courir. Glissez à droite pour regarder, ou maintenez le bouton de tir et glissez dessus pour viser en tirant. Touchez les munitions pour recharger. Le bouton d’interaction apparaît à proximité des machines. Pour enlever les barres du navigateur sur iPhone : menu Partager, puis Sur l’écran d’accueil.</span></div>`;
   }
   $("#close-panel").focus();
 }
@@ -543,6 +544,9 @@ const minimap = $("#minimap"),
 let miniFrame = 0;
 function renderHUD(h) {
   $("#wave-number").textContent = String(h.wave).padStart(2, "0");
+  $("#hud-map").textContent = h.sector
+    ? `NÉRÉIDE · ${h.sector.toUpperCase()}`
+    : MAPS.find((m) => m.id === h.map).short;
   $("#wave-status").textContent =
     h.phase === "rest"
       ? `PROCHAINE DANS ${h.timer} S${game.touch ? "" : " · [N]"}`
@@ -627,10 +631,14 @@ function renderHUD(h) {
     sub = "Restez près de la balise (rayon de 4,5 m).";
   } else if (!h.door) {
     title = "Ouvrir la zone interdite";
-    sub = "Grille centrale · 750 essences";
+    sub =
+      MAPS.find((m) => m.id === h.map)?.gateHint ||
+      "Grille centrale · 750 essences";
   } else if (!h.power) {
     title = "Rétablir le courant";
-    sub = "Générateur · Aile gauche, au fond";
+    sub =
+      MAPS.find((m) => m.id === h.map)?.powerHint ||
+      "Générateur · Aile gauche, au fond";
   } else if (h.wave < 10 || (h.wave === 10 && h.phase === "wave")) {
     title = "Survivre à 10 vagues";
     sub = "Améliorez vos armes. Préparez votre extraction.";

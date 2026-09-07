@@ -1,6 +1,34 @@
 # VESPER — Asset provenance
 
-All gameplay geometry, materials, texture patterns, rigs, animations, particle systems, UI symbols and audio synthesis were authored for this project. No Call of Duty asset, map, logo or audio sample is included.
+Gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. Version 2.0 also uses the CC0 surface scans listed below. No Call of Duty asset, map, logo or audio sample is included.
+
+## Version 2.2 — Néréide, Les Jardins Abyssaux
+
+`src/world-abyss.js` contains the original playable map: its pressure vault, tree, curved leaves with a locally drawn vein texture, astrolabes, specimen rigs, caustic/ocean shaders, manta and instanced fish. Materials reuse the CC0 surface scans below. The three fictional research journals and the new synthesized score in `src/music.js` are authored for this map; journals are displayed as text, not voice recordings.
+
+`public/art/abyss.webp` is original menu key art generated using the built-in **imagegen** tool (259 KiB). The selected source and exact prompt are recorded in [`artwork/abyss/PROMPTS.md`](artwork/abyss/PROMPTS.md). It is an illustration, not a screenshot or an imported 3D environment. The generated source PNG is kept outside `public/`; only the WebP is shipped.
+
+## Version 2.1 — creature faces and skin
+
+Two original albedo images were created with the built-in **imagegen** tool and integrated into the animated meshes. Selected source images and exact prompts: [`artwork/creatures/PROMPTS.md`](artwork/creatures/PROMPTS.md). Runtime files: `public/textures/creatures/face-{512,1024}.webp` and `public/textures/creatures/skin-{512,1024}.webp`.
+
+Phones load 512px variants (132 KiB together); desktop loads 1024px variants (546 KiB together). Images are bundled locally, use sRGB and remain shared across the horde. Detailed/low geometry variants retain the facial albedo and both dental arches. The forehead, orbital sockets, nasal bridge, cheeks and open mouth are authored geometry in `src/creature-head.js`. The jaw, chin, lower dental arch and oral walls have skeleton weights; no face decal or depth-test override conceals the original mesh. The generated skin images replace the generic procedural pattern during normal loading. They are artistic material textures, not scanned human skin or a full scanned character.
+
+## Version 2.0 — scanned surfaces
+
+The following texture sets come from [Poly Haven](https://polyhaven.com/license) and are released under **CC0 1.0**. Their 1K JPEG source maps were resized and encoded to WebP for local delivery. No Poly Haven API or asset CDN is contacted by the game.
+
+| Local prefix | Original asset                                               | Source channels                                       |
+| ------------ | ------------------------------------------------------------ | ----------------------------------------------------- |
+| `stone`      | [Old Stone Wall](https://polyhaven.com/a/old_stone_wall)     | Diffuse, OpenGL normal, packed AO/roughness/metalness |
+| `floor`      | [Large Grey Tiles](https://polyhaven.com/a/large_grey_tiles) | Diffuse, OpenGL normal, packed AO/roughness/metalness |
+| `metal`      | [Rusty Metal 04](https://polyhaven.com/a/rusty_metal_04)     | Diffuse, OpenGL normal, packed AO/roughness/metalness |
+| `wood`       | [Rough Wood](https://polyhaven.com/a/rough_wood)             | Diffuse, OpenGL normal, packed AO/roughness/metalness |
+| `cloth`      | [Denim Fabric](https://polyhaven.com/a/denim_fabric)         | Diffuse, OpenGL normal, packed AO/roughness/metalness |
+
+Files: `public/textures/{prefix}-{color,normal,arm}-{512,1024}.webp`. Phones/tablets load 512px maps; desktop loads 1024px maps. Color maps use sRGB; normal and packed data maps use no color-space conversion. The scans are projected in world metres for architecture to avoid stretched textures. See `public/licenses/POLY-HAVEN.txt`.
+
+The skinned zombies in `src/creatures.js`, first-person weapon rigs in `src/weapons.js`, atmospheric shaders and dressing in `src/world-detail.js`, and pooled impact effects in `src/combat-effects.js` are original code and geometry. They are not downloaded character models or motion-capture recordings. The fog and light shafts use lightweight transparent effects; they are not a volumetric ray-tracing system. Puddles use environment lighting, not screen-space reflections.
 
 ## Original key art
 
@@ -8,6 +36,7 @@ Generated using the built-in imagegen tool, then copied into this workspace. The
 
 - `public/art/abbey.png`
 - `public/art/station.png`
+- `public/art/abyss.webp` — prompt and source documented above.
 
 ### Abbey prompt
 
