@@ -22,12 +22,13 @@ export class TouchControls {
     element.addEventListener("pointerdown", (e) => {
       const game = this.getGame();
       if (!game || game.state !== "playing" || !game.touch) return;
-      // One thumb per zone: a second finger must not add up joystick or camera input.
-      if (
-        (action === "move" || action === "look") &&
-        [...this.contacts.values()].some((c) => c.action === action)
-      )
-        return;
+      // One thumb per zone: a second finger must not add up joystick or
+      // camera input. A contact whose release event never arrived (browser
+      // gesture, lost capture) is replaced by the new one instead of blocking
+      // the zone for the rest of the session.
+      if (action === "move" || action === "look")
+        for (const [id, c] of [...this.contacts])
+          if (c.action === action) this.release(id);
       e.preventDefault();
       element.setPointerCapture(e.pointerId);
       const contact = { action, element, x: e.clientX, y: e.clientY };

@@ -435,10 +435,12 @@ export class Game {
     this.world.setQuality(this.settings.quality, touch);
     this.world.update(0, 0);
     // Compilation and the one-off reflection capture happen behind the loader.
+    // The far level shares its shaders with these; it is built after the
+    // loader, during the opening rest, so phones start sooner.
     const warmup = Object.keys(ENEMIES).flatMap((type) =>
       (touch || this.settings.quality === "low"
-        ? ["lite", "far"]
-        : ["full", "lite", "far"]
+        ? ["lite"]
+        : ["full", "lite"]
       ).map((detail) => zombieModel(type, detail)),
     );
     warmup.forEach((model) => {
@@ -556,6 +558,7 @@ export class Game {
     this.state = "playing";
     this.last = performance.now();
     this.nextShadowFrame = 0;
+    this.warmupDistantModels();
     this.updateHUD();
     this.emit("state", "playing");
     this.emit("announce", {
@@ -572,7 +575,20 @@ export class Game {
     });
     if (!touch) this.lock();
   }
+  warmupDistantModels() {
+    // One template per tick keeps each pause well under a frame budget.
+    const session = (this.warmupSession = (this.warmupSession || 0) + 1);
+    const types = Object.keys(ENEMIES);
+    const step = (i) => {
+      if (session !== this.warmupSession || this.state === "menu") return;
+      if (i >= types.length) return;
+      releaseZombie(zombieModel(types[i], "far"));
+      setTimeout(() => step(i + 1), 250);
+    };
+    setTimeout(() => step(0), 400);
+  }
   cleanup() {
+    this.warmupSession = (this.warmupSession || 0) + 1;
     this.contactShadows?.dispose();
     this.contactShadows = null;
     this.scene.environment = this.environmentTarget.texture;
