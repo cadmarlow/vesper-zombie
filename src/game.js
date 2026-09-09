@@ -919,7 +919,19 @@ export class Game {
       if (headKill) destroyZombieHead(enemy.model, position);
       this.combatEffects.blood.hit(position, direction, headKill);
       this.projectBlood(position, direction, headKill);
-      this.sound.flesh(headKill);
+      // Impacts sit where the creature stands relative to the view.
+      const rx = Math.cos(this.yaw),
+        rz = -Math.sin(this.yaw);
+      this.sound.flesh(
+        headKill,
+        clamp(
+          ((enemy.model.position.x - this.camera.position.x) * rx +
+            (enemy.model.position.z - this.camera.position.z) * rz) /
+            9,
+          -1,
+          1,
+        ),
+      );
       enemy.nextBloodFx = this.time + 0.055;
     }
     const push = new T.Vector3(

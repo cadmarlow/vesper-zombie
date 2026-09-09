@@ -129,8 +129,10 @@ export class Sound {
     s.start();
   }
   shot(def) {
-    this.noise(0.15 + def.recoil, 0.28, def.energy ? 3300 : 1900);
-    this.tone(def.sound, 0.19, 0.32, "triangle", 35);
+    // A few percent of pitch drift keeps automatic fire from sounding looped.
+    const drift = 0.94 + Math.random() * 0.12;
+    this.noise(0.15 + def.recoil, 0.28, (def.energy ? 3300 : 1900) * drift);
+    this.tone(def.sound * drift, 0.19, 0.32, "triangle", 35);
     this.noise(0.24, 0.1, 800, 0.055);
     if (def.energy) {
       this.tone(970, 0.28, 0.12, "sawtooth", 130);
@@ -151,11 +153,13 @@ export class Sound {
     this.noise(0.07, 0.07, 2800);
     this.tone(head ? 1400 : 850, 0.065, 0.05, "triangle", 450);
   }
-  flesh(headKill = false) {
+  flesh(headKill = false, pan = 0) {
     this.noise(
       headKill ? 0.18 : 0.075,
       headKill ? 0.12 : 0.045,
       headKill ? 1050 : 720,
+      0,
+      pan,
     );
     this.tone(
       headKill ? 110 : 150,
@@ -164,7 +168,7 @@ export class Sound {
       "triangle",
       38,
     );
-    if (headKill) this.noise(0.055, 0.065, 2400, 0.025);
+    if (headKill) this.noise(0.055, 0.065, 2400, 0.025, pan);
   }
   hurt() {
     this.noise(0.28, 0.26, 380);
