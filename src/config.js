@@ -211,6 +211,21 @@ export const ENEMIES = {
     eye: 0x71ffff,
   },
   // Boss. Built on the Pénitent's body, ashen, larger, with burning eyes.
+  // Co-op teammates seen in third person: a survivor on the walker frame.
+  survivor: {
+    name: "Survivant",
+    health: 100,
+    speed: 3.65,
+    damage: 0,
+    score: 0,
+    scale: 1,
+    radius: 0.36,
+    look: "walker",
+    tint: 0xd8c7b4,
+    color: 0x3a4a52,
+    eye: 0xdfe6dc,
+    hidden: true,
+  },
   archon: {
     name: "L’Archonte",
     health: 2400,

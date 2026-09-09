@@ -2,6 +2,20 @@
 
 Un FPS solo de survie occulte, jouable dans le navigateur. Trois lieux, une dernière nuit. Création originale inspirée du principe de survie par vagues.
 
+## Version 3.0.0 — jouer entre amis
+
+Le bouton **Jouer entre amis** du menu ouvre un salon coopératif de deux à quatre survivants. Le créateur du salon reçoit un code de quatre lettres à partager ; il choisit la carte et la difficulté et lance la nuit. Chacun garde ses essences, ses armes et ses atouts ; les grilles, le générateur, le Reliquaire et la balise sont partagés. Les ennemis traquent le survivant le plus proche. Un joueur qui tombe attend la vague suivante pour revenir au point d’arrivée ; la nuit s’achève quand tout le monde est à terre. Les coéquipiers sont visibles en jeu avec leur nom, leur arme et leur santé dans le HUD.
+
+Techniquement, le créateur du salon **héberge** la simulation (vagues, ennemis, objets) et diffuse l’état vingt fois par seconde ; les autres joueurs commandent leurs propres déplacements, tirs et santé et envoient leurs impacts. Le serveur `server/index.js` est un simple relais WebSocket : il tient les salons et transmet les messages, sans base de données ni logique de jeu. `npm run test:coop` lance deux navigateurs sur un relais local et vérifie salon, démarrage, synchronisation des ennemis, impacts, achats partagés, chute et retour.
+
+### Mettre le relais en ligne
+
+1. **Railway** : créez un projet depuis ce dépôt GitHub. Le fichier `railway.json` installe les dépendances et démarre `node server/index.js` sur le port fourni par Railway. Vous pouvez aussi définir le dossier racine du service sur `server/` (il a son propre `package.json`). Notez l’adresse publique, par exemple `vesper-relay.up.railway.app`.
+2. **Vercel** : ajoutez la variable d’environnement `VITE_RELAY_URL` avec la valeur `wss://vesper-relay.up.railway.app` (adresse Railway en `wss://`), puis redéployez. Sans cette variable, le salon indique que le relais n’est pas configuré.
+3. En local, `npm run relay` démarre le relais sur le port 8787 ; le jeu servi sur `localhost` ou en réseau local s’y connecte automatiquement.
+
+Aucune base de données n’est nécessaire pour jouer. Neon ou une autre base pourra servir plus tard à des classements en ligne.
+
 ## Version 2.6.0 — progression et Archonte
 
 - **Transfiguration en trois paliers** : 3 000, 5 000 puis 7 500 essences pour des dégâts ×2,5, ×4 et ×6, un chargeur et une réserve agrandis à chaque palier. Le HUD affiche le palier (✦I, ✦II, ✦III) et la machine annonce le prix suivant.
@@ -85,9 +99,10 @@ Le jeu est entièrement statique : aucun serveur de jeu ni base de données à c
 - Régénération de santé, endurance, bonus de soins, munitions, essences doubles et mort instantanée.
 - Extraction après la dixième vague ou poursuite de la survie ; écrans de victoire et de défaite.
 - Menu, arsenal, bestiaire, guide, réglages, pause et archives locales.
+- Coopération en ligne de deux à quatre survivants via un salon à code (voir « Jouer entre amis »).
 - Ombres, matériaux texturés, reflets, halos lumineux, particules, vêtements animés, animations d’armes et ambiance sonore synthétisée.
 
-Le jeu est solo. Les archives enregistrent les résultats terminés et les meilleurs scores par carte sur cet appareil ; elles ne sauvegardent pas une partie en cours. Cette réalisation indépendante a une direction artistique stylisée et ne constitue pas une production AAA équivalente à Call of Duty.
+Le jeu se joue seul ou en coopération jusqu’à quatre. Les archives enregistrent les résultats terminés et les meilleurs scores par carte sur cet appareil ; elles ne sauvegardent pas une partie en cours. Cette réalisation indépendante a une direction artistique stylisée et ne constitue pas une production AAA équivalente à Call of Duty.
 
 ## Commandes
 

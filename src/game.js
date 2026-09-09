@@ -247,7 +247,7 @@ export class Game {
             this.switchWeapon(1);
             break;
           case "KeyN":
-            if (this.phase === "rest")
+            if (this.phase === "rest" && !this.session?.peer)
               this.phaseTimer = Math.min(this.phaseTimer, 0.2);
             break;
           case "Escape":
@@ -402,11 +402,16 @@ export class Game {
       });
     }
   }
-  async start(map = "abbey", difficulty = "normal", touch = false) {
+  async start(
+    map = "abbey",
+    difficulty = "normal",
+    touch = false,
+    session = null,
+  ) {
     this.state = "loading";
     this.emit("state", "loading");
     try {
-      await this.load(map, difficulty, touch);
+      await this.load(map, difficulty, touch, session);
     } catch (error) {
       // A failed load must never strand the game in "loading": the menu can
       // otherwise no longer relaunch a session.
@@ -415,8 +420,11 @@ export class Game {
       throw error;
     }
   }
-  async load(map, difficulty, touch) {
+  async load(map, difficulty, touch, session = null) {
     await this.sound.init();
+    this.nextEnemyId = 1;
+    this.nextPickupId = 1;
+    this.nextProjectileId = 1;
     this.touch = touch;
     this.mobileResolutionScale = 1;
     this.desktopResolutionScale = 1;
@@ -428,6 +436,9 @@ export class Game {
     this.weaponBounce.intensity = 0;
     this.resize();
     this.cleanup();
+    // The previous session, if any, is gone with cleanup(); install the new one.
+    this.session = session;
+    this.downed = false;
     await Promise.all([
       prepareSurfaces(touch, map),
       // Creatures fall back to procedural skin when the scanned faces are
@@ -451,12 +462,14 @@ export class Game {
     // Compilation and the one-off reflection capture happen behind the loader.
     // The far level shares its shaders with these; it is built after the
     // loader, during the opening rest, so phones start sooner.
-    const warmup = Object.keys(ENEMIES).flatMap((type) =>
-      (touch || this.settings.quality === "low"
-        ? ["lite"]
-        : ["full", "lite"]
-      ).map((detail) => zombieModel(type, detail)),
-    );
+    const warmup = Object.keys(ENEMIES)
+      .filter((type) => !ENEMIES[type].hidden)
+      .flatMap((type) =>
+        (touch || this.settings.quality === "low"
+          ? ["lite"]
+          : ["full", "lite"]
+        ).map((detail) => zombieModel(type, detail)),
+      );
     warmup.forEach((model) => {
       this.scene.add(model);
       setSurfaceQuality(model, this.settings.quality);
@@ -507,8 +520,13 @@ export class Game {
       1,
       0.6,
     );
+    // Co-op players stand side by side at the arrival point.
+    const seat = session ? [...session.roster.keys()].indexOf(session.id) : 0;
+    const seats = session?.roster.size || 1;
     this.player = {
-      position: this.world.spawn.clone(),
+      position: this.world.spawn
+        .clone()
+        .add(new T.Vector3((seat - 0.5 * (seats - 1)) * 1.6, 0, 0)),
       health: 100,
       maxHealth: 100,
       stamina: 100,
@@ -569,6 +587,7 @@ export class Game {
       this.scene,
     );
     await this.renderer.compileAsync(this.viewScene, this.viewCamera);
+    session?.attach(this);
     this.state = "playing";
     this.last = performance.now();
     this.nextShadowFrame = 0;
@@ -582,17 +601,21 @@ export class Game {
       duration: 5500,
     });
     this.emit("toast", {
-      title: "La nuit commence",
+      title: session
+        ? `La nuit commence à ${session.roster.size}`
+        : "La nuit commence",
       text: touch
         ? "Glisse à gauche pour bouger. Maintiens le tir et glisse pour viser."
-        : "Explorez les lieux. Appuyez sur N pour lancer la première vague.",
+        : session?.peer
+          ? "Explorez les lieux. L’hôte appelle la première vague avec N."
+          : "Explorez les lieux. Appuyez sur N pour lancer la première vague.",
     });
     if (!touch) this.lock();
   }
   warmupDistantModels() {
     // One template per tick keeps each pause well under a frame budget.
     const session = (this.warmupSession = (this.warmupSession || 0) + 1);
-    const types = Object.keys(ENEMIES);
+    const types = Object.keys(ENEMIES).filter((t) => !ENEMIES[t].hidden);
     const step = (i) => {
       if (session !== this.warmupSession || this.state === "menu") return;
       if (i >= types.length) return;
@@ -603,6 +626,9 @@ export class Game {
   }
   cleanup() {
     this.warmupSession = (this.warmupSession || 0) + 1;
+    this.session?.detach();
+    this.session = null;
+    this.downed = false;
     this.contactShadows?.dispose();
     this.contactShadows = null;
     this.scene.environment = this.environmentTarget.texture;
@@ -749,6 +775,7 @@ export class Game {
   shoot() {
     if (
       this.state !== "playing" ||
+      this.downed ||
       this.reloadTime > 0 ||
       this.shotTimer > 0 ||
       this.meleeTimer > 0
@@ -900,8 +927,24 @@ export class Game {
     if (shotHit) this.player.hits++;
     this.updateHUD();
   }
-  damageEnemy(enemy, damage, head, hit = null) {
+  damageEnemy(enemy, damage, head, hit = null, by = null) {
     if (enemy.dead) return;
+    if (this.session?.peer) {
+      // The host owns enemy health: show the impact now, let it decide.
+      enemy.stagger = 0.16;
+      const position =
+        hit?.position?.clone() ||
+        enemy.model.position
+          .clone()
+          .add(new T.Vector3(0, (head ? 1.8 : 1.27) * enemy.model.scale.y, 0));
+      const direction =
+        hit?.direction ||
+        position.clone().sub(this.camera.position).normalize();
+      this.combatEffects.blood.hit(position, direction, false);
+      this.projectBlood(position, direction, false);
+      this.session.sendHit(enemy, damage, head, hit);
+      return;
+    }
     enemy.health -= damage;
     enemy.stagger = 0.16;
     const headKill = head && enemy.health <= 0;
@@ -952,13 +995,17 @@ export class Game {
       enemy.dead = true;
       enemy.deathTime = 2.4;
       enemy.fallSide = Math.random() < 0.5 ? -1 : 1;
-      this.player.kills++;
-      if (head) this.player.headshots++;
-      const points =
-        (ENEMIES[enemy.type].score + (head ? 50 : 0)) *
-        (this.powerups.double > this.time ? 2 : 1);
-      this.player.points += points;
-      this.emit("score", { points, head, type: enemy.type });
+      const base = ENEMIES[enemy.type].score + (head ? 50 : 0);
+      let points = base;
+      if (by !== null && this.session) {
+        // A teammate landed the kill: the reward travels to them.
+        this.session.send(by, {
+          k: "score",
+          points: base,
+          head,
+          type: enemy.type,
+        });
+      } else points = this.creditKill(base, head, enemy.type);
       if (Math.random() < 0.17) this.drop(enemy.model.position);
       if (ENEMIES[enemy.type].boss) {
         this.drop(enemy.model.position, "ammo");
@@ -968,12 +1015,15 @@ export class Game {
         );
         this.player.grenades = Math.min(5, this.player.grenades + 2);
         this.sound.wave();
-        this.emit("announce", {
+        this.announce({
           eyebrow: `+${points} ESSENCES · +2 GRENADES`,
           title: "L’ARCHONTE EST TOMBÉ",
           subtitle: "Ses reliques sont à vous. La horde n’a pas fini.",
           duration: 3500,
         });
+        if (this.session)
+          for (const p of this.session.players.values())
+            this.session.send(p.id, { k: "reward", reward: 0, grenades: 2 });
       } else if (enemy.type === "brute") {
         this.drop(enemy.model.position, "ammo");
         this.emit("toast", {
@@ -982,6 +1032,19 @@ export class Game {
         });
       }
     }
+  }
+  creditKill(base, head, type) {
+    const points = base * (this.powerups.double > this.time ? 2 : 1);
+    this.player.kills++;
+    if (head) this.player.headshots++;
+    this.player.points += points;
+    this.emit("score", { points, head, type });
+    return points;
+  }
+  // An announcement everyone in the session should read.
+  announce(a) {
+    this.emit("announce", a);
+    if (this.session?.host) this.session.broadcast({ k: "announce", a });
   }
   projectBlood(position, direction, headKill) {
     const origin = position.clone().addScaledVector(direction, 0.06),
@@ -1023,7 +1086,7 @@ export class Game {
     if (size > 0.08) this.combatEffects.blood.stain(point, hit.normal, size);
   }
   melee() {
-    if (this.meleeTimer > 0 || this.state !== "playing") return;
+    if (this.meleeTimer > 0 || this.state !== "playing" || this.downed) return;
     this.meleeTimer = MELEE_DURATION;
     this.meleePending = true;
     this.meleeSwing = true;
@@ -1087,36 +1150,60 @@ export class Game {
     if (
       this.meleeTimer > 0 ||
       this.player.grenades <= 0 ||
-      this.state !== "playing"
+      this.state !== "playing" ||
+      this.downed
     )
       return;
     this.player.grenades--;
-    const model = new T.Mesh(
-      new T.SphereGeometry(0.09, 8, 6),
-      mat(0x4c6257, 0.65, 0.7),
-    );
-    model.position.copy(this.camera.position);
-    this.scene.add(model);
     const velocity = this.camera
       .getWorldDirection(new T.Vector3())
       .multiplyScalar(12);
     velocity.y += 4;
-    this.projectiles.push({
-      mesh: model,
-      velocity,
-      life: 1.65,
-      type: "grenade",
-    });
+    if (this.session?.peer)
+      this.session.toHost({
+        k: "grenade",
+        x: this.camera.position.x,
+        y: this.camera.position.y,
+        z: this.camera.position.z,
+        vx: velocity.x,
+        vy: velocity.y,
+        vz: velocity.z,
+      });
+    else this.throwGrenade(this.camera.position, velocity, null);
     this.sound.melee();
     this.updateHUD();
   }
-  explode(position) {
+  throwGrenade(position, velocity, owner = null) {
+    const model = new T.Mesh(
+      new T.SphereGeometry(0.09, 8, 6),
+      mat(0x4c6257, 0.65, 0.7),
+    );
+    model.position.copy(position);
+    this.scene.add(model);
+    this.projectiles.push({
+      id: this.nextProjectileId++,
+      mesh: model,
+      velocity: velocity.clone(),
+      life: 1.65,
+      type: "grenade",
+      owner,
+    });
+  }
+  explosionEffects(position, remote = false) {
     this.sound.explosion();
     this.burst(position, 0xffa45a, 48, 1.6);
     const s = glowSprite(0xffbc76, 10);
     s.position.copy(position);
     this.scene.add(s);
     this.effects.push({ mesh: s, life: 0.45, max: 0.45, type: "flash" });
+    if (this.player.position.distanceTo(position) < 8) this.recoil = 0.16;
+    if (remote) {
+      const d = this.player.position.distanceTo(position);
+      if (d < 3.2) this.hurt(40 * (1 - d / 3.2));
+    }
+  }
+  explode(position, owner = null) {
+    this.explosionEffects(position);
     for (const e of this.enemies) {
       if (e.dead) continue;
       const d = e.model.position.distanceTo(position);
@@ -1127,15 +1214,25 @@ export class Game {
           .sub(position);
         const len = vec.length();
         if (this.obstacleDistance(position, vec.normalize(), len) >= len - 0.2)
-          this.damageEnemy(e, 540 * (1 - d / 7), false);
+          this.damageEnemy(e, 540 * (1 - d / 7), false, null, owner);
       }
     }
     const d = this.player.position.distanceTo(position);
     if (d < 3.2) this.hurt(40 * (1 - d / 3.2));
-    this.recoil = 0.16;
+    if (this.session?.host)
+      this.session.broadcast({
+        k: "explode",
+        x: position.x,
+        y: position.y,
+        z: position.z,
+      });
   }
   hurt(amount) {
-    if (this.time < this.player.invulnerable || this.state !== "playing")
+    if (
+      this.time < this.player.invulnerable ||
+      this.state !== "playing" ||
+      this.downed
+    )
       return;
     this.player.health = Math.max(
       0,
@@ -1146,7 +1243,46 @@ export class Game {
     this.lastHurtEffect = 1;
     this.sound.hurt();
     this.emit("damage");
-    if (this.player.health <= 0) this.end(false);
+    if (this.player.health <= 0) {
+      if (this.session) this.down();
+      else this.end(false);
+    }
+  }
+  // Co-op: a fallen player waits for the next wave, unless everyone is down.
+  down() {
+    this.downed = true;
+    this.player.health = 0;
+    this.player.invulnerable = 1e9;
+    this.mouse.fire = false;
+    this.mouse.aim = false;
+    this.reloadTime = 0;
+    this.emit("announce", {
+      eyebrow: "VOUS ÊTES À TERRE",
+      title: "TENEZ BON",
+      subtitle:
+        "Vos coéquipiers doivent finir la vague. Vous reviendrez à la suivante.",
+      duration: 4500,
+    });
+    this.updateHUD();
+  }
+  respawn() {
+    if (!this.downed) return;
+    this.downed = false;
+    this.player.health = this.player.maxHealth;
+    this.player.invulnerable = this.time + 3;
+    this.player.position.copy(this.world.spawn);
+    this.player.vy = 0;
+    this.player.grounded = true;
+    this.emit("toast", {
+      title: "Vous revenez dans la nuit",
+      text: "Trois secondes d’invulnérabilité. Rejoignez vos coéquipiers.",
+    });
+    this.updateHUD();
+  }
+  sessionLost() {
+    if (this.state === "menu") return;
+    this.menu();
+    this.emit("session-lost");
   }
   beginWave() {
     this.wave++;
@@ -1155,7 +1291,9 @@ export class Game {
     this.spawnTimer = 0.4;
     this.sound.wave();
     const bosses = bossCount(this.wave);
-    this.emit("announce", {
+    if (this.downed) this.respawn();
+    this.session?.broadcast({ k: "wave" });
+    this.announce({
       eyebrow: bosses
         ? "UNE PRÉSENCE APPROCHE"
         : "ILS ONT ENTENDU VOTRE SOUFFLE",
@@ -1178,10 +1316,12 @@ export class Game {
       this.player.grenades = Math.min(5, this.player.grenades + 1);
   }
   updateNavigation(rebuild = false) {
+    if (this.session?.peer) return;
     for (const field of [this.navigation, this.largeNavigation]) {
       if (rebuild) field.rebuild();
       field.update(this.player.position.x, this.player.position.z);
     }
+    this.session?.updateFields(rebuild);
   }
   spawnEnemy(typeOverride, positionOverride) {
     const type = typeOverride || enemyType(this.wave);
@@ -1215,10 +1355,12 @@ export class Game {
       (1 + (this.wave - 1) * 0.15) *
       this.difficulty.health;
     this.enemies.push({
+      id: this.nextEnemyId++,
       model,
       type,
       health,
       maxHealth: health,
+      attacking: false,
       attack: 1.5,
       stagger: 0,
       age: 0,
@@ -1228,7 +1370,23 @@ export class Game {
     });
     return true;
   }
+  applyDetail(e, d) {
+    // Three levels with hysteresis: full up close, lite at mid range, far
+    // for the distant horde where a head spans a handful of pixels.
+    const current = e.model.userData.detail,
+      farAt = this.touch ? 13 : 18;
+    const detail =
+      d > (current === "far" ? farAt - 2 : farAt)
+        ? "far"
+        : this.touch ||
+            this.settings.quality === "low" ||
+            d > (current === "full" ? 10 : 8)
+          ? "lite"
+          : "full";
+    setZombieDetail(e.model, detail, d < (this.touch ? 17 : 28));
+  }
   updateEnemies(dt) {
+    if (this.session?.peer) return this.session.updateRemoteEnemies(dt);
     for (const e of this.enemies) {
       e.age += dt;
       if (e.dead) {
@@ -1247,41 +1405,41 @@ export class Game {
       e.stagger -= dt;
       e.attack -= dt;
       e.spit -= dt;
-      const d = Math.hypot(
+      const dLocal = Math.hypot(
         e.model.position.x - this.player.position.x,
         e.model.position.z - this.player.position.z,
       );
       if (this.time >= (e.nextDetailCheck || 0)) {
         e.nextDetailCheck = this.time + 0.4;
-        // Three levels with hysteresis: full up close, lite at mid range, far
-        // for the distant horde where a head spans a handful of pixels.
-        const current = e.model.userData.detail,
-          farAt = this.touch ? 13 : 18;
-        const detail =
-          d > (current === "far" ? farAt - 2 : farAt)
-            ? "far"
-            : this.touch ||
-                this.settings.quality === "low" ||
-                d > (current === "full" ? 10 : 8)
-              ? "lite"
-              : "full";
-        setZombieDetail(e.model, detail, d < (this.touch ? 17 : 28));
+        this.applyDetail(e, dLocal);
       }
-      let target = this.player.position;
-      const direct = vec.subVectors(this.player.position, e.model.position);
+      // Co-op: hunt the nearest standing player.
+      const focus = this.session
+        ? this.session.nearest(e.model.position)
+        : null;
+      const prey = focus ? focus.position : this.player.position;
+      const preyLocal = !focus || focus.local;
+      const d = focus
+        ? Math.hypot(e.model.position.x - prey.x, e.model.position.z - prey.z)
+        : dLocal;
+      let target = prey;
+      const direct = vec.subVectors(prey, e.model.position);
       direct.y = 0;
       direct.normalize();
       const origin = point.copy(e.model.position);
       origin.y = 1;
       const blocked = this.obstacleDistance(origin, direct, d) < d - 0.1;
+      const large = (ENEMIES[e.type].radius || 0.36) > 0.4;
       const navigation =
-        (ENEMIES[e.type].radius || 0.36) > 0.4
-          ? this.largeNavigation
-          : this.navigation;
+        focus && !focus.local
+          ? this.session.field(focus.id, large)
+          : large
+            ? this.largeNavigation
+            : this.navigation;
       target = navigation.direction(
         e.model.position.x,
         e.model.position.z,
-        this.player.position,
+        prey,
       );
       const delta = dir.set(
         target.x - e.model.position.x,
@@ -1316,18 +1474,24 @@ export class Game {
         );
       }
       e.model.rotation.y = Math.atan2(
-        this.player.position.x - e.model.position.x,
-        this.player.position.z - e.model.position.z,
+        prey.x - e.model.position.x,
+        prey.z - e.model.position.z,
       );
+      e.attacking = d < 1.65;
       animateZombie(
         e.model,
         this.time + e.seed,
         speed / 1.65,
-        d < 1.65,
+        e.attacking,
         Math.min(0.16, e.stagger),
       );
       if (d < 1.65 && !blocked && e.attack <= 0) {
-        this.hurt(ENEMIES[e.type].damage);
+        if (preyLocal) this.hurt(ENEMIES[e.type].damage);
+        else
+          this.session.send(focus.id, {
+            k: "damage",
+            amount: ENEMIES[e.type].damage,
+          });
         e.attack = e.type === "runner" ? 0.85 : 1.15;
       }
       if (e.type === "spitter" && d < 17 && d > 3 && !blocked && e.spit <= 0) {
@@ -1337,16 +1501,21 @@ export class Game {
         );
         orb.position.copy(e.model.position).add(new T.Vector3(0, 1.6, 0));
         this.scene.add(orb);
-        const velocity = this.camera.position
-          .clone()
-          .sub(orb.position)
-          .normalize()
-          .multiplyScalar(7);
-        this.projectiles.push({ mesh: orb, velocity, life: 3, type: "acid" });
+        const aim = preyLocal
+          ? this.camera.position.clone()
+          : new T.Vector3(prey.x, 1.7, prey.z);
+        const velocity = aim.sub(orb.position).normalize().multiplyScalar(7);
+        this.projectiles.push({
+          id: this.nextProjectileId++,
+          mesh: orb,
+          velocity,
+          life: 3,
+          type: "acid",
+        });
         e.spit = 3.6;
       }
       if (e.type === "wraith") {
-        e.model.visible = Math.sin(this.time * 5 + e.seed) > 0.05 || d < 4;
+        e.model.visible = Math.sin(this.time * 5 + e.seed) > 0.05 || dLocal < 4;
       }
     }
     const gone = this.enemies.filter((e) => e.dead && e.deathTime <= 0);
@@ -1357,9 +1526,10 @@ export class Game {
     this.enemies = this.enemies.filter((e) => !gone.includes(e));
   }
   interact() {
-    if (this.state !== "playing") return;
+    if (this.state !== "playing" || this.downed) return;
     const i = this.nearInteraction();
     if (!i) return;
+    const index = this.world.interactions.indexOf(i);
     if (i.kind === "door" && i.open) return;
     if (i.kind === "recording") {
       i.read = true;
@@ -1374,12 +1544,11 @@ export class Game {
     };
     if (i.kind === "box" && i.busy) {
       if (i.offered) {
-        const id = i.offered;
-        if (this.weapons.length < 2) {
-          this.weapons.push(newWeapon(id));
-          this.slot = 1;
-        } else this.weapons[this.slot] = newWeapon(id);
-        this.setGun();
+        if (this.session?.peer) {
+          this.session.toHost({ k: "interact", index, take: 1 });
+          return;
+        }
+        this.receiveWeapon(i.offered);
         i.busy = false;
         i.offered = null;
         i.timer = 0;
@@ -1387,11 +1556,6 @@ export class Game {
           i.root.remove(i.display);
           i.display = null;
         }
-        this.sound.purchase();
-        this.emit("toast", {
-          title: WEAPONS[id].name,
-          text: WEAPONS[id].description,
-        });
       }
       return;
     }
@@ -1409,15 +1573,11 @@ export class Game {
       if (this.wave < 10 || (this.phase === "wave" && this.wave === 10))
         return fail("Survivez à la vague 10 pour autoriser l’extraction.");
       if (this.extraction) return;
-      this.extraction = true;
-      this.extractionTimer = 20;
-      this.emit("announce", {
-        eyebrow: "LA BALISE A RÉPONDU",
-        title: "EXTRACTION",
-        subtitle: "Restez à proximité de la balise pendant 20 secondes.",
-        duration: 4000,
-      });
-      this.sound.wave();
+      if (this.session?.peer) {
+        this.session.toHost({ k: "interact", index });
+        return;
+      }
+      this.requestExtraction();
       return;
     }
     const cost = this.interactionCost(i);
@@ -1431,6 +1591,24 @@ export class Game {
       return fail("Vos réserves sont déjà pleines.");
     this.player.points -= cost;
     this.sound.purchase();
+    if (this.session?.peer && ["door", "box", "power"].includes(i.kind)) {
+      // World changes belong to the host; the toast and the bill are ours.
+      this.session.toHost({ k: "interact", index, cost });
+      this.emit("toast", {
+        title:
+          i.kind === "door"
+            ? "Nouvelle zone ouverte"
+            : i.kind === "box"
+              ? "Le Reliquaire choisit…"
+              : "Le générateur démarre",
+        text:
+          i.kind === "box"
+            ? "Revenez prendre votre arme une fois le tirage terminé."
+            : "Toute l’équipe en profite.",
+      });
+      this.updateHUD();
+      return;
+    }
     switch (i.kind) {
       case "door":
         this.world.openDoor(i);
@@ -1508,6 +1686,49 @@ export class Game {
         }
     }
     this.updateHUD();
+  }
+  requestExtraction() {
+    if (this.extraction) return;
+    this.extraction = true;
+    this.extractionTimer = 20;
+    this.announce({
+      eyebrow: "LA BALISE A RÉPONDU",
+      title: "EXTRACTION",
+      subtitle: "Restez à proximité de la balise pendant 20 secondes.",
+      duration: 4000,
+    });
+    this.sound.wave();
+  }
+  receiveWeapon(id) {
+    if (!WEAPONS[id]) return;
+    if (this.weapons.length < 2) {
+      this.weapons.push(newWeapon(id));
+      this.slot = 1;
+    } else this.weapons[this.slot] = newWeapon(id);
+    this.setGun();
+    this.sound.purchase();
+    this.emit("toast", {
+      title: WEAPONS[id].name,
+      text: WEAPONS[id].description,
+    });
+    this.updateHUD();
+  }
+  restReward(reward, grenades = 1) {
+    this.player.points += reward;
+    this.player.grenades = Math.min(5, this.player.grenades + grenades);
+    if (reward)
+      this.emit("announce", {
+        eyebrow: `+${reward} ESSENCES · +1 GRENADE`,
+        title: "UN RÉPIT. PAS LA PAIX.",
+        subtitle:
+          this.wave >= 10
+            ? "L’extraction est disponible à la balise. Ou poursuivez la survie."
+            : this.session?.peer
+              ? "Améliorez votre équipement. L’hôte appelle la prochaine vague."
+              : "Améliorez votre équipement. N pour appeler la prochaine vague.",
+        duration: 3500,
+      });
+    this.sound.purchase();
   }
   interactionCost(i) {
     if (i.kind === "upgrade") return upgradeCost(this.weapon.level || 0) ?? 0;
@@ -1594,7 +1815,12 @@ export class Game {
     model.position.copy(position);
     model.position.y = 0.5;
     this.scene.add(model);
-    this.pickups.push({ mesh: model, type, life: 24 });
+    this.pickups.push({
+      id: this.nextPickupId++,
+      mesh: model,
+      type,
+      life: 24,
+    });
   }
   collect(p) {
     this.sound.pickup();
@@ -1675,8 +1901,26 @@ export class Game {
         this.hurt(13);
         p.life = 0;
       }
+      if (p.type === "acid" && p.life > 0 && this.session?.host)
+        for (const other of this.session.players.values()) {
+          if (!other.model || other.flags & 8) continue;
+          const dy = p.mesh.position.y - (other.ty || 1.7);
+          if (
+            Math.hypot(
+              p.mesh.position.x - other.model.position.x,
+              dy,
+              p.mesh.position.z - other.model.position.z,
+            ) < 0.65
+          ) {
+            this.session.send(other.id, { k: "damage", amount: 13 });
+            p.life = 0;
+          }
+        }
       if (p.life <= 0 && p.type === "grenade")
-        this.explode(p.mesh.position.clone().add(new T.Vector3(0, 0.35, 0)));
+        this.explode(
+          p.mesh.position.clone().add(new T.Vector3(0, 0.35, 0)),
+          p.owner ?? null,
+        );
     }
     for (const p of this.pickups) {
       p.life -= dt;
@@ -1997,6 +2241,15 @@ export class Game {
     this.updateEnemies(dt);
     this.updateEffects(dt);
     if (this.state !== "playing") return;
+    this.session?.update(dt);
+    if (this.session?.peer) {
+      this.updatePeerFlow(dt);
+      return;
+    }
+    if (this.session?.host && this.session.allDown()) {
+      this.end(false);
+      return;
+    }
     if (this.phase === "rest") {
       this.phaseTimer -= dt;
       if (this.phaseTimer <= 0) this.beginWave();
@@ -2014,18 +2267,10 @@ export class Game {
         this.phase = "rest";
         this.phaseTimer = 17;
         const reward = 200 + this.wave * 35;
-        this.player.points += reward;
-        this.player.grenades = Math.min(5, this.player.grenades + 1);
-        this.emit("announce", {
-          eyebrow: `+${reward} ESSENCES · +1 GRENADE`,
-          title: "UN RÉPIT. PAS LA PAIX.",
-          subtitle:
-            this.wave >= 10
-              ? "L’extraction est disponible à la balise. Ou poursuivez la survie."
-              : "Améliorez votre équipement. N pour appeler la prochaine vague.",
-          duration: 3500,
-        });
-        this.sound.purchase();
+        this.restReward(reward);
+        if (this.session)
+          for (const p of this.session.players.values())
+            this.session.send(p.id, { k: "reward", reward });
       }
     }
     const b = this.world.interactions.find((i) => i.kind === "box");
@@ -2073,14 +2318,41 @@ export class Game {
     }
     if (this.extraction) {
       const beacon = this.world.interactions.find((i) => i.kind === "extract");
+      const standing = this.session
+        ? this.session.everyone().filter((p) => p.alive)
+        : [{ position: this.player.position }];
       const near =
         beacon &&
-        Math.hypot(
-          this.player.position.x - beacon.position.x,
-          this.player.position.z - beacon.position.z,
-        ) < 4.5;
+        standing.some(
+          (p) =>
+            Math.hypot(
+              p.position.x - beacon.position.x,
+              p.position.z - beacon.position.z,
+            ) < 4.5,
+        );
       if (near) this.extractionTimer -= dt;
       if (this.extractionTimer <= 0) this.end(true);
+    }
+    this.world.update(dt, this.time);
+    this.hudTimer -= dt;
+    if (this.hudTimer <= 0) {
+      this.updateHUD();
+      this.hudTimer = 0.075;
+    }
+  }
+  // Peers keep the parts of the loop that are theirs: the mystery box and
+  // the wave clock come from snapshots, growls and the world stay local.
+  updatePeerFlow(dt) {
+    this.growlTimer -= dt;
+    if (this.growlTimer <= 0 && this.enemies.length) {
+      const e = this.enemies[Math.floor(Math.random() * this.enemies.length)],
+        d = e.model.position.distanceTo(this.player.position);
+      this.sound.growl(
+        d,
+        clamp((e.model.position.x - this.player.position.x) / 15, -1, 1),
+        e.type,
+      );
+      this.growlTimer = 1.3 + Math.random() * 2;
     }
     this.world.update(dt, this.time);
     this.hudTimer -= dt;
@@ -2113,6 +2385,9 @@ export class Game {
         this.reloadTime > 0 ? 1 - this.reloadTime / this.reloadDuration : null,
       interaction: this.interactionText(this.nearInteraction()),
       perks: this.player.perks,
+      downed: this.downed,
+      team: this.session?.teamStatus() || null,
+      peer: !!this.session?.peer,
       boss: this.enemies
         .filter((e) => !e.dead && ENEMIES[e.type].boss)
         .map((e) => ({
@@ -2135,9 +2410,11 @@ export class Game {
       slots: this.weapons,
     });
   }
-  end(victory) {
+  end(victory, remote = false) {
     if (this.saved) return;
     this.saved = true;
+    if (this.session?.host && !remote)
+      this.session.broadcast({ k: "end", victory: !!victory });
     this.state = "gameover";
     if (document.pointerLockElement) document.exitPointerLock();
     this.mouse.fire = this.mouse.aim = false;

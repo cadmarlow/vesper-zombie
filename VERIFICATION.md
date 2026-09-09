@@ -2,6 +2,16 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 3.0.0 — jouer entre amis
+
+Vérifiée le 9 septembre 2026 sur le serveur de développement avec un relais local (`npm run relay`). `scripts/coop-check.mjs` ouvre deux navigateurs Chrome : **13 contrôles réussis** — code de salon, deux joueurs dans le salon, démarrage simultané sur Boréal avec rôles hôte/invité, position et nom de l’invité vus par l’hôte, quatre ennemis reflétés chez l’invité, impact de l’invité appliqué par l’hôte, élimination créditée à l’invité et reflétée des deux côtés, grille achetée par l’invité ouverte pour les deux, courant propagé, attaque simulée par l’hôte blessant l’invité, invité à terre puis de retour à la vague suivante, fin de partie commune quand tout le monde est à terre. Les suites solo (`smoke`, `waves`, `feel`) restent vertes.
+
+Limites : les tests emploient un relais local sur la même machine, sans latence réelle ; la migration d’hôte n’existe pas (si l’hôte part, la partie s’arrête pour les autres) ; le serveur ne valide pas les achats des invités (jeu entre amis).
+
+## Version 2.6.0 — progression et Archonte
+
+Vérifiée le 9 septembre 2026. `scripts` de session : vague 5 avec Archonte, barre de vie, mort avec récompenses, deux atouts et trois paliers achetés par la vraie boucle d’interaction, cadence de tir réduite de 20 % avec Main de fer. `npm run test:waves` : 190 vagues sur trois cartes avec l’Archonte des vagues 5 et 10, aucune apparition invalide. Les nouvelles machines ont été placées sur des positions vérifiées libres et atteignables dans les trois cartes (captures de contrôle).
+
 ## Version 2.5.0 — correctifs et allègement du rendu
 
 Vérifiée le 9 septembre 2026 sur la compilation locale servie sur `http://localhost:4173`, Node.js 25.5.0. Les captures avant/après des trois cartes (décor et horde, ordinateur et mobile émulé) ont été comparées pixel à pixel : les différences se limitent aux particules animées, aux caustiques et à la résolution adaptative ; aucune géométrie, ombre ou matière ne manque. Galerie : `artifacts/remaster-1788970132579/gallery.html` (référence : `artifacts/remaster-1788797399714/`).

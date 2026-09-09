@@ -2,6 +2,7 @@ import "./style.css";
 import "./mobile.css";
 import { TouchControls } from "./touch.js";
 import { Sound } from "./audio.js";
+import { Net } from "./net.js";
 import {
   MAPS,
   WEAPONS,
@@ -77,7 +78,7 @@ app.innerHTML = `
  <main id="menu" class="screen menu-screen">
   <div class="menu-art" id="menu-art"></div><div class="menu-shade"></div><div class="grain"></div><div class="embers"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <header class="menu-header"><a class="wordmark" href="#" aria-label="Accueil Vesper">${icon("eclipse")}<span>VESPER<span class="brand-divider"> / </span><small>SURVIVAL PROTOCOL</small></span></a><nav aria-label="Navigation principale"><button class="nav-button active" data-panel="home">JOUER</button><button class="nav-button" data-panel="arsenal">ARSENAL</button><button class="nav-button" data-panel="archives">ARCHIVES</button></nav><button class="icon-button" id="settings-button" aria-label="Paramètres">${icon("gear")}</button></header>
-  <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
+  <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><button id="coop-button" class="secondary-button coop-button">${icon("radio")} JOUER ENTRE AMIS</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
   <aside class="transmission"><span class="tiny">TRANSMISSION <b>00<span id="transmission-number">1</span></b></span><div class="signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p id="map-quote">« Les cloches se sont tues.<br>Ce qui dort sous la nef, non. »</p><span class="transmission-source">DERNIER CONTACT · <b id="map-time">03:47</b></span></aside>
   <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.webp`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span><span class="map-record" data-record="${m.id}"></span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
     DIFFICULTIES,
@@ -97,10 +98,11 @@ app.innerHTML = `
   <div class="compass"><div class="compass-ticks">│ · · │ · · │ · · │ · · │ · · │ · · │</div><div id="compass-directions">N <span>NE</span> E</div><span class="compass-marker">◆</span></div>
   <div class="hud-objective"><div class="tiny" id="power-state">COURANT COUPÉ</div><div class="objective-title" id="objective-title">Survivre à la première vague</div><div id="objective-subtitle">Éliminez les présences pour gagner des essences.</div><div class="objective-progress"><span id="objective-progress"></span></div><div class="hud-tools"><button id="hud-help" aria-label="Guide de survie">?</button><button id="hud-pause" aria-label="Mettre en pause">Ⅱ</button></div></div>
   <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker" class="hitmarker">╳</div><div id="damage-overlay" class="damage-overlay"></div>
+  <div id="downed" class="downed hidden"><span class="eyebrow">À TERRE</span><b>Vos coéquipiers finissent la vague</b></div>
   <div id="boss-bar" class="boss-bar hidden"><span class="tiny" id="boss-name">L’ARCHONTE</span><div class="boss-track"><span id="boss-fill"></span></div></div>
   <div id="announcement" class="announcement"><div class="eyebrow"></div><h2></h2><p></p></div>
   <div id="interaction" class="interaction hidden"><kbd>E</kbd><span></span></div>
-  <div class="hud-bottom-left"><div class="minimap-wrap"><canvas id="minimap" width="180" height="180" aria-label="Radar : ennemis en rouge, machines en doré"></canvas><span class="radar-caption">RADAR DE PROXIMITÉ</span></div><div id="perk-slots" class="perk-slots"></div><div class="player-name">${icon("shield")} <b id="movement-state">DEBOUT</b> <span>01</span></div><div class="health-row">${icon("cross")}<strong id="health-value">100</strong><span id="health-max">/ 100</span></div><div class="health-track"><span id="health-fill"></span></div><div class="stamina-track"><span id="stamina-fill"></span></div><div class="essence-row">${icon("eclipse")}<strong id="points-value">650</strong><span>ESSENCES</span></div></div>
+  <div class="hud-bottom-left"><div class="minimap-wrap"><canvas id="minimap" width="180" height="180" aria-label="Radar : ennemis en rouge, machines en doré"></canvas><span class="radar-caption">RADAR DE PROXIMITÉ</span></div><div id="team-list" class="team-list"></div><div id="perk-slots" class="perk-slots"></div><div class="player-name">${icon("shield")} <b id="movement-state">DEBOUT</b> <span>01</span></div><div class="health-row">${icon("cross")}<strong id="health-value">100</strong><span id="health-max">/ 100</span></div><div class="health-track"><span id="health-fill"></span></div><div class="stamina-track"><span id="stamina-fill"></span></div><div class="essence-row">${icon("eclipse")}<strong id="points-value">650</strong><span>ESSENCES</span></div></div>
   <div class="hud-bottom-center"><div id="powerup-row"></div><div id="reload-bar" class="reload-bar hidden"><span>RECHARGEMENT</span><div><i></i></div></div><div id="quick-controls"><span><kbd>ZQSD</kbd> DÉPLACEMENT</span><span><kbd>MAJ</kbd> COURIR</span><span><kbd>C</kbd> S’ACCROUPIR</span><span><kbd>R</kbd> RECHARGER</span><span><kbd>V</kbd> COUTEAU</span><span><kbd>G</kbd> GRENADE</span><span><kbd>ÉCHAP</kbd> PAUSE</span></div></div>
   <div class="hud-bottom-right"><div class="weapon-class" id="weapon-class">PISTOLET</div><div class="weapon-name" id="weapon-name">VIGILE .45</div><div class="ammo-row"><span id="ammo-value">12</span><span class="ammo-slash">/</span><span id="reserve-value">84</span></div><div class="weapon-slots" id="weapon-slots"></div><div class="grenade-row">◇ <span id="grenade-count">3</span> <span>GRENADES</span><kbd>G</kbd></div></div>
   <div id="score-feed" class="score-feed"></div><div class="session-timer" id="session-timer">00:00</div>
@@ -176,6 +178,10 @@ function state(s) {
     selectedMap = game?.map || selectedMap;
     selectMap(selectedMap);
     refreshRecords();
+    if (net.room) {
+      if (net.room.host === net.id) net.lobby();
+      openPanel("multi");
+    }
   }
 }
 function onEvent(type, payload) {
@@ -220,9 +226,12 @@ function onEvent(type, payload) {
     case "end":
       renderEnd(payload);
       break;
+    case "session-lost":
+      if (net.room) openPanel("multi");
+      break;
   }
 }
-async function startGame(event) {
+async function startGame(event, coop = null) {
   if (game?.state === "loading") return;
   // Some touch browsers report zero maxTouchPoints. A touch launch also covers
   // hybrid devices whose primary pointer is a mouse or trackpad.
@@ -242,6 +251,10 @@ async function startGame(event) {
   if (touch && event?.isTrusted && !document.fullscreenElement)
     document.documentElement.requestFullscreen?.().catch(() => {});
   closePanel();
+  if (coop) {
+    selectedMap = coop.map;
+    difficulty = coop.difficulty;
+  }
   $("#loading-map").textContent = MAPS.find((m) => m.id === selectedMap).name;
   state("loading");
   await new Promise((r) =>
@@ -255,7 +268,12 @@ async function startGame(event) {
         window.__vesper = game;
       }
     }
-    await game.start(selectedMap, difficulty, touch);
+    let session = null;
+    if (coop) {
+      const { Session } = await import("./multiplayer.js");
+      session = new Session(net, { hostId: coop.host, players: coop.players });
+    }
+    await game.start(selectedMap, difficulty, touch, session);
     $("#hud-map").textContent = MAPS.find((m) => m.id === selectedMap).short;
   } catch (e) {
     console.error(e);
@@ -472,11 +490,14 @@ function openPanel(kind) {
     )}</div><h3 class="bestiary-title">LES PRÉSENCES</h3><div class="bestiary-grid">${Object.entries(
       ENEMIES,
     )
+      .filter(([, e]) => !e.hidden)
       .map(
         ([id, e], i) =>
           `<article><span class="enemy-glyph" style="color:#${e.eye.toString(16)}">${icon(id === "brute" || id === "archon" ? "shield" : id === "wraith" ? "eclipse" : "skull")}</span><span class="tiny">${e.boss ? "PRÉSENCE MAJEURE" : `SUJET 0${i + 1}`}</span><h3>${e.name}</h3><p>${{ walker: "Lent, nombreux. Visez la tête et gardez vos distances.", runner: "Rapide et fragile. Ne lui tournez pas le dos.", brute: "Massif et résistant. Grenades et armes transfigurées conseillées.", spitter: "Projette de l’acide à distance. Déplacez-vous latéralement.", wraith: "Sa silhouette disparaît. Ses yeux trahissent sa présence.", archon: "Se lève toutes les cinq vagues, deux à partir de la quinzième. Sa chute libère grenades et reliques." }[id]}</p></article>`,
       )
       .join("")}</div>`;
+  } else if (kind === "multi") {
+    renderLobby();
   } else if (kind === "quit") {
     content.innerHTML = `<div class="eyebrow">ABANDONNER L’EXPÉDITION</div><h2>Couper le signal ?</h2><p class="panel-description">Cette partie sera terminée. Votre résultat sera conservé dans les archives.</p><div class="dialog-actions"><button class="primary-button" id="confirm-quit">QUITTER LA PARTIE ${icon("arrow")}</button><button class="secondary-button" id="cancel-quit">RESTER EN VIE</button></div>`;
     $("#confirm-quit").onclick = () => {
@@ -521,6 +542,115 @@ function openPanel(kind) {
   }
   $("#close-panel").focus();
 }
+// ---------- co-op lobby ----------
+const net = new Net();
+let playerName = "";
+try {
+  playerName = localStorage.getItem("vesper-name") || "";
+} catch {}
+let lobbyStatus = "";
+function renderLobby() {
+  if (activePanel !== "multi") return;
+  const content = $("#panel-content");
+  const room = net.room;
+  const isHost = room && room.host === net.id;
+  if (!room) {
+    content.innerHTML = `<div class="eyebrow">JOUER ENTRE AMIS</div><h2>Une nuit à plusieurs.</h2><p class="panel-description">Jusqu’à quatre survivants dans la même partie. Créez un salon et partagez son code, ou entrez celui d’un ami. Le créateur du salon héberge la partie : sa connexion doit rester ouverte.</p><div class="lobby-form"><label for="coop-name">Votre nom</label><input id="coop-name" maxlength="16" placeholder="Survivant" value="${playerName.replace(/"/g, "&quot;")}"/><div class="lobby-actions"><button class="primary-button" id="coop-create">CRÉER UN SALON ${icon("arrow")}</button><div class="lobby-join"><input id="coop-code" maxlength="4" placeholder="CODE" autocapitalize="characters"/><button class="secondary-button" id="coop-join">REJOINDRE</button></div></div><p class="lobby-status" id="coop-status">${lobbyStatus}</p></div>`;
+    $("#coop-name").oninput = (e) => {
+      playerName = e.target.value.trim();
+      try {
+        localStorage.setItem("vesper-name", playerName);
+      } catch {}
+    };
+    const connect = async () => {
+      lobbyStatus = "Connexion au relais…";
+      $("#coop-status").textContent = lobbyStatus;
+      try {
+        await net.connect();
+        return true;
+      } catch (error) {
+        lobbyStatus =
+          error?.message === "relay-not-configured"
+            ? "Aucun relais configuré pour ce site (VITE_RELAY_URL)."
+            : "Le relais est injoignable. Vérifiez votre connexion ou réessayez.";
+        $("#coop-status").textContent = lobbyStatus;
+        return false;
+      }
+    };
+    $("#coop-create").onclick = async () => {
+      if (await connect()) net.create(playerName || "Survivant");
+    };
+    $("#coop-join").onclick = async () => {
+      const code = $("#coop-code").value.trim().toUpperCase();
+      if (code.length !== 4) {
+        lobbyStatus = "Le code fait quatre lettres.";
+        $("#coop-status").textContent = lobbyStatus;
+        return;
+      }
+      if (await connect()) net.join(code, playerName || "Survivant");
+    };
+    $("#coop-code").onkeydown = (e) => {
+      if (e.key === "Enter") $("#coop-join").click();
+    };
+    return;
+  }
+  const map = MAPS.find((m) => m.id === room.map) || MAPS[0];
+  content.innerHTML = `<div class="eyebrow">SALON ${room.code}</div><h2>${room.players.length} survivant${room.players.length > 1 ? "s" : ""} prêt${room.players.length > 1 ? "s" : ""}.</h2><p class="panel-description">Partagez le code <b class="lobby-code">${room.code}</b> avec vos amis. ${isHost ? "Choisissez la destination et lancez la nuit quand tout le monde est là." : "L’hôte choisit la destination et lance la partie."}</p><div class="lobby-grid"><section><h3>ÉQUIPE</h3><ul class="lobby-players">${room.players.map((p) => `<li><span>${p.name}</span><small>${p.id === room.host ? "HÔTE" : ""}${p.id === net.id ? " · VOUS" : ""}</small></li>`).join("")}${Array.from({ length: Math.max(0, 4 - room.players.length) }, () => `<li class="empty"><span>Place libre</span></li>`).join("")}</ul></section><section><h3>DESTINATION</h3>${
+    isHost
+      ? `<div class="setting"><label for="coop-map">Carte</label><select id="coop-map">${MAPS.map((m) => `<option value="${m.id}" ${m.id === room.map ? "selected" : ""}>${m.name}</option>`).join("")}</select></div><div class="setting"><label for="coop-difficulty">Difficulté</label><select id="coop-difficulty">${Object.entries(
+          DIFFICULTIES,
+        )
+          .map(
+            ([id, d]) =>
+              `<option value="${id}" ${id === room.difficulty ? "selected" : ""}>${d.name}</option>`,
+          )
+          .join("")}</select></div>`
+      : `<p class="lobby-choice"><b>${map.name}</b><br>${DIFFICULTIES[room.difficulty]?.name || ""}</p>`
+  }</section></div><div class="dialog-actions">${isHost ? `<button class="primary-button" id="coop-start">LANCER LA NUIT ${icon("arrow")}</button>` : `<span class="lobby-wait"><span class="live-dot"></span> En attente de l’hôte…</span>`}<button class="secondary-button" id="coop-leave">QUITTER LE SALON</button></div><p class="lobby-status" id="coop-status">${lobbyStatus}</p>`;
+  if (isHost) {
+    $("#coop-map").onchange = (e) =>
+      net.settings(e.target.value, $("#coop-difficulty").value);
+    $("#coop-difficulty").onchange = (e) =>
+      net.settings($("#coop-map").value, e.target.value);
+    $("#coop-start").onclick = () => net.start();
+  }
+  $("#coop-leave").onclick = () => {
+    net.leave();
+    lobbyStatus = "";
+    renderLobby();
+  };
+}
+net.on("room", () => {
+  lobbyStatus = "";
+  renderLobby();
+});
+net.on("error", (m) => {
+  lobbyStatus =
+    m.code === "no-room"
+      ? "Aucun salon avec ce code."
+      : m.code === "full"
+        ? "Ce salon est complet."
+        : m.code === "started"
+          ? "La partie de ce salon a déjà commencé."
+          : "Le relais a refusé la demande.";
+  renderLobby();
+});
+net.on("close", () => {
+  if (activePanel === "multi") {
+    lobbyStatus = "Connexion au relais perdue.";
+    renderLobby();
+  }
+});
+net.on("start", (m) => {
+  if (game?.state === "playing") return;
+  void startGame(null, {
+    map: m.map,
+    difficulty: m.difficulty,
+    host: m.host,
+    players: m.players,
+  });
+});
+$("#coop-button").onclick = () => openPanel("multi");
 function slider(id, label, min, max, step, value, display) {
   return `<div class="setting"><label for="setting-${id}">${label}</label><output id="value-${id}">${display}</output><input id="setting-${id}" type="range" min="${min}" max="${max}" step="${step}" value="${value}"/></div>`;
 }
@@ -582,8 +712,18 @@ function renderHUD(h) {
     : MAPS.find((m) => m.id === h.map).short;
   $("#wave-status").textContent =
     h.phase === "rest"
-      ? `PROCHAINE DANS ${h.timer} S${game.touch ? "" : " · [N]"}`
+      ? `PROCHAINE DANS ${h.timer} S${game.touch || h.peer ? "" : " · [N]"}`
       : "SURVIVEZ À LA HORDE";
+  $("#downed").classList.toggle("hidden", !h.downed);
+  setHtml(
+    "#team-list",
+    (h.team || [])
+      .map(
+        (p) =>
+          `<div class="${p.down ? "down" : ""}"><span>${p.name}</span><i><b style="width:${Math.max(0, Math.min(100, (p.health / p.maxHealth) * 100))}%"></b></i><small>${p.down ? "À TERRE" : p.weapon}</small></div>`,
+      )
+      .join(""),
+  );
   $("#enemy-count").textContent = h.phase === "wave" ? h.remaining : "—";
   $("#health-value").textContent = Math.ceil(h.health);
   $("#health-max").textContent = "/ " + h.maxHealth;

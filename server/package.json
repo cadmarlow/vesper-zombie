@@ -1,0 +1,16 @@
+{
+  "name": "vesper-relay",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Relais WebSocket des salons Vesper. Aucune simulation, aucune base de données.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
