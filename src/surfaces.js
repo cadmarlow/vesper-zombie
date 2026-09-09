@@ -20,8 +20,11 @@ async function loadTexture(url, color = false) {
           return texture;
         })
         .catch((error) => {
+          // A missing scan degrades that one surface to its flat material
+          // instead of aborting the whole session. Retry on the next load.
+          console.warn(`Surface texture unavailable: ${url}`, error);
           imageCache.delete(url);
-          throw error;
+          return null;
         }),
     );
   }
@@ -56,7 +59,7 @@ export async function prepareSurfaces(mobile = false, map = "abbey") {
               return texture;
             }),
           );
-          return [name, maps];
+          return [name, maps.every(Boolean) ? maps : null];
         }),
       )
         .then((entries) => new Map(entries))
@@ -72,8 +75,10 @@ export async function prepareSurfaces(mobile = false, map = "abbey") {
       `/textures/architecture/vesper-glass-${size}.webp`,
       true,
     );
-    glass.wrapS = glass.wrapT = T.ClampToEdgeWrapping;
-    active.set("stainedGlass", [glass]);
+    if (glass) {
+      glass.wrapS = glass.wrapT = T.ClampToEdgeWrapping;
+      active.set("stainedGlass", [glass]);
+    }
   }
 }
 

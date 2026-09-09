@@ -64,7 +64,11 @@ function fleshTexture() {
   return skinTexture;
 }
 
-function build(type, lite) {
+// detail: "full" (close range), "lite" (phones, mid range) or "far" (distant
+// horde members: a few pixels tall, no teeth, coarse limbs).
+function build(type, detail = "full") {
+  const lite = detail !== "full",
+    far = detail === "far";
   const g = new T.Group(),
     def = ENEMIES[type],
     bones = [],
@@ -116,6 +120,12 @@ function build(type, lite) {
             : 0x61716a,
     { roughness: 1, metalness: 0, normalScale: new T.Vector2(0.42, 0.42) },
   );
+  // Coat panels, hood and stole show their reverse side; the rest of the
+  // garment is a closed volume and stays single-sided (half the fragments).
+  // Phones keep one double-sided cloth pass: an extra draw call per zombie
+  // costs their CPU more than the hidden back faces cost their GPU.
+  const drape = lite ? cloth : cloth.clone();
+  drape.side = T.DoubleSide;
   const leather = surface("cloth", 0x1b2423, {
     roughness: 0.8,
     metalness: 0,
@@ -149,7 +159,7 @@ function build(type, lite) {
     side: T.DoubleSide,
   });
   const buckets = new Map();
-  skin.vertexColors = cloth.vertexColors = true;
+  skin.vertexColors = cloth.vertexColors = drape.vertexColors = true;
   function add(
     geo,
     material,
@@ -233,7 +243,11 @@ function build(type, lite) {
   };
   const ball = (material, weight, x, y, z, sx, sy, sz) =>
     add(
-      new T.SphereGeometry(1, lite ? 10 : 16, lite ? 8 : 12),
+      new T.SphereGeometry(
+        1,
+        far ? 7 : lite ? 10 : 16,
+        far ? 5 : lite ? 8 : 12,
+      ),
       material,
       weight,
       x,
@@ -262,9 +276,9 @@ function build(type, lite) {
     add(
       new T.TubeGeometry(
         new T.CatmullRomCurve3(points.map((p) => new T.Vector3(...p))),
-        9,
+        far ? 5 : 9,
         radius,
-        6,
+        far ? 4 : 6,
         false,
       ),
       material,
@@ -278,7 +292,7 @@ function build(type, lite) {
     ];
     const geo = new T.LatheGeometry(
       closedProfile.map(([radius, y]) => new T.Vector2(radius, y)),
-      lite ? Math.min(segments, 14) : segments,
+      far ? Math.min(segments, 8) : lite ? Math.min(segments, 14) : segments,
     );
     const p = geo.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -308,7 +322,7 @@ function build(type, lite) {
       new T.Vector2(0.245, 1.46),
       new T.Vector2(0.12, 1.53),
     ],
-    lite ? 22 : 36,
+    far ? 12 : lite ? 22 : 36,
   );
   // Irregular cloth folds form part of the skinned silhouette.
   for (let i = 0; i < body.attributes.position.count; i++) {
@@ -326,6 +340,7 @@ function build(type, lite) {
   buildCreatureHead({
     type,
     lite,
+    far,
     add,
     ball,
     tube,
@@ -414,9 +429,8 @@ function build(type, lite) {
     const geo = new T.ShapeGeometry(shape);
     geo.rotateY(angle);
     geo.translate(x, 0, z);
-    add(geo, cloth, "hips");
+    add(geo, drape, "hips");
   }
-  cloth.side = T.DoubleSide;
   for (const [i, s] of [-1, 1].entries()) {
     const x = s * 0.281,
       armWeight = blend(`elbow${i}`, `arm${i}`, 1.1, 1.24);
@@ -577,7 +591,11 @@ function build(type, lite) {
       0.005,
     );
     ball(cloth, thighWeights, s * 0.115, 0.464, 0.005, 0.081, 0.063, 0.076);
-    const boot = new T.SphereGeometry(1, lite ? 12 : 20, lite ? 8 : 12);
+    const boot = new T.SphereGeometry(
+      1,
+      far ? 8 : lite ? 12 : 20,
+      far ? 6 : lite ? 8 : 12,
+    );
     const bootPosition = boot.attributes.position;
     for (let j = 0; j < bootPosition.count; j++) {
       const x = bootPosition.getX(j),
@@ -623,7 +641,7 @@ function build(type, lite) {
       bevelThickness: 0.002,
       bevelSize: 0.003,
       bevelSegments: 1,
-      curveSegments: lite ? 4 : 7,
+      curveSegments: far ? 2 : lite ? 4 : 7,
       steps: 1,
     });
     sole.rotateX(Math.PI / 2);
@@ -644,8 +662,8 @@ function build(type, lite) {
     add(
       new T.SphereGeometry(
         0.165,
-        lite ? 18 : 28,
-        12,
+        far ? 10 : lite ? 18 : 28,
+        far ? 6 : 12,
         0,
         Math.PI * 2,
         0,
@@ -734,7 +752,11 @@ function build(type, lite) {
     );
   }
   if (type === "runner") {
-    const tornChest = new T.SphereGeometry(1, lite ? 12 : 18, 12);
+    const tornChest = new T.SphereGeometry(
+      1,
+      far ? 8 : lite ? 12 : 18,
+      far ? 6 : 12,
+    );
     const tissue = [];
     for (let i = 0; i < tornChest.attributes.position.count; i++)
       tissue.push(0.44, 0.18, 0.14);
@@ -875,7 +897,7 @@ function build(type, lite) {
     const pos = [],
       uv = [],
       index = [],
-      segments = lite ? 20 : 32;
+      segments = far ? 10 : lite ? 20 : 32;
     for (let row = 0; row < profile.length; row++) {
       const [y, rx, rz] = profile[row];
       for (let i = 0; i <= segments; i++) {
@@ -895,7 +917,7 @@ function build(type, lite) {
     hood.setAttribute("uv", new T.Float32BufferAttribute(uv, 2));
     hood.setIndex(index);
     hood.computeVertexNormals();
-    add(hood, cloth, "head");
+    add(hood, drape, "head");
     for (const sign of [-1, 1]) {
       tube(
         cloth,
@@ -921,7 +943,7 @@ function build(type, lite) {
       for (let j = 0; j < p.count; j++)
         p.setZ(j, 0.175 + Math.sin(p.getY(j) * 13) * 0.025);
       stole.computeVertexNormals();
-      add(stole, cloth, torsoWeights);
+      add(stole, drape, torsoWeights);
     }
     tube(
       leather,
@@ -943,6 +965,20 @@ function build(type, lite) {
     const geometry = mergeVertices(merged, 0.00001);
     merged.dispose();
     const mesh = new T.SkinnedMesh(geometry, material);
+    mesh.name =
+      material === skin
+        ? "skin"
+        : material === cloth
+          ? "cloth"
+          : material === drape
+            ? "drape"
+            : material === steel
+              ? "steel"
+              : material === oral
+                ? "oral"
+                : material === eye
+                  ? "eye"
+                  : "face";
     mesh.castShadow = material !== eye;
     mesh.receiveShadow = true;
     // Conservative animated bounds include the full lunge, without rendering
@@ -958,9 +994,12 @@ function build(type, lite) {
   return g;
 }
 
-export function zombieModel(type, lite = false) {
-  const key = `${type}-${lite ? "mobile" : "desktop"}`;
-  if (!templates.has(key)) templates.set(key, build(type, lite));
+const normalizeDetail = (detail) =>
+  detail === true ? "lite" : detail || "full";
+export function zombieModel(type, detail = "full") {
+  detail = normalizeDetail(detail);
+  const key = `${type}-${detail}`;
+  if (!templates.has(key)) templates.set(key, build(type, detail));
   const g = clone(templates.get(key));
   const variation = Math.random();
   g.scale.x *= 0.94 + variation * 0.12;
@@ -976,7 +1015,8 @@ export function zombieModel(type, lite = false) {
     type,
     variation,
     headDestroyed: false,
-    lite,
+    detail,
+    lite: detail !== "full",
     torso: g.getObjectByName("torso"),
     head: g.getObjectByName("head"),
     jaw: g.getObjectByName("jaw"),
@@ -1016,15 +1056,32 @@ export function destroyZombieHead(g, position) {
   return true;
 }
 
-export function setZombieDetail(g, lite, castShadow = true) {
-  if (g.userData.lite !== lite) {
-    const key = `${g.userData.type}-${lite ? "mobile" : "desktop"}`;
-    if (!templates.has(key)) templates.set(key, build(g.userData.type, lite));
-    const source = templates.get(key).children.filter((o) => o.isSkinnedMesh);
-    let i = 0;
-    for (const o of g.children)
-      if (o.isSkinnedMesh) o.geometry = source[i++].geometry;
-    g.userData.lite = lite;
+export function setZombieDetail(g, detail, castShadow = true) {
+  detail = normalizeDetail(detail);
+  if (g.userData.detail !== detail) {
+    const key = `${g.userData.type}-${detail}`;
+    if (!templates.has(key)) templates.set(key, build(g.userData.type, detail));
+    const source = new Map(
+      templates
+        .get(key)
+        .children.filter((o) => o.isSkinnedMesh)
+        .map((o) => [o.name, o.geometry]),
+    );
+    // Levels are matched by bucket role. A level lacking a bucket hides it;
+    // a level with a bucket this instance never had is skipped entirely.
+    const own = new Set(
+      g.children.filter((o) => o.isSkinnedMesh).map((o) => o.name),
+    );
+    if ([...source.keys()].every((name) => own.has(name))) {
+      for (const o of g.children)
+        if (o.isSkinnedMesh) {
+          const geometry = source.get(o.name);
+          o.visible = !!geometry;
+          if (geometry) o.geometry = geometry;
+        }
+      g.userData.detail = detail;
+      g.userData.lite = detail !== "full";
+    }
   }
   for (const o of g.children)
     if (o.isSkinnedMesh)

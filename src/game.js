@@ -70,6 +70,7 @@ export class Game {
     this.effects = [];
     this.projectiles = [];
     this.pickups = [];
+    this.gunCache = new Map();
     this.time = 0;
     this.last = performance.now();
     this.yaw = 0;
@@ -182,7 +183,10 @@ export class Game {
     window.addEventListener("resize", () => this.resize());
     window.addEventListener("keydown", (e) => {
       if (e.target.matches("input,select,textarea")) return;
+      // Only swallow navigation keys during play. Menus and panels keep
+      // keyboard focus traversal and button activation.
       if (
+        this.state === "playing" &&
         [
           "Space",
           "Tab",
@@ -384,6 +388,17 @@ export class Game {
   async start(map = "abbey", difficulty = "normal", touch = false) {
     this.state = "loading";
     this.emit("state", "loading");
+    try {
+      await this.load(map, difficulty, touch);
+    } catch (error) {
+      // A failed load must never strand the game in "loading": the menu can
+      // otherwise no longer relaunch a session.
+      this.cleanup();
+      this.state = "menu";
+      throw error;
+    }
+  }
+  async load(map, difficulty, touch) {
     await this.sound.init();
     this.touch = touch;
     this.mobileResolutionScale = 1;
@@ -398,7 +413,14 @@ export class Game {
     this.cleanup();
     await Promise.all([
       prepareSurfaces(touch, map),
-      prepareCreatureSkins(touch),
+      // Creatures fall back to procedural skin when the scanned faces are
+      // unavailable; a missing texture must not abort the whole session.
+      prepareCreatureSkins(touch).catch((error) =>
+        console.warn(
+          "Creature skins unavailable, using procedural fallback",
+          error,
+        ),
+      ),
     ]);
     this.map = map;
     this.film.uniforms.cold.value =
@@ -411,9 +433,10 @@ export class Game {
     this.world.update(0, 0);
     // Compilation and the one-off reflection capture happen behind the loader.
     const warmup = Object.keys(ENEMIES).flatMap((type) =>
-      (touch || this.settings.quality === "low" ? [true] : [false, true]).map(
-        (lite) => zombieModel(type, lite),
-      ),
+      (touch || this.settings.quality === "low"
+        ? ["lite", "far"]
+        : ["full", "lite", "far"]
+      ).map((detail) => zombieModel(type, detail)),
     );
     warmup.forEach((model) => {
       this.scene.add(model);
@@ -575,9 +598,10 @@ export class Game {
     this.projectiles = [];
     if (this.gun) {
       this.viewScene.remove(this.gun);
-      disposeModel(this.gun);
       this.gun = null;
     }
+    for (const gun of this.gunCache.values()) disposeModel(gun);
+    this.gunCache.clear();
   }
   pause() {
     if (this.state !== "playing") return;
@@ -613,11 +637,18 @@ export class Game {
     return WEAPONS[this.weapon.id];
   }
   setGun() {
-    if (this.gun) {
-      this.viewScene.remove(this.gun);
-      disposeModel(this.gun);
-    }
-    this.gun = weaponModel(this.weapon.id, this.weapon.level, true);
+    if (this.gun) this.viewScene.remove(this.gun);
+    // Building a first-person weapon generates hundreds of geometries and
+    // several canvases. Keep every model of the session so a switch or a
+    // transfiguration never stalls a frame mid-fight.
+    const key = `${this.weapon.id}-${this.weapon.level ? 1 : 0}`;
+    if (!this.gunCache.has(key))
+      this.gunCache.set(
+        key,
+        weaponModel(this.weapon.id, this.weapon.level, true),
+      );
+    this.gun = this.gunCache.get(key);
+    this.gun.userData.flash.visible = false;
     setSurfaceQuality(this.gun, this.settings.quality);
     this.gun.scale.setScalar(this.touch ? 0.68 : 0.78);
     this.gun.position.set(
@@ -1103,7 +1134,7 @@ export class Game {
     }
     const model = zombieModel(
       type,
-      this.touch || this.settings.quality === "low",
+      this.touch || this.settings.quality === "low" ? "lite" : "full",
     );
     setSurfaceQuality(model, this.settings.quality);
     model.position.copy(pos);
@@ -1150,11 +1181,19 @@ export class Game {
       );
       if (this.time >= (e.nextDetailCheck || 0)) {
         e.nextDetailCheck = this.time + 0.4;
-        const lite =
-          this.touch ||
-          this.settings.quality === "low" ||
-          d > (e.model.userData.lite ? 8 : 10);
-        setZombieDetail(e.model, lite, d < (this.touch ? 17 : 28));
+        // Three levels with hysteresis: full up close, lite at mid range, far
+        // for the distant horde where a head spans a handful of pixels.
+        const current = e.model.userData.detail,
+          farAt = this.touch ? 13 : 18;
+        const detail =
+          d > (current === "far" ? farAt - 2 : farAt)
+            ? "far"
+            : this.touch ||
+                this.settings.quality === "low" ||
+                d > (current === "full" ? 10 : 8)
+              ? "lite"
+              : "full";
+        setZombieDetail(e.model, detail, d < (this.touch ? 17 : 28));
       }
       let target = this.player.position;
       const direct = new T.Vector3().subVectors(
@@ -1275,7 +1314,6 @@ export class Game {
         i.timer = 0;
         if (i.display) {
           i.root.remove(i.display);
-          disposeModel(i.display);
           i.display = null;
         }
         this.sound.purchase();
@@ -1516,16 +1554,7 @@ export class Game {
     this.combatEffects.burst(position, color, count, force);
   }
   tracer(start, end, color, radius) {
-    const delta = end.clone().sub(start),
-      geo = new T.CylinderGeometry(radius, radius, delta.length(), 4);
-    const m = new T.Mesh(
-      geo,
-      new T.MeshBasicMaterial({ color, transparent: true, opacity: 0.65 }),
-    );
-    m.position.copy(start).addScaledVector(delta, 0.5);
-    m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), delta.normalize());
-    this.scene.add(m);
-    this.effects.push({ mesh: m, life: 0.045, max: 0.045, type: "tracer" });
+    this.combatEffects.tracer(start, end, color, radius);
   }
   updateEffects(dt) {
     this.combatEffects.update(dt);
@@ -1952,7 +1981,6 @@ export class Game {
           b.busy = false;
           if (b.display) {
             b.root.remove(b.display);
-            disposeModel(b.display);
             b.display = null;
           }
         }
@@ -2053,6 +2081,10 @@ export class Game {
   }
   loop(now) {
     requestAnimationFrame(this.loop);
+    // Optional 30 Hz presentation: halves GPU work and heat on phones. The
+    // simulation still integrates the real elapsed time.
+    if (this.settings.frameRate === 30 && now - this.last < 1000 / 30 - 2)
+      return;
     const elapsed = (now - this.last) / 1000;
     const delta = Math.min(elapsed, 0.05);
     this.last = now;

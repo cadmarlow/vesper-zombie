@@ -3,6 +3,10 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { rng } from "./logic.js";
 import { worldSurface } from "./surfaces.js";
 export const boxGeo = new RoundedBoxGeometry(1, 1, 1, 1, 0.025);
+// Bars, slats, joints and trims: the 2.5 % bevel is under four millimetres on
+// them and invisible, yet the rounded box costs nine times the triangles.
+export const plainBoxGeo = new T.BoxGeometry(1, 1, 1);
+const THIN_BOX = 0.15;
 export function mesh(
   geo,
   mat,
@@ -23,7 +27,8 @@ export function mesh(
   return m;
 }
 export function box(parent, mat, x, y, z, w, h, d) {
-  return mesh(boxGeo, mat, parent, x, y, z, w, h, d);
+  const geo = Math.min(w, h, d) < THIN_BOX ? plainBoxGeo : boxGeo;
+  return mesh(geo, mat, parent, x, y, z, w, h, d);
 }
 export function cylinder(parent, mat, x, y, z, r, h, r2 = r, sides = 12) {
   return mesh(new T.CylinderGeometry(r2, r, h, sides), mat, parent, x, y, z);

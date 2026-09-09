@@ -13,7 +13,7 @@ export class Sound {
       this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
       this.score = new Score(this.ctx, this.master);
-      const length = this.ctx.sampleRate * 2;
+      const length = this.ctx.sampleRate * 4;
       this.noiseBuffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
       const data = this.noiseBuffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
@@ -59,6 +59,10 @@ export class Sound {
     g.gain.exponentialRampToValueAtTime(0.001, t + duration);
     o.connect(g);
     g.connect(this.master);
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
     o.start(t);
     o.stop(t + duration + 0.02);
   }
@@ -70,6 +74,8 @@ export class Sound {
       g = this.ctx.createGain(),
       p = this.ctx.createStereoPanner();
     s.buffer = this.noiseBuffer;
+    // Long swells (wave call, generator) outlast the random offset: loop.
+    s.loop = true;
     f.type = "lowpass";
     f.frequency.value = cutoff;
     g.gain.setValueAtTime(volume, t);
@@ -79,7 +85,13 @@ export class Sound {
     f.connect(g);
     g.connect(p);
     p.connect(this.master);
-    s.start(t, Math.random());
+    s.onended = () => {
+      s.disconnect();
+      f.disconnect();
+      g.disconnect();
+      p.disconnect();
+    };
+    s.start(t, Math.random() * 2);
     s.stop(t + duration);
   }
   ambient() {

@@ -55,8 +55,13 @@ export class Score {
       this.beat = 0;
       this.next = now + 0.06;
     }
-    if (this.next < now) this.next = now + 0.04;
-    while (this.next < now + 0.16) {
+    // After a long frame (weapon build, spawn burst) skip the missed beats
+    // while keeping the grid phase, so the tempo never audibly lurches.
+    while (this.next < now) {
+      this.next += 0.48;
+      this.beat++;
+    }
+    while (this.next < now + 0.4) {
       this.scheduleBeat(this.next, this.beat++, {
         map,
         phase: state === "playing" ? phase : "rest",

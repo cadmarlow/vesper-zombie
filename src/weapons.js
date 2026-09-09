@@ -557,9 +557,9 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
           0.018,
           -0.25 - i * 0.072,
         );
-        for (const s of [-1, 1])
-          block(g, metal, s * 0.098, 0.016, -0.43, 0.025, 0.15, 0.45, 0.009);
       }
+      for (const s of [-1, 1])
+        block(g, metal, s * 0.098, 0.016, -0.43, 0.025, 0.15, 0.45, 0.009);
       tube(g, luminous, 0, 0.016, -0.43, 0.058, 0.43);
       block(g, black, 0, 0.12, -0.048, 0.078, 0.052, 0.048, 0.005);
       block(g, luminous, 0, 0.143, -0.021, 0.006, 0.006, 0.004, 0.001);

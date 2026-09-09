@@ -62,6 +62,7 @@ const gaussian = (x, y, cx, cy, rx, ry) =>
 export function buildCreatureHead({
   type,
   lite,
+  far = false,
   add: append,
   skin,
   wound,
@@ -72,9 +73,9 @@ export function buildCreatureHead({
     cy = 1.781,
     my = 1.699,
     depth = 0.131;
-  const count = lite ? 48 : 72,
-    rows = lite ? 17 : 26,
-    backRows = lite ? 8 : 12;
+  const count = far ? 24 : lite ? 48 : 72,
+    rows = far ? 9 : lite ? 17 : 26,
+    backRows = far ? 4 : lite ? 8 : 12;
   const faceMaterial = skin.clone();
   faceMaterial.map = creatureSkinTexture(lite, "face") || skin.map;
   faceMaterial.bumpMap = faceMaterial.map;
@@ -86,7 +87,11 @@ export function buildCreatureHead({
   const add = append;
   const ball = (material, weight, x, y, z, sx, sy, sz) =>
     add(
-      new T.SphereGeometry(1, lite ? 10 : 16, lite ? 8 : 12),
+      new T.SphereGeometry(
+        1,
+        far ? 7 : lite ? 10 : 16,
+        far ? 5 : lite ? 8 : 12,
+      ),
       material,
       weight,
       x,
@@ -100,9 +105,9 @@ export function buildCreatureHead({
     add(
       new T.TubeGeometry(
         new T.CatmullRomCurve3(points.map((p) => new T.Vector3(...p))),
-        lite ? 12 : 18,
+        far ? 6 : lite ? 12 : 18,
         radius,
-        lite ? 5 : 6,
+        far ? 4 : lite ? 5 : 6,
         false,
       ),
       material,
@@ -302,7 +307,7 @@ export function buildCreatureHead({
       points.push(p);
     }
     tube(wound, jawWeight, points, type === "spitter" ? 0.0038 : 0.0023);
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < (far ? 0 : 9); i++) {
       const missing =
         type === "runner"
           ? [1, 6]
@@ -363,7 +368,12 @@ export function buildCreatureHead({
     // An open orbital rim, not a dark ellipsoid enclosing the whole eyeball.
     // The previous closed socket hid the sclera and left floating iris discs.
     add(
-      new T.TorusGeometry(1, 0.16, lite ? 5 : 8, lite ? 18 : 28),
+      new T.TorusGeometry(
+        1,
+        0.16,
+        far ? 3 : lite ? 5 : 8,
+        far ? 8 : lite ? 18 : 28,
+      ),
       wound,
       "head",
       x,

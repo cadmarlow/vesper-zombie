@@ -12,6 +12,8 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }),
   errors = [],
   external = [],
   checks = [];
+const BUILD_URL = process.env.VESPER_URL || "http://localhost:4173";
+const DEV_URL = process.env.VESPER_DEV_URL || "http://localhost:5173";
 const out = `artifacts/release-${Date.now()}`;
 fs.mkdirSync(out, { recursive: true });
 page.on("pageerror", (e) => errors.push(e.message));
@@ -44,7 +46,7 @@ try {
     [844, 390],
   ]) {
     await page.setViewportSize({ width, height });
-    await page.goto("http://localhost:4173");
+    await page.goto(BUILD_URL);
     const layout = await page.evaluate(() => {
       const ids = [".hero-copy", "#play-button", ".deployment", ".menu-footer"];
       const b = Object.fromEntries(
@@ -69,7 +71,7 @@ try {
       await page.screenshot({ path: `${out}/menu-${width}.png` });
   }
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("http://localhost:4173");
+  await page.goto(BUILD_URL);
   check(
     "Production build has no debug API",
     await page.evaluate(() => window.__vesper === undefined),
@@ -97,7 +99,7 @@ try {
   await page.keyboard.press("Escape");
   check("Production pause works", await page.locator("#pause").isVisible());
   check("All production assets are local", external.length === 0);
-  await page.goto("http://localhost:5173");
+  await page.goto(DEV_URL);
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing");
   await page.evaluate(() => {

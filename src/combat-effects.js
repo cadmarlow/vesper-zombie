@@ -1,6 +1,10 @@
 import * as T from "three";
 import { BloodEffects } from "./blood-effects.js";
 
+const UP = new T.Vector3(0, 1, 0);
+const delta = new T.Vector3();
+const FRONT = new T.Vector3(0, 0, 1);
+
 function markTexture() {
   const c = document.createElement("canvas");
   c.width = c.height = 128;
@@ -53,6 +57,8 @@ export class CombatEffects {
       this.limit,
     );
     this.debris.instanceMatrix.setUsage(T.DynamicDrawUsage);
+    this.debris.setColorAt(0, this.color);
+    this.debris.instanceColor.setUsage(T.DynamicDrawUsage);
     this.debris.frustumCulled = false;
     this.root.add(this.debris);
     this.markCount = mobile ? 32 : 72;
@@ -69,6 +75,7 @@ export class CombatEffects {
       }),
       this.markCount,
     );
+    this.marks.instanceMatrix.setUsage(T.DynamicDrawUsage);
     this.marks.frustumCulled = false;
     this.root.add(this.marks);
     this.casings = Array.from({ length: mobile ? 14 : 30 }, () => ({
@@ -86,8 +93,27 @@ export class CombatEffects {
       }),
       this.casings.length,
     );
+    this.brass.instanceMatrix.setUsage(T.DynamicDrawUsage);
     this.brass.frustumCulled = false;
     this.root.add(this.brass);
+    // Bullet tracers live 45 ms: a small ring of reusable meshes replaces a
+    // fresh cylinder geometry and material for every round fired.
+    this.tracerGeometry = new T.CylinderGeometry(1, 1, 1, 4);
+    this.tracers = Array.from({ length: mobile ? 8 : 16 }, () => {
+      const mesh = new T.Mesh(
+        this.tracerGeometry,
+        new T.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0,
+        }),
+      );
+      mesh.visible = false;
+      mesh.frustumCulled = false;
+      this.root.add(mesh);
+      return { mesh, life: 0, max: 0.045 };
+    });
+    this.tracerCursor = 0;
     this.dummy.scale.setScalar(0);
     this.dummy.updateMatrix();
     for (const mesh of [this.debris, this.marks, this.brass])
@@ -159,11 +185,25 @@ export class CombatEffects {
       .applyQuaternion(quaternion);
     c.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
   }
+  tracer(start, end, color, radius) {
+    delta.subVectors(end, start);
+    const length = delta.length();
+    if (length < 0.001) return;
+    const t = this.tracers[this.tracerCursor++ % this.tracers.length],
+      m = t.mesh;
+    m.position.copy(start).addScaledVector(delta, 0.5);
+    m.quaternion.setFromUnitVectors(UP, delta.divideScalar(length));
+    m.scale.set(radius, length, radius);
+    m.material.color.setHex(color);
+    m.material.opacity = 0.65;
+    m.visible = true;
+    t.life = t.max;
+  }
   impact(position, normal, size = 0.22) {
     if (!normal) return;
     const d = this.dummy;
     d.position.copy(position).addScaledVector(normal, 0.012);
-    d.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), normal);
+    d.quaternion.setFromUnitVectors(FRONT, normal);
     d.rotateZ(Math.random() * 6.28);
     d.scale.setScalar(size);
     d.updateMatrix();
@@ -173,30 +213,53 @@ export class CombatEffects {
   update(dt) {
     this.blood.update(dt);
     const d = this.dummy;
+    // Only live slots, plus the one frame that hides a slot, touch the GPU
+    // buffers: idle automatic-fire pools no longer upload every frame.
+    let dirty = false;
     for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i];
+      if (p.life <= 0) {
+        if (p.hidden) continue;
+        p.hidden = true;
+        d.scale.setScalar(0);
+        d.updateMatrix();
+        this.debris.setMatrixAt(i, d.matrix);
+        dirty = true;
+        continue;
+      }
+      p.hidden = false;
       p.life = Math.max(0, p.life - dt);
-      if (p.life > 0) {
-        p.v.y -= dt * 7;
-        p.p.addScaledVector(p.v, dt);
-        if (p.p.y < 0.025) {
-          p.p.y = 0.025;
-          p.v.y = Math.abs(p.v.y) * 0.18;
-          p.v.x *= 0.7;
-          p.v.z *= 0.7;
-        }
+      p.v.y -= dt * 7;
+      p.p.addScaledVector(p.v, dt);
+      if (p.p.y < 0.025) {
+        p.p.y = 0.025;
+        p.v.y = Math.abs(p.v.y) * 0.18;
+        p.v.x *= 0.7;
+        p.v.z *= 0.7;
       }
       d.position.copy(p.p);
       d.rotation.set(p.life * 4, p.life * 6, 0);
       d.scale.setScalar(p.life > 0 ? p.size * Math.min(1, p.life / 0.15) : 0);
       d.updateMatrix();
       this.debris.setMatrixAt(i, d.matrix);
+      dirty = true;
     }
-    this.debris.instanceMatrix.needsUpdate = true;
+    if (dirty) this.debris.instanceMatrix.needsUpdate = true;
+    dirty = false;
     for (let i = 0; i < this.casings.length; i++) {
       const c = this.casings[i];
+      if (c.life <= 0) {
+        if (c.hidden) continue;
+        c.hidden = true;
+        d.scale.setScalar(0);
+        d.updateMatrix();
+        this.brass.setMatrixAt(i, d.matrix);
+        dirty = true;
+        continue;
+      }
+      c.hidden = false;
       c.life = Math.max(0, c.life - dt);
-      if (c.life > 0 && c.p.y > 0.018) {
+      if (c.p.y > 0.018) {
         c.v.y -= dt * 9;
         c.p.addScaledVector(c.v, dt);
         c.rotation.x += dt * 13;
@@ -212,21 +275,34 @@ export class CombatEffects {
       d.scale.setScalar(c.life > 0 ? Math.min(1, c.life * 3) : 0);
       d.updateMatrix();
       this.brass.setMatrixAt(i, d.matrix);
+      dirty = true;
     }
-    this.brass.instanceMatrix.needsUpdate = true;
+    if (dirty) this.brass.instanceMatrix.needsUpdate = true;
+    for (const t of this.tracers) {
+      if (t.life <= 0) continue;
+      t.life -= dt;
+      if (t.life <= 0) t.mesh.visible = false;
+      else t.mesh.material.opacity = 0.65 * (t.life / t.max);
+    }
     const pos = this.smoke.geometry.attributes.position,
       age = this.smoke.geometry.attributes.age;
-    this.smokeSlots.forEach((s, i) => {
+    let smoking = false;
+    for (let i = 0; i < this.smokeSlots.length; i++) {
+      const s = this.smokeSlots[i];
+      if (s.life <= 0 && age.getX(i) === 0) continue;
       s.life = Math.max(0, s.life - dt);
       s.p.addScaledVector(s.v, dt);
       pos.setXYZ(i, s.p.x, s.p.y, s.p.z);
       age.setX(i, s.life / s.max);
-    });
-    pos.needsUpdate = age.needsUpdate = true;
+      smoking = true;
+    }
+    if (smoking) pos.needsUpdate = age.needsUpdate = true;
   }
   dispose() {
     this.root.removeFromParent();
     this.root.traverse((o) => {
+      // Instance buffers are released only through the mesh's own dispose event.
+      if (o.isInstancedMesh) o.dispose();
       o.geometry?.dispose();
       if (o.material) {
         o.material.map?.dispose();

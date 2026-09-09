@@ -2,11 +2,12 @@ import { chromium } from "@playwright/test";
 const browser = await chromium.launch({
   headless: true,
   executablePath:
+    process.env.CHROME_PATH ||
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.goto("http://localhost:5173");
+await page.goto(process.env.VESPER_URL || "http://localhost:5173");
 await page.click("#play-button");
 await page.waitForFunction(() => window.__vesper?.state === "playing");
 await page.evaluate(() => {

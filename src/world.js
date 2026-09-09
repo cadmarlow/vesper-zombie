@@ -200,7 +200,7 @@ export class World {
   }
   floor() {
     const m = this.materials;
-    box(this.static, m.floor, 0, -0.22, 0, 50, 0.4, 60);
+    box(this.static, m.floor, 0, -0.22, 0, 50, 0.4, 60).castShadow = false;
     this.obstacle(-25, 0, 2, 62);
     this.obstacle(25, 0, 2, 62);
     this.obstacle(0, -30, 52, 2);
@@ -1066,8 +1066,22 @@ export class World {
     this.root.add(this.particles);
   }
   batch() {
-    const byMaterial = new Map(),
+    // Merge static scenery per material, split into ground cells so the
+    // camera can skip whole cells behind the player. A single map-wide mesh
+    // per material previously drew the entire level in every beauty, shadow
+    // and occlusion pass. Wide spans (floor, long walls) keep a bucket of
+    // their own so they never inflate a cell's bounds.
+    // The sun sees the whole map, so cells would only multiply shadow draw
+    // calls: the shadow pass instead renders one map-wide proxy per material,
+    // on a layer the game cameras never look at.
+    const CELL = 20,
+      SHADOW_LAYER = 1;
+    const buckets = new Map(),
+      shadowBuckets = new Map(),
       keep = [];
+    const bounds = new T.Box3(),
+      center = new T.Vector3(),
+      size = new T.Vector3();
     this.static.updateMatrixWorld(true);
     this.static.traverse((o) => {
       if (!o.isMesh) return;
@@ -1087,14 +1101,43 @@ export class World {
             2,
           ),
         );
-      if (!byMaterial.has(o.material)) byMaterial.set(o.material, []);
-      byMaterial.get(o.material).push(geo.index ? geo.toNonIndexed() : geo);
+      geo.computeBoundingBox();
+      bounds.copy(geo.boundingBox);
+      bounds.getCenter(center);
+      bounds.getSize(size);
+      // Flat ground-level inlays and joints cannot cast a visible shadow.
+      const castShadow =
+        o.castShadow && !(size.y < 0.05 && bounds.max.y < 0.08);
+      const cell =
+        Math.max(size.x, size.z) > CELL
+          ? "wide"
+          : `${Math.floor(center.x / CELL)},${Math.floor(center.z / CELL)}`;
+      const key = `${o.material.uuid}|${cell}`;
+      if (!buckets.has(key))
+        buckets.set(key, { material: o.material, geos: [] });
+      const part = geo.index ? geo.toNonIndexed() : geo;
+      buckets.get(key).geos.push(part);
+      if (castShadow) {
+        if (!shadowBuckets.has(o.material)) shadowBuckets.set(o.material, []);
+        shadowBuckets.get(o.material).push(part);
+      }
     });
-    for (const [material, geos] of byMaterial) {
+    for (const [material, geos] of shadowBuckets) {
+      const merged = mergeGeometries(geos, false);
+      if (!merged) continue;
+      const proxy = new T.Mesh(merged, material);
+      proxy.name = "shadow-proxy";
+      proxy.castShadow = true;
+      proxy.receiveShadow = false;
+      proxy.layers.set(SHADOW_LAYER);
+      this.root.add(proxy);
+    }
+    this.sun.shadow.camera.layers.enable(SHADOW_LAYER);
+    for (const { material, geos } of buckets.values()) {
       const merged = mergeGeometries(geos, false);
       if (merged) {
         const m = new T.Mesh(merged, material);
-        m.castShadow = true;
+        m.castShadow = false;
         m.receiveShadow = true;
         this.root.add(m);
       }
@@ -1351,19 +1394,29 @@ export class World {
   }
   showBoxWeapon(id) {
     const b = this.interactions.find((i) => i.kind === "box");
-    if (b.display) {
-      b.root.remove(b.display);
-      disposeModel(b.display);
+    if (!b) return;
+    if (b.display) b.root.remove(b.display);
+    // The draw cycles through weapons eight times a second: build each display
+    // model once per session instead of rebuilding it on every tick.
+    this.boxDisplays ??= new Map();
+    if (!this.boxDisplays.has(id)) {
+      const display = weaponModel(id);
+      display.scale.setScalar(1.4);
+      display.position.y = 1.8;
+      this.boxDisplays.set(id, display);
     }
-    b.display = weaponModel(id);
-    b.display.scale.setScalar(1.4);
-    b.display.position.y = 1.8;
+    b.display = this.boxDisplays.get(id);
     b.root.add(b.display);
   }
   dispose() {
     // Render targets (including their depth texture) belong to the old light.
     // Removing its meshes alone does not release the shadow allocation.
     this.sun.shadow.dispose();
+    for (const display of this.boxDisplays?.values() || []) {
+      display.removeFromParent();
+      disposeModel(display);
+    }
+    this.boxDisplays?.clear();
     disposeModel(this.root);
     this.scene.remove(this.root);
   }

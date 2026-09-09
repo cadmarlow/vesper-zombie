@@ -280,7 +280,7 @@ export function buildAbyss(w) {
   const ocean = new T.Mesh(new T.SphereGeometry(135, 40, 24), oceanMat);
   root.add(ocean);
 
-  box(stage, ceramic, 0, -0.25, 0, 74, 0.48, 90);
+  box(stage, ceramic, 0, -0.25, 0, 74, 0.48, 90).castShadow = false;
   for (const x of [-37, 37]) w.obstacle(x, 0, 2, 92, 12);
   for (const z of [-45, 45]) w.obstacle(0, z, 76, 2, 12);
   // Drainage channels, brass expansion joints and an unbroken central route.

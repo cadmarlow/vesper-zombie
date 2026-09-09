@@ -22,9 +22,10 @@ export class TouchControls {
     element.addEventListener("pointerdown", (e) => {
       const game = this.getGame();
       if (!game || game.state !== "playing" || !game.touch) return;
+      // One thumb per zone: a second finger must not add up joystick or camera input.
       if (
-        action === "move" &&
-        [...this.contacts.values()].some((c) => c.action === "move")
+        (action === "move" || action === "look") &&
+        [...this.contacts.values()].some((c) => c.action === action)
       )
         return;
       e.preventDefault();
