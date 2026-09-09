@@ -686,11 +686,28 @@ export function animateWeapon(g, dt, reload, shot, sprint, time, aim) {
   const release =
     T.MathUtils.smoothstep(reload, 0.16, 0.3) *
     (1 - T.MathUtils.smoothstep(reload, 0.55, 0.74));
-  d.magazine.position.set(-release * 0.018, -release * 0.31, release * 0.09);
-  d.magazine.rotation.x = -release * 0.16;
+  if (d.id !== "requiem") {
+    d.magazine.position.set(-release * 0.018, -release * 0.31, release * 0.09);
+    d.magazine.rotation.x = -release * 0.16;
+  }
   d.left.position.copy(d.supportRest);
   d.left.rotation.copy(d.supportRotation);
-  if (reload > 0) {
+  if (reload > 0 && d.id === "requiem") {
+    // Tube-fed: the support hand feeds shells through the loading port, then
+    // racks the fore-end. No magazine ever drops from this weapon.
+    const window =
+      T.MathUtils.smoothstep(reload, 0.06, 0.18) *
+      (1 - T.MathUtils.smoothstep(reload, 0.74, 0.84));
+    const feed = Math.abs(Math.sin(reload * Math.PI * 4)) * window;
+    d.left.position.y -= window * 0.07 + feed * 0.035;
+    d.left.position.z += window * 0.12 - feed * 0.03;
+    d.left.rotation.x += window * 0.55;
+    d.left.rotation.z -= feed * 0.2;
+    const pump =
+      reload > 0.84 ? Math.sin(((reload - 0.84) / 0.16) * Math.PI) : 0;
+    d.slide.position.z = Math.max(d.slide.position.z, pump * 0.11);
+    d.left.position.z += pump * 0.11;
+  } else if (reload > 0) {
     d.left.position.x -= release * 0.045;
     d.left.position.y -= release * 0.22;
     d.left.position.z += release * 0.19;
