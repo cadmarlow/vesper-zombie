@@ -2,6 +2,14 @@
 
 Un FPS solo de survie occulte, jouable dans le navigateur. Trois lieux, une dernière nuit. Création originale inspirée du principe de survie par vagues.
 
+## Version 2.6.0 — progression et Archonte
+
+- **Transfiguration en trois paliers** : 3 000, 5 000 puis 7 500 essences pour des dégâts ×2,5, ×4 et ×6, un chargeur et une réserve agrandis à chaque palier. Le HUD affiche le palier (✦I, ✦II, ✦III) et la machine annonce le prix suivant.
+- **Deux nouveaux atouts** : Main de fer (cadence +25 %, recul réduit) et Œil du Veilleur (tirs à la tête ×3,2, visée plus stable). Leurs machines se trouvent au fond de l’aile gauche et à droite de la nef dans l’abbaye et Boréal, dans la Canopée et au Belvédère à Néréide. Elles demandent le courant, comme les autres.
+- **L’Archonte** : toutes les cinq vagues, un boss bâti sur le Pénitent, presque deux fois plus grand, cendreux, aux yeux rouges, rejoint la horde en plus du compte habituel ; deux à partir de la vague 15. Sa barre de vie apparaît sous la boussole. Sa chute rapporte 1 500 essences, deux grenades, des munitions et une relique (mort instantanée ou essences doubles).
+- **Records** : chaque carte du menu affiche votre meilleure vague et vos éliminations ; l’écran de fin signale un nouveau record.
+- Le bestiaire, l’arsenal et le guide décrivent ces ajouts. `npm run test:waves` couvre désormais l’Archonte des vagues 5 et 10 sur les trois cartes.
+
 ## Version 2.5.0 — correctifs et allègement du rendu
 
 Le rendu est inchangé à l’image près ; le travail demandé au GPU baisse fortement.
@@ -70,10 +78,10 @@ Le jeu est entièrement statique : aucun serveur de jeu ni base de données à c
 - **L’Abbaye des Cendres** : architecture gothique, nef scellée, éclipse rouge et autel rituel.
 - **Le Complexe Boréal** : station arctique, réacteur anormal, neige et aurore boréale.
 - **Les Jardins Abyssaux — Néréide** : sanctuaire botanique englouti à 2 840 mètres, verrière monumentale, arbre vivant, astrolabe et raie géante. Cinq secteurs, trois sas, cuves de spécimens animés, cloche de plongée et trois journaux à découvrir.
-- Vagues progressives sans limite, trois difficultés et cinq types de zombies : Égaré, Affamé, Pénitent, Porte-peste, Rémanent.
+- Vagues progressives sans limite, trois difficultés et cinq types de zombies : Égaré, Affamé, Pénitent, Porte-peste, Rémanent. Toutes les cinq vagues, l’Archonte, présence majeure bâtie sur le Pénitent, rejoint la horde (deux à partir de la vague 15).
 - Six armes, deux emplacements d’inventaire, visée, recul, headshots, rechargement, couteau et grenades.
 - Le Reliquaire : boîte mystère avec tirage animé, raretés et récupération de l’arme.
-- Zones à débloquer, générateur, ravitaillement, atouts Sang de fer et Nerfs d’acier, amélioration d’arme par Transfiguration.
+- Zones à débloquer, générateur, ravitaillement, quatre atouts (Sang de fer, Nerfs d’acier, Main de fer, Œil du Veilleur), Transfiguration d’arme en trois paliers.
 - Régénération de santé, endurance, bonus de soins, munitions, essences doubles et mort instantanée.
 - Extraction après la dixième vague ou poursuite de la survie ; écrans de victoire et de défaite.
 - Menu, arsenal, bestiaire, guide, réglages, pause et archives locales.
@@ -116,7 +124,7 @@ Sur iPhone, utilisez **Partager → Sur l’écran d’accueil**, puis ouvrez l�
 
 ## Progression
 
-Vous commencez avec 650 essences et le Vigile .45. Les éliminations et headshots donnent des essences. La grille centrale coûte 750, le Reliquaire 950. Une arme tirée doit être récupérée avec E dans les 18 secondes. Le générateur, au fond dans l’aile gauche, alimente les machines gratuitement. Les atouts coûtent 2 000 et 1 500 essences ; la Transfiguration, 3 000. Après avoir terminé la vague 10, activez la balise au point d’arrivée et restez à moins de 4,5 mètres pendant 20 secondes. Quitter le rayon suspend le décompte.
+Vous commencez avec 650 essences et le Vigile .45. Les éliminations et headshots donnent des essences. La grille centrale coûte 750, le Reliquaire 950. Une arme tirée doit être récupérée avec E dans les 18 secondes. Le générateur, au fond dans l’aile gauche, alimente les machines gratuitement. Les atouts coûtent 2 000, 1 500, 2 500 et 2 500 essences ; la Transfiguration a trois paliers à 3 000, 5 000 et 7 500 essences (dégâts ×2,5, ×4 puis ×6, chargeur agrandi à chaque palier). Après avoir terminé la vague 10, activez la balise au point d’arrivée et restez à moins de 4,5 mètres pendant 20 secondes. Quitter le rayon suspend le décompte.
 
 ## Développement
 

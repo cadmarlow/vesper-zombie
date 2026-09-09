@@ -8,6 +8,8 @@ import {
   ENEMIES,
   DIFFICULTIES,
   DEFAULT_SETTINGS,
+  PERKS,
+  UPGRADE,
   readSave,
 } from "./config.js";
 import "@fontsource/barlow/latin-400.css";
@@ -77,7 +79,7 @@ app.innerHTML = `
   <header class="menu-header"><a class="wordmark" href="#" aria-label="Accueil Vesper">${icon("eclipse")}<span>VESPER<span class="brand-divider"> / </span><small>SURVIVAL PROTOCOL</small></span></a><nav aria-label="Navigation principale"><button class="nav-button active" data-panel="home">JOUER</button><button class="nav-button" data-panel="arsenal">ARSENAL</button><button class="nav-button" data-panel="archives">ARCHIVES</button></nav><button class="icon-button" id="settings-button" aria-label="Paramètres">${icon("gear")}</button></header>
   <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
   <aside class="transmission"><span class="tiny">TRANSMISSION <b>00<span id="transmission-number">1</span></b></span><div class="signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p id="map-quote">« Les cloches se sont tues.<br>Ce qui dort sous la nef, non. »</p><span class="transmission-source">DERNIER CONTACT · <b id="map-time">03:47</b></span></aside>
-  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.webp`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
+  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.webp`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span><span class="map-record" data-record="${m.id}"></span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
     DIFFICULTIES,
   )
     .map(
@@ -95,6 +97,7 @@ app.innerHTML = `
   <div class="compass"><div class="compass-ticks">│ · · │ · · │ · · │ · · │ · · │ · · │</div><div id="compass-directions">N <span>NE</span> E</div><span class="compass-marker">◆</span></div>
   <div class="hud-objective"><div class="tiny" id="power-state">COURANT COUPÉ</div><div class="objective-title" id="objective-title">Survivre à la première vague</div><div id="objective-subtitle">Éliminez les présences pour gagner des essences.</div><div class="objective-progress"><span id="objective-progress"></span></div><div class="hud-tools"><button id="hud-help" aria-label="Guide de survie">?</button><button id="hud-pause" aria-label="Mettre en pause">Ⅱ</button></div></div>
   <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker" class="hitmarker">╳</div><div id="damage-overlay" class="damage-overlay"></div>
+  <div id="boss-bar" class="boss-bar hidden"><span class="tiny" id="boss-name">L’ARCHONTE</span><div class="boss-track"><span id="boss-fill"></span></div></div>
   <div id="announcement" class="announcement"><div class="eyebrow"></div><h2></h2><p></p></div>
   <div id="interaction" class="interaction hidden"><kbd>E</kbd><span></span></div>
   <div class="hud-bottom-left"><div class="minimap-wrap"><canvas id="minimap" width="180" height="180" aria-label="Radar : ennemis en rouge, machines en doré"></canvas><span class="radar-caption">RADAR DE PROXIMITÉ</span></div><div id="perk-slots" class="perk-slots"></div><div class="player-name">${icon("shield")} <b id="movement-state">DEBOUT</b> <span>01</span></div><div class="health-row">${icon("cross")}<strong id="health-value">100</strong><span id="health-max">/ 100</span></div><div class="health-track"><span id="health-fill"></span></div><div class="stamina-track"><span id="stamina-fill"></span></div><div class="essence-row">${icon("eclipse")}<strong id="points-value">650</strong><span>ESSENCES</span></div></div>
@@ -172,6 +175,7 @@ function state(s) {
   if (s === "menu") {
     selectedMap = game?.map || selectedMap;
     selectMap(selectedMap);
+    refreshRecords();
   }
 }
 function onEvent(type, payload) {
@@ -260,6 +264,17 @@ async function startGame(event) {
       title: "Le jeu n’a pas pu démarrer",
       text: "Vérifiez que l’accélération graphique et WebGL 2 sont activés dans votre navigateur.",
     });
+  }
+}
+function refreshRecords() {
+  const save = readSave();
+  for (const m of MAPS) {
+    const r = save.records?.[m.id],
+      el = $(`[data-record="${m.id}"]`);
+    if (!el) continue;
+    el.textContent = r
+      ? `RECORD · VAGUE ${r.wave} · ${r.kills} ÉLIMINATIONS`
+      : "";
   }
 }
 function selectMap(id) {
@@ -444,7 +459,7 @@ function openPanel(kind) {
       )
       .join(
         "",
-      )}</div><div class="lore-note">${icon("bolt")} LA TRANSFIGURATION <span>Après avoir rétabli le courant, investissez 3 000 essences pour multiplier les dégâts par 2,5 et agrandir votre chargeur.</span></div>`;
+      )}</div><div class="lore-note">${icon("bolt")} LA TRANSFIGURATION <span>Après avoir rétabli le courant, trois paliers : ${UPGRADE.costs.map((c, i) => `${c.toLocaleString("fr-FR")} essences pour ×${String(UPGRADE.damage[i + 1]).replace(".", ",")}`).join(", ")}. Chaque palier agrandit le chargeur et restaure les munitions.</span></div>`;
   } else if (kind === "archives") {
     const save = readSave();
     content.innerHTML = `<div class="eyebrow">CE QUI RESTE APRÈS LA NUIT</div><h2>Archives du signal.</h2><p class="panel-description">Vos expéditions sont enregistrées sur cet appareil.</p><div class="archive-summary"><div><strong>${save.runs || "00"}</strong><span>EXPÉDITIONS</span></div><div><strong>${save.totalKills || "00"}</strong><span>ÉLIMINATIONS</span></div><div><strong>${Math.max(0, ...Object.values(save.records || {}).map((r) => r.wave))}</strong><span>MEILLEURE VAGUE</span></div></div><div class="archive-maps">${MAPS.map(
@@ -459,7 +474,7 @@ function openPanel(kind) {
     )
       .map(
         ([id, e], i) =>
-          `<article><span class="enemy-glyph" style="color:#${e.eye.toString(16)}">${icon(id === "brute" ? "shield" : id === "wraith" ? "eclipse" : "skull")}</span><span class="tiny">SUJET 0${i + 1}</span><h3>${e.name}</h3><p>${{ walker: "Lent, nombreux. Visez la tête et gardez vos distances.", runner: "Rapide et fragile. Ne lui tournez pas le dos.", brute: "Massif et résistant. Grenades et armes transfigurées conseillées.", spitter: "Projette de l’acide à distance. Déplacez-vous latéralement.", wraith: "Sa silhouette disparaît. Ses yeux trahissent sa présence." }[id]}</p></article>`,
+          `<article><span class="enemy-glyph" style="color:#${e.eye.toString(16)}">${icon(id === "brute" || id === "archon" ? "shield" : id === "wraith" ? "eclipse" : "skull")}</span><span class="tiny">${e.boss ? "PRÉSENCE MAJEURE" : `SUJET 0${i + 1}`}</span><h3>${e.name}</h3><p>${{ walker: "Lent, nombreux. Visez la tête et gardez vos distances.", runner: "Rapide et fragile. Ne lui tournez pas le dos.", brute: "Massif et résistant. Grenades et armes transfigurées conseillées.", spitter: "Projette de l’acide à distance. Déplacez-vous latéralement.", wraith: "Sa silhouette disparaît. Ses yeux trahissent sa présence.", archon: "Se lève toutes les cinq vagues, deux à partir de la quinzième. Sa chute libère grenades et reliques." }[id]}</p></article>`,
       )
       .join("")}</div>`;
   } else if (kind === "quit") {
@@ -493,7 +508,16 @@ function openPanel(kind) {
       .map(([key, desc]) => `<div><kbd>${key}</kbd><span>${desc}</span></div>`)
       .join(
         "",
-      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Suis l’objectif vers le générateur. À Néréide, l’Atelier des marées demande un second sas à 1 000 essences ; le Belvédère s’ouvre pour 1 250 essences.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. Sang de fer augmente votre santé ; Nerfs d’acier améliore recharge et endurance.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur mobile, jouez en paysage : posez le pouce à gauche puis glissez pour vous déplacer. Poussez vers l’avant pour courir. Glissez à droite pour regarder, ou maintenez le bouton de tir et glissez dessus pour viser en tirant. Touchez les munitions pour recharger. Le bouton d’interaction apparaît à proximité des machines. Pour enlever les barres du navigateur sur iPhone : menu Partager, puis Sur l’écran d’accueil.</span></div>`;
+      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Suis l’objectif vers le générateur. À Néréide, l’Atelier des marées demande un second sas à 1 000 essences ; le Belvédère s’ouvre pour 1 250 essences.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. ${Object.values(
+      PERKS,
+    )
+      .map(
+        (p) =>
+          `${p.name} : ${p.description.replace(/\.$/, "").charAt(0).toLowerCase()}${p.description.replace(/\.$/, "").slice(1)}`,
+      )
+      .join(
+        " ; ",
+      )}. La Transfiguration a trois paliers.</p></li><li><b>Tenez face à l’Archonte.</b><p>Toutes les cinq vagues, une présence majeure rejoint la horde. Elle tombe sous les grenades et les tirs à la tête et laisse des reliques derrière elle.</p></li><li><b>Survivez. Puis choisissez.</b><p>Après la vague 10, activez la balise près de votre point d’arrivée. Restez à moins de 4,5 mètres pendant 20 secondes pour être extrait, ou continuez les vagues sans limite.</p></li></ol><div class="guide-tip">Votre santé se régénère après 5 secondes sans dégâts. Les anomalies laissées par les ennemis offrent soins, munitions ou bonus temporaires.</div></section></div><div class="panel-foot"><span>Sur mobile, jouez en paysage : posez le pouce à gauche puis glissez pour vous déplacer. Poussez vers l’avant pour courir. Glissez à droite pour regarder, ou maintenez le bouton de tir et glissez dessus pour viser en tirant. Touchez les munitions pour recharger. Le bouton d’interaction apparaît à proximité des machines. Pour enlever les barres du navigateur sur iPhone : menu Partager, puis Sur l’écran d’accueil.</span></div>`;
   }
   $("#close-panel").focus();
 }
@@ -595,7 +619,8 @@ function renderHUD(h) {
   $("#mobile-interact span").textContent = h.interaction || "";
   $("#points-value").textContent = h.points.toLocaleString("fr-FR");
   $("#weapon-name").textContent =
-    h.definition.name + (h.weapon.level ? " ✦" : "");
+    h.definition.name +
+    (h.weapon.level ? ` ✦${UPGRADE.names[h.weapon.level]}` : "");
   $("#weapon-class").textContent = h.weapon.level
     ? "TRANSFIGURÉE"
     : h.definition.class;
@@ -620,6 +645,16 @@ function renderHUD(h) {
     "hidden",
     !(game.mouse.aim && h.weapon.id === "longinus" && h.reload === null),
   );
+  const boss = h.boss?.[0];
+  $("#boss-bar").classList.toggle("hidden", !boss);
+  if (boss) {
+    $("#boss-name").textContent =
+      h.boss.length > 1
+        ? `${boss.name.toUpperCase()} · ${h.boss.length}`
+        : boss.name.toUpperCase();
+    $("#boss-fill").style.width =
+      `${(h.boss.reduce((a, b) => a + b.health, 0) / h.boss.reduce((a, b) => a + b.max, 0)) * 100}%`;
+  }
   $("#interaction").classList.toggle("hidden", !h.interaction);
   $("#interaction span").textContent = h.interaction || "";
   $("#reload-bar").classList.toggle("hidden", h.reload === null);
@@ -629,7 +664,7 @@ function renderHUD(h) {
     h.perks
       .map(
         (p) =>
-          `<span title="${p === "health" ? "Sang de fer" : "Nerfs d’acier"}">${icon(p === "health" ? "cross" : "bolt")}</span>`,
+          `<span title="${PERKS[p]?.name || p}">${icon(PERKS[p]?.icon || "bolt")}</span>`,
       )
       .join(""),
   );
@@ -761,7 +796,9 @@ function renderEnd(r) {
     .map(([v, k]) => `<div><strong>${v}</strong><span>${k}</span></div>`)
     .join("");
   $("#end-details").textContent =
-    `${r.headshots} tirs à la tête · ${r.accuracy} % de précision · ${DIFFICULTIES[r.difficulty].name}`;
+    `${r.headshots} tirs à la tête · ${r.accuracy} % de précision · ${DIFFICULTIES[r.difficulty].name}` +
+    (r.newBest && r.wave > 0 ? " · Nouveau record sur cette carte" : "");
+  $("#gameover").classList.toggle("new-best", !!(r.newBest && r.wave > 0));
 }
 const touchControls = new TouchControls(
   $("#touch-controls"),
@@ -795,3 +832,4 @@ $("#orientation-back").onclick = () => {
 };
 updateViewport();
 persistSettings();
+refreshRecords();

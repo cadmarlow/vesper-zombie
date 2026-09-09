@@ -165,6 +165,7 @@ export const ENEMIES = {
     damage: 18,
     score: 100,
     scale: 1,
+    radius: 0.36,
     color: 0x5a6259,
     eye: 0xff9e40,
   },
@@ -185,6 +186,7 @@ export const ENEMIES = {
     damage: 35,
     score: 300,
     scale: 1.45,
+    radius: 0.6,
     color: 0x383c3d,
     eye: 0xffad30,
   },
@@ -208,6 +210,64 @@ export const ENEMIES = {
     color: 0x3f6970,
     eye: 0x71ffff,
   },
+  // Boss. Built on the Pénitent's body, ashen, larger, with burning eyes.
+  archon: {
+    name: "L’Archonte",
+    health: 2400,
+    speed: 1.0,
+    damage: 55,
+    score: 1500,
+    scale: 1.9,
+    radius: 0.6,
+    look: "brute",
+    tint: 0xa79c94,
+    color: 0x2c2626,
+    eye: 0xff3b2f,
+    boss: true,
+  },
+};
+// Perk machines. `health` and `speed` are the historical pair; `rate` and
+// `focus` sit in the sectors that open after the generator.
+export const PERKS = {
+  health: {
+    name: "Sang de fer",
+    title: "SANG DE FER",
+    cost: 2000,
+    color: 0xcf534e,
+    icon: "cross",
+    description: "Santé maximale portée à 180.",
+  },
+  speed: {
+    name: "Nerfs d’acier",
+    title: "NERFS D’ACIER",
+    cost: 1500,
+    color: 0xe9be61,
+    icon: "bolt",
+    description: "Rechargement 35 % plus rapide, endurance améliorée.",
+  },
+  rate: {
+    name: "Main de fer",
+    title: "MAIN DE FER",
+    cost: 2500,
+    color: 0xe07a4c,
+    icon: "bullet",
+    description: "Cadence de tir +25 %, recul réduit d’un tiers.",
+  },
+  focus: {
+    name: "Œil du Veilleur",
+    title: "ŒIL DU VEILLEUR",
+    cost: 2500,
+    color: 0x7fd0e8,
+    icon: "target",
+    description: "Tirs à la tête ×3,2 au lieu de ×2,35, visée plus stable.",
+  },
+};
+// Transfiguration tiers: cost to reach the next tier, damage and capacity.
+export const UPGRADE = {
+  costs: [3000, 5000, 7500],
+  damage: [1, 2.5, 4, 6],
+  capacity: [1, 1.5, 1.75, 2],
+  names: ["", "I", "II", "III"],
 };
 export const DIFFICULTIES = {
   story: {

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { openGameAudit } from "./game-audit.mjs";
 import { rng, inside, canStand } from "../src/logic.js";
+import { ENEMIES } from "../src/config.js";
 const browser = await chromium.launch({
   headless: true,
   executablePath:
@@ -21,7 +22,7 @@ try {
   await openGameAudit(page);
   // Keep the test oracle independent of the bundled navigation under test.
   await page.addScriptTag({
-    content: `window.__waveOracle = (() => { ${rng.toString()} ${inside.toString()} ${canStand.toString()} return { rng, canStand }; })();`,
+    content: `window.__waveOracle = (() => { ${rng.toString()} ${inside.toString()} ${canStand.toString()} return { rng, canStand, radii: ${JSON.stringify(Object.fromEntries(Object.entries(ENEMIES).map(([k, v]) => [k, v.radius || 0.36])))} }; })();`,
   });
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing");
@@ -29,7 +30,7 @@ try {
     const g = window.__vesper;
     g.emit = () => {};
     g.sound.setVolume(0);
-    const { rng, canStand } = window.__waveOracle;
+    const { rng, canStand, radii } = window.__waveOracle;
     const reports = [],
       originalRandom = Math.random;
     try {
@@ -86,7 +87,7 @@ try {
                 e.model.position.x,
                 e.model.position.z,
                 g.world.obstacles,
-                e.type === "brute" ? 0.6 : 0.36,
+                radii[e.type] || 0.36,
               )
             )
               invalidSpawns++;
@@ -161,11 +162,12 @@ try {
     );
     assert.equal(r.invalidSpawns, 0);
     assert.equal(r.remaining, 0);
-    assert.equal(r.types.length, 5);
+    // Five regular types plus the Archonte of waves 5 and 10.
+    assert.equal(r.types.length, 6);
   }
   assert.deepEqual(errors, []);
   console.log(
-    `PASS: ${reports.length * 10} completed waves across three maps, all five enemy types, no invalid spawns or stalled waves.`,
+    `PASS: ${reports.length * 10} completed waves across three maps, all five enemy types and the Archonte, no invalid spawns or stalled waves.`,
   );
 } finally {
   await browser.close();

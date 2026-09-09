@@ -116,6 +116,8 @@ export const ABYSS_LAYOUT = {
     ["upgrade", [27, -35]],
     ["health", [15, 16]],
     ["speed", [29, -11]],
+    ["rate", [-15, 8]],
+    ["focus", [-24, -36]],
     ["extract", [0, 40]],
   ],
   spawns: [

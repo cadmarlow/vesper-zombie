@@ -1,4 +1,4 @@
-import { WEAPONS } from "./config.js";
+import { WEAPONS, UPGRADE } from "./config.js";
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export function rng(seed = 1) {
   return () => {
@@ -36,12 +36,21 @@ export function newWeapon(id) {
   const def = WEAPONS[id];
   return { id, ammo: def.mag, reserve: def.reserve, level: 0 };
 }
+export const MAX_UPGRADE = UPGRADE.costs.length;
+export const upgradeCost = (level) => UPGRADE.costs[level] ?? null;
+export const damageMultiplier = (level) =>
+  UPGRADE.damage[Math.min(level, UPGRADE.damage.length - 1)];
+const capacity = (level) =>
+  UPGRADE.capacity[Math.min(level, UPGRADE.capacity.length - 1)];
 export function magazine(weapon) {
-  return (
-    WEAPONS[weapon.id].mag +
-    (weapon.level ? Math.ceil(WEAPONS[weapon.id].mag * 0.5) : 0)
-  );
+  return Math.ceil(WEAPONS[weapon.id].mag * capacity(weapon.level || 0));
 }
+export function reserveCapacity(weapon) {
+  return Math.ceil(WEAPONS[weapon.id].reserve * capacity(weapon.level || 0));
+}
+// One Archonte every fifth wave, two from wave 15 on.
+export const bossCount = (wave) =>
+  wave > 0 && wave % 5 === 0 ? (wave >= 15 ? 2 : 1) : 0;
 export function reloadWeapon(weapon) {
   const needed = Math.min(magazine(weapon) - weapon.ammo, weapon.reserve);
   weapon.ammo += needed;

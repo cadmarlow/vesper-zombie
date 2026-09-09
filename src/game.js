@@ -33,11 +33,25 @@ import {
   mesh,
 } from "./assets.js";
 import { Sound } from "./audio.js";
-import { WEAPONS, ENEMIES, DIFFICULTIES, MAPS, saveRecord } from "./config.js";
+import {
+  WEAPONS,
+  ENEMIES,
+  DIFFICULTIES,
+  MAPS,
+  PERKS,
+  UPGRADE,
+  saveRecord,
+  readSave,
+} from "./config.js";
 import {
   clamp,
   newWeapon,
   magazine,
+  reserveCapacity,
+  upgradeCost,
+  damageMultiplier,
+  bossCount,
+  MAX_UPGRADE,
   reloadWeapon,
   Navigation,
   moveSlide,
@@ -758,8 +772,9 @@ export class Game {
     }
     w.ammo--;
     this.player.shots++;
-    this.shotTimer = d.rate;
-    this.recoil = Math.min(0.22, this.recoil + d.recoil);
+    const steady = this.player.perks.includes("rate");
+    this.shotTimer = d.rate * (steady ? 0.8 : 1);
+    this.recoil = Math.min(0.22, this.recoil + d.recoil * (steady ? 0.68 : 1));
     this.sound.shot(d);
     this.gun.userData.flash.visible = true;
     this.gun.userData.cycle = 1;
@@ -788,13 +803,17 @@ export class Game {
         ),
     );
     const aimed = this.mouse.aim;
+    const spread =
+      d.spread *
+      (aimed ? 0.3 : 1) *
+      (this.player.perks.includes("focus") ? 0.55 : 1);
     let shotHit = false;
     for (let pellet = 0; pellet < d.pellets; pellet++) {
       const direction = new T.Vector3(0, 0, -1).applyQuaternion(
         this.camera.quaternion,
       );
-      direction.x += (Math.random() - 0.5) * d.spread * (aimed ? 0.3 : 1);
-      direction.y += (Math.random() - 0.5) * d.spread * (aimed ? 0.3 : 1);
+      direction.x += (Math.random() - 0.5) * spread;
+      direction.y += (Math.random() - 0.5) * spread;
       direction.normalize();
       const origin = this.camera.position.clone();
       const impact = {};
@@ -838,8 +857,8 @@ export class Game {
       if (target) {
         const damage =
           d.damage *
-          (1 + w.level * 1.5) *
-          (head ? 2.35 : 1) *
+          damageMultiplier(w.level) *
+          (head ? (this.player.perks.includes("focus") ? 3.2 : 2.35) : 1) *
           (this.powerups.insta > this.time ? 100 : 1);
         this.damageEnemy(target, damage, head, { position: end, direction });
         shotHit = true;
@@ -915,7 +934,7 @@ export class Game {
       push.x,
       push.z,
       this.world.obstacles,
-      enemy.type === "brute" ? 0.6 : 0.36,
+      ENEMIES[enemy.type].radius || 0.36,
     );
     if (enemy.health <= 0) {
       enemy.dead = true;
@@ -929,7 +948,21 @@ export class Game {
       this.player.points += points;
       this.emit("score", { points, head, type: enemy.type });
       if (Math.random() < 0.17) this.drop(enemy.model.position);
-      if (enemy.type === "brute") {
+      if (ENEMIES[enemy.type].boss) {
+        this.drop(enemy.model.position, "ammo");
+        this.drop(
+          enemy.model.position,
+          Math.random() < 0.5 ? "insta" : "double",
+        );
+        this.player.grenades = Math.min(5, this.player.grenades + 2);
+        this.sound.wave();
+        this.emit("announce", {
+          eyebrow: `+${points} ESSENCES · +2 GRENADES`,
+          title: "L’ARCHONTE EST TOMBÉ",
+          subtitle: "Ses reliques sont à vous. La horde n’a pas fini.",
+          duration: 3500,
+        });
+      } else if (enemy.type === "brute") {
         this.drop(enemy.model.position, "ammo");
         this.emit("toast", {
           title: "Pénitent abattu",
@@ -1109,22 +1142,26 @@ export class Game {
     this.remaining = waveCount(this.wave, this.difficulty.count);
     this.spawnTimer = 0.4;
     this.sound.wave();
+    const bosses = bossCount(this.wave);
     this.emit("announce", {
-      eyebrow:
-        this.wave % 5 === 0
-          ? "UNE PRÉSENCE APPROCHE"
-          : "ILS ONT ENTENDU VOTRE SOUFFLE",
+      eyebrow: bosses
+        ? "UNE PRÉSENCE APPROCHE"
+        : "ILS ONT ENTENDU VOTRE SOUFFLE",
       title: `VAGUE ${String(this.wave).padStart(2, "0")}`,
       subtitle:
         this.wave === 1
           ? "Visez la tête. Restez en mouvement."
-          : this.wave === 5
-            ? "Les pénitents marchent parmi eux."
-            : this.wave === 10
-              ? "Dernière vague avant l’extraction."
+          : bosses > 1
+            ? "Deux Archontes marchent parmi eux."
+            : bosses
+              ? this.wave === 10
+                ? "L’Archonte garde la dernière vague avant l’extraction."
+                : "L’Archonte s’éveille. Visez la tête, gardez vos grenades."
               : "La nuit n’a pas dit son dernier mot.",
       duration: 3200,
     });
+    // Bosses join the wave on top of the regular count and must fall too.
+    for (let i = 0; i < bosses; i++) this.spawnEnemy("archon");
     if (this.wave % 3 === 0)
       this.player.grenades = Math.min(5, this.player.grenades + 1);
   }
@@ -1137,7 +1174,9 @@ export class Game {
   spawnEnemy(typeOverride, positionOverride) {
     const type = typeOverride || enemyType(this.wave);
     const navigation =
-      type === "brute" ? this.largeNavigation : this.navigation;
+      (ENEMIES[type].radius || 0.36) > 0.4
+        ? this.largeNavigation
+        : this.navigation;
     let pos = positionOverride;
     if (!pos) {
       const candidate = navigation.spawnPosition(
@@ -1159,13 +1198,15 @@ export class Game {
     model.position.copy(pos);
     model.position.y = -1.9;
     this.scene.add(model);
+    const health =
+      ENEMIES[type].health *
+      (1 + (this.wave - 1) * 0.15) *
+      this.difficulty.health;
     this.enemies.push({
       model,
       type,
-      health:
-        ENEMIES[type].health *
-        (1 + (this.wave - 1) * 0.15) *
-        this.difficulty.health,
+      health,
+      maxHealth: health,
       attack: 1.5,
       stagger: 0,
       age: 0,
@@ -1222,7 +1263,9 @@ export class Game {
       origin.y = 1;
       const blocked = this.obstacleDistance(origin, direct, d) < d - 0.1;
       const navigation =
-        e.type === "brute" ? this.largeNavigation : this.navigation;
+        (ENEMIES[e.type].radius || 0.36) > 0.4
+          ? this.largeNavigation
+          : this.navigation;
       target = navigation.direction(
         e.model.position.x,
         e.model.position.z,
@@ -1257,7 +1300,7 @@ export class Game {
           delta.x * Math.min(speed * dt, length) + sx * dt,
           delta.z * Math.min(speed * dt, length) + sz * dt,
           this.world.obstacles,
-          e.type === "brute" ? 0.6 : 0.36,
+          ENEMIES[e.type].radius || 0.36,
         );
       }
       e.model.rotation.y = Math.atan2(
@@ -1340,12 +1383,12 @@ export class Game {
       }
       return;
     }
-    if (["upgrade", "health", "speed"].includes(i.kind) && !this.world.power)
+    if ((i.kind === "upgrade" || PERKS[i.kind]) && !this.world.power)
       return fail("Rétablissez d’abord le courant au générateur.");
     if (i.kind === "power" && this.world.power)
       return fail("Le courant est déjà rétabli.");
-    if (i.kind === "upgrade" && this.weapon.level)
-      return fail("Cette arme est déjà transfigurée.");
+    if (i.kind === "upgrade" && this.weapon.level >= MAX_UPGRADE)
+      return fail("Cette arme a atteint sa transfiguration ultime.");
     if (this.player.perks.includes(i.kind))
       return fail("Vous possédez déjà cet atout.");
     if (i.kind === "extract") {
@@ -1365,17 +1408,16 @@ export class Game {
       this.sound.wave();
       return;
     }
-    if (this.player.points < i.cost)
-      return fail(`Il vous manque ${i.cost - this.player.points} essences.`);
+    const cost = this.interactionCost(i);
+    if (this.player.points < cost)
+      return fail(`Il vous manque ${cost - this.player.points} essences.`);
     if (
       i.kind === "ammo" &&
-      this.weapons.every(
-        (w) => w.reserve >= WEAPONS[w.id].reserve * (w.level ? 1.5 : 1),
-      ) &&
+      this.weapons.every((w) => w.reserve >= reserveCapacity(w)) &&
       this.player.grenades >= 3
     )
       return fail("Vos réserves sont déjà pleines.");
-    this.player.points -= i.cost;
+    this.player.points -= cost;
     this.sound.purchase();
     switch (i.kind) {
       case "door":
@@ -1400,8 +1442,7 @@ export class Game {
         });
         break;
       case "ammo":
-        for (const w of this.weapons)
-          w.reserve = Math.ceil(WEAPONS[w.id].reserve * (w.level ? 1.5 : 1));
+        for (const w of this.weapons) w.reserve = reserveCapacity(w);
         this.player.grenades = Math.max(3, this.player.grenades);
         this.emit("toast", {
           title: "Ravitaillement effectué",
@@ -1425,34 +1466,40 @@ export class Game {
           duration: 3500,
         });
         break;
-      case "upgrade":
-        this.weapon.level = 1;
+      case "upgrade": {
+        this.weapon.level = (this.weapon.level || 0) + 1;
         this.weapon.ammo = magazine(this.weapon);
-        this.weapon.reserve = Math.ceil(this.definition.reserve * 1.5);
+        this.weapon.reserve = reserveCapacity(this.weapon);
         this.setGun();
+        const tier = UPGRADE.names[this.weapon.level];
         this.emit("toast", {
-          title: "Arme transfigurée",
-          text: "Dégâts ×2,5 · Chargeur augmenté · Munitions restaurées",
+          title: `Transfiguration ${tier}`,
+          text: `Dégâts ×${String(damageMultiplier(this.weapon.level)).replace(".", ",")} · Chargeur agrandi · Munitions restaurées${
+            this.weapon.level < MAX_UPGRADE
+              ? ` · Palier suivant : ${upgradeCost(this.weapon.level)} essences`
+              : " · Palier ultime"
+          }`,
         });
         break;
-      case "health":
-        this.player.perks.push("health");
-        this.player.maxHealth = 180;
-        this.player.health = 180;
-        this.emit("toast", {
-          title: "Sang de fer",
-          text: "Santé maximale augmentée à 180.",
-        });
-        break;
-      case "speed":
-        this.player.perks.push("speed");
-        this.emit("toast", {
-          title: "Nerfs d’acier",
-          text: "Rechargement 35 % plus rapide · Endurance améliorée",
-        });
-        break;
+      }
+      default:
+        if (PERKS[i.kind]) {
+          this.player.perks.push(i.kind);
+          if (i.kind === "health") {
+            this.player.maxHealth = 180;
+            this.player.health = 180;
+          }
+          this.emit("toast", {
+            title: PERKS[i.kind].name,
+            text: PERKS[i.kind].description,
+          });
+        }
     }
     this.updateHUD();
+  }
+  interactionCost(i) {
+    if (i.kind === "upgrade") return upgradeCost(this.weapon.level || 0) ?? 0;
+    return i.cost || 0;
   }
   nearInteraction() {
     if (!this.world || !this.player) return null;
@@ -1487,7 +1534,10 @@ export class Game {
   }
   interactionText(i) {
     if (!i) return null;
-    let action = `${i.name} · ${i.cost ? `${i.cost} essences` : "Activer"}`;
+    const cost = this.interactionCost(i);
+    let action = `${i.name} · ${cost ? `${cost} essences` : "Activer"}`;
+    if (i.kind === "upgrade" && this.weapon.level)
+      action = `${i.name} ${UPGRADE.names[this.weapon.level + 1] || ""} · ${cost} essences`;
     if (i.kind === "recording")
       action = `${i.read ? "Relire" : "Lire"} · ${i.name}`;
     if (i.kind === "box" && i.busy)
@@ -1501,13 +1551,11 @@ export class Game {
         : this.wave >= 10
           ? "Demander l’extraction"
           : "Extraction disponible après la vague 10";
-    if (["health", "speed", "upgrade"].includes(i.kind) && !this.world.power)
+    if ((i.kind === "upgrade" || PERKS[i.kind]) && !this.world.power)
       action = `${i.name} · Courant requis`;
-    if (
-      this.player.perks.includes(i.kind) ||
-      (i.kind === "upgrade" && this.weapon.level)
-    )
-      action = `${i.name} · Acquis`;
+    if (this.player.perks.includes(i.kind)) action = `${i.name} · Acquis`;
+    if (i.kind === "upgrade" && this.weapon.level >= MAX_UPGRADE)
+      action = `${i.name} · Palier ultime atteint`;
     return action;
   }
   drop(position, forced) {
@@ -1546,9 +1594,7 @@ export class Game {
         );
         break;
       case "ammo":
-        for (const w of this.weapons) {
-          w.reserve = Math.ceil(WEAPONS[w.id].reserve * (w.level ? 1.5 : 1));
-        }
+        for (const w of this.weapons) w.reserve = reserveCapacity(w);
         break;
       case "double":
         this.powerups.double = this.time + 25;
@@ -2055,6 +2101,13 @@ export class Game {
         this.reloadTime > 0 ? 1 - this.reloadTime / this.reloadDuration : null,
       interaction: this.interactionText(this.nearInteraction()),
       perks: this.player.perks,
+      boss: this.enemies
+        .filter((e) => !e.dead && ENEMIES[e.type].boss)
+        .map((e) => ({
+          name: ENEMIES[e.type].name,
+          health: Math.max(0, e.health),
+          max: e.maxHealth,
+        })),
       power: this.world.power,
       door: this.world.doors.some((d) => d.open),
       extraction: this.extraction ? Math.ceil(this.extractionTimer) : null,
@@ -2091,6 +2144,11 @@ export class Game {
       victory,
       date: new Date().toISOString(),
     };
+    const previous = readSave().records?.[this.map];
+    record.newBest =
+      !previous ||
+      record.wave > previous.wave ||
+      (record.wave === previous.wave && record.kills > previous.kills);
     saveRecord(record);
     this.emit("end", record);
     this.emit("state", "gameover");

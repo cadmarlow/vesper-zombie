@@ -71,6 +71,8 @@ function build(type, detail = "full") {
     far = detail === "far";
   const g = new T.Group(),
     def = ENEMIES[type],
+    // A boss reuses another type's anatomy with its own tint, scale and eyes.
+    look = def.look || type,
     bones = [],
     indices = {};
   const bone = (name, parent, x, y, z = 0) => {
@@ -100,7 +102,8 @@ function build(type, detail = "full") {
   const skeleton = new T.Skeleton(bones);
   const skin = new T.MeshStandardMaterial({
     color:
-      type === "spitter" ? 0xb5bd8a : type === "wraith" ? 0xb3c4c7 : 0xd1c6b5,
+      def.tint ||
+      (look === "spitter" ? 0xb5bd8a : look === "wraith" ? 0xb3c4c7 : 0xd1c6b5),
     map: creatureSkinTexture(lite) || fleshTexture(),
     bumpMap: creatureSkinTexture(lite) || fleshTexture(),
     bumpScale: 0.0018,
@@ -109,13 +112,13 @@ function build(type, detail = "full") {
   });
   const cloth = surface(
     "cloth",
-    type === "runner"
+    look === "runner"
       ? 0x625247
-      : type === "wraith"
+      : look === "wraith"
         ? 0x303537
-        : type === "spitter"
+        : look === "spitter"
           ? 0x969887
-          : type === "brute"
+          : look === "brute"
             ? 0x434c47
             : 0x61716a,
     { roughness: 1, metalness: 0, normalScale: new T.Vector2(0.42, 0.42) },
@@ -338,7 +341,8 @@ function build(type, detail = "full") {
   body.computeVertexNormals();
   add(body, cloth, torsoWeights);
   buildCreatureHead({
-    type,
+    type: look,
+    skinTint: def.tint,
     lite,
     far,
     add,
@@ -363,7 +367,7 @@ function build(type, detail = "full") {
       0.027,
       new T.Euler(0, 0, s * 0.28),
     );
-    if (type !== "wraith" && !(type === "runner" && s === -1)) {
+    if (look !== "wraith" && !(look === "runner" && s === -1)) {
       block(cloth, torsoWeights, s * 0.116, 1.278, 0.15, 0.135, 0.16, 0.027);
       block(
         leather,
@@ -476,7 +480,7 @@ function build(type, detail = "full") {
       0.9,
     );
     block(cloth, armWeight, x, 1.162, 0, 0.14, 0.052, 0.133);
-    if (type === "walker" || type === "spitter" || type === "wraith") {
+    if (look === "walker" || look === "spitter" || look === "wraith") {
       add(
         garment(
           [
@@ -523,7 +527,7 @@ function build(type, detail = "full") {
         0.81 - length,
         0.06,
         0.009,
-        type === "runner" ? 0.025 : 0.012,
+        look === "runner" ? 0.025 : 0.012,
         0.003,
         new T.Euler(-0.3, 0, -s * 0.08),
       );
@@ -658,7 +662,7 @@ function build(type, detail = "full") {
         0.009,
       );
   }
-  if (type === "brute") {
+  if (look === "brute") {
     add(
       new T.SphereGeometry(
         0.165,
@@ -751,7 +755,7 @@ function build(type, detail = "full") {
       0.007,
     );
   }
-  if (type === "runner") {
+  if (look === "runner") {
     const tornChest = new T.SphereGeometry(
       1,
       far ? 8 : lite ? 12 : 18,
@@ -797,7 +801,7 @@ function build(type, detail = "full") {
       0.007,
     );
   }
-  if (type === "spitter") {
+  if (look === "spitter") {
     ball(skin, "torso", 0, 1.3, -0.17, 0.21, 0.28, 0.18);
     for (let i = 0; i < 7; i++)
       ball(
@@ -836,7 +840,7 @@ function build(type, detail = "full") {
       }
     }
   }
-  if (type === "walker") {
+  if (look === "walker") {
     // A shredded sleeve and patched field coat define the basic wave-one enemy.
     block(
       leather,
@@ -883,7 +887,7 @@ function build(type, detail = "full") {
         0.003,
       );
   }
-  if (type === "wraith") {
+  if (look === "wraith") {
     // A continuous folded cowl with a real front opening, close to the skull.
     const profile = [
       [1.54, 0.144, 0.125],
@@ -1013,6 +1017,7 @@ export function zombieModel(type, detail = "full") {
   });
   g.userData = {
     type,
+    look: ENEMIES[type].look || type,
     variation,
     headDestroyed: false,
     detail,
@@ -1107,11 +1112,12 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
     wrists,
     legs,
     type,
+    look = type,
     variation = 0.5,
   } = g.userData;
   const phase =
       t *
-      (type === "runner" ? 8.5 : 4.6) *
+      (look === "runner" ? 8.5 : 4.6) *
       Math.max(0.25, speed) *
       (0.92 + variation * 0.16),
     stride = attacking ? 0.12 : 0.43;
@@ -1119,7 +1125,7 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
   hips.rotation.y = Math.sin(phase) * 0.09;
   hips.rotation.z = Math.sin(phase) * 0.025;
   torso.rotation.set(
-    (type === "runner" ? 0.3 : type === "brute" ? 0.17 : 0.23) -
+    (look === "runner" ? 0.3 : look === "brute" ? 0.17 : 0.23) -
       Math.max(0, stagger) * 0.28,
     Math.sin(phase) * -0.07,
     Math.sin(phase * 0.5) * 0.055,
@@ -1129,8 +1135,8 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
     Math.sin(t * 0.75) * 0.07,
     (variation - 0.5) * 0.3 + Math.sin(phase * 0.5) * 0.06,
   );
-  jaw.rotation.x = jawOpening(type, t, attacking);
-  jaw.rotation.z = Math.sin(t * 1.7) * (type === "runner" ? 0.025 : 0.008);
+  jaw.rotation.x = jawOpening(look, t, attacking);
+  jaw.rotation.z = Math.sin(t * 1.7) * (look === "runner" ? 0.025 : 0.008);
   legs.forEach((leg, i) => {
     const p = phase + i * Math.PI;
     leg.root.rotation.x = Math.sin(p) * stride;
@@ -1141,14 +1147,14 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
     arm.rotation.set(
       attacking
         ? -1.45 + Math.sin(t * 8 + i * 1.8) * 0.48
-        : type === "runner"
+        : look === "runner"
           ? -0.45 + Math.sin(phase + i * Math.PI) * 0.52
           : (i ? -0.24 : -0.67) + Math.sin(phase + i * Math.PI) * 0.24,
       Math.sin(phase * 0.5 + i) * 0.07,
       (i ? 1 : -1) * (0.08 + variation * 0.08),
     );
     elbows[i].rotation.x =
-      (type === "runner" ? -0.7 : -0.22) -
+      (look === "runner" ? -0.7 : -0.22) -
       Math.max(0, Math.sin(phase + i)) * 0.32;
     wrists[i].rotation.set(
       attacking ? 0.42 : 0.28,

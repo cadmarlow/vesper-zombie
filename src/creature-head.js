@@ -61,6 +61,7 @@ const gaussian = (x, y, cx, cy, rx, ry) =>
 
 export function buildCreatureHead({
   type,
+  skinTint = null,
   lite,
   far = false,
   add: append,
@@ -82,7 +83,8 @@ export function buildCreatureHead({
   faceMaterial.bumpScale = 0.0015;
   faceMaterial.roughness = 0.78;
   faceMaterial.color.set(
-    type === "spitter" ? 0xb5bd8a : type === "wraith" ? 0xb3c4c7 : 0xd1c6b5,
+    skinTint ||
+      (type === "spitter" ? 0xb5bd8a : type === "wraith" ? 0xb3c4c7 : 0xd1c6b5),
   );
   const add = append;
   const ball = (material, weight, x, y, z, sx, sy, sz) =>

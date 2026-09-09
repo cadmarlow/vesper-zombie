@@ -241,7 +241,13 @@ export class Sound {
     const v = Math.max(0, 1 - distance / 27) * 0.07;
     if (!v) return;
     this.noise(0.55, v, 250 + Math.random() * 250, 0, pan);
-    this.tone(type === "brute" ? 38 : 63, 0.55, v, "sawtooth", 30);
+    this.tone(
+      type === "archon" ? 27 : type === "brute" ? 38 : 63,
+      type === "archon" ? 0.8 : 0.55,
+      type === "archon" ? v * 1.4 : v,
+      "sawtooth",
+      30,
+    );
   }
   death() {
     this.tone(110, 2.6, 0.22, "sawtooth", 28);

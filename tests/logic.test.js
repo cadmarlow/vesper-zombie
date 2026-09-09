@@ -10,6 +10,11 @@ import {
   newWeapon,
   magazine,
   reloadWeapon,
+  reserveCapacity,
+  upgradeCost,
+  damageMultiplier,
+  bossCount,
+  MAX_UPGRADE,
   rng,
 } from "../src/logic.js";
 test("flow field routes around a sealed wall and rebuilds after a gate opens", () => {
@@ -173,4 +178,29 @@ test("an actor pushed around a barrel corner can step back to a valid route", as
     moveSlide(p, (dx / d) * step, (dz / d) * step, obstacles, 0.36);
   }
   assert(Math.hypot(p.x - target.x, p.z - target.z) < 1);
+});
+
+test("transfiguration tiers raise damage, magazine and reserve, then stop", () => {
+  const w = newWeapon("marauder");
+  assert.equal(damageMultiplier(0), 1);
+  assert.equal(upgradeCost(0), 3000);
+  const base = magazine(w),
+    reserve = reserveCapacity(w);
+  for (let level = 1; level <= MAX_UPGRADE; level++) {
+    w.level = level;
+    assert(damageMultiplier(level) > damageMultiplier(level - 1));
+    assert(magazine(w) >= base);
+    assert(reserveCapacity(w) >= reserve);
+  }
+  assert.equal(upgradeCost(MAX_UPGRADE), null);
+  assert.equal(
+    damageMultiplier(MAX_UPGRADE + 5),
+    damageMultiplier(MAX_UPGRADE),
+  );
+});
+test("an Archonte joins every fifth wave, two from wave fifteen", () => {
+  assert.deepEqual(
+    [1, 4, 5, 9, 10, 14, 15, 20].map(bossCount),
+    [0, 0, 1, 0, 1, 0, 2, 2],
+  );
 });

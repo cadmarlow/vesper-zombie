@@ -13,6 +13,7 @@ import {
   weaponModel,
 } from "./assets.js";
 import { rng } from "./logic.js";
+import { PERKS, UPGRADE } from "./config.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
 import { enrichWorld } from "./world-detail.js";
 import { buildAbyss } from "./world-abyss.js";
@@ -710,6 +711,8 @@ export class World {
       upgrade: [17, -13],
       health: [-17, -6],
       speed: [17, -3],
+      rate: [-17, -25],
+      focus: [17, -7],
       extract: [0, 26],
     };
     for (const [kind, [x, z]] of this.machineLocations ||
@@ -723,24 +726,24 @@ export class World {
         kind,
         root: g,
         position: new T.Vector3(x, 1, z),
-        name: {
-          box: "Le Reliquaire",
-          ammo: "Ravitaillement",
-          power: "Générateur",
-          upgrade: "La Transfiguration",
-          health: "Sang de fer",
-          speed: "Nerfs d’acier",
-          extract: "Balise d’extraction",
-        }[kind],
-        cost: {
-          box: 950,
-          ammo: 350,
-          power: 0,
-          upgrade: 3000,
-          health: 2000,
-          speed: 1500,
-          extract: 0,
-        }[kind],
+        name:
+          PERKS[kind]?.name ||
+          {
+            box: "Le Reliquaire",
+            ammo: "Ravitaillement",
+            power: "Générateur",
+            upgrade: "La Transfiguration",
+            extract: "Balise d’extraction",
+          }[kind],
+        cost:
+          PERKS[kind]?.cost ??
+          {
+            box: 950,
+            ammo: 350,
+            power: 0,
+            upgrade: UPGRADE.costs[0],
+            extract: 0,
+          }[kind],
       };
       if (kind === "box") {
         box(g, m.wood, 0, 0.62, 0, 2.6, 1.05, 1.05);
@@ -801,15 +804,12 @@ export class World {
         info.ring = ring;
       } else {
         const color =
-          kind === "health"
-            ? 0xcf534e
-            : kind === "speed"
-              ? 0xe9be61
-              : kind === "upgrade"
-                ? 0x8667d9
-                : kind === "power"
-                  ? 0x92cf9c
-                  : 0x8ac0c5;
+          PERKS[kind]?.color ??
+          (kind === "upgrade"
+            ? 0x8667d9
+            : kind === "power"
+              ? 0x92cf9c
+              : 0x8ac0c5);
         const body = mat(color, 0.52, 0.55, { map: m.metal.map });
         box(g, m.dark, 0, 0.1, 0, 1.65, 0.2, 1.15);
         box(g, body, 0, 1.2, 0, 1.4, 2.25, 0.9);
@@ -825,16 +825,11 @@ export class World {
           0.02,
         );
         info.screen = screen;
-        info.powered = ["power", "health", "speed", "upgrade"].includes(kind);
+        info.powered = kind === "power" || kind === "upgrade" || !!PERKS[kind];
         if (info.powered) screen.material.emissiveIntensity = 0.015;
         const title = label(
-          {
-            ammo: "MUNITIONS",
-            power: "COURANT",
-            upgrade: "TRANSCEND",
-            health: "SANG DE FER",
-            speed: "NERFS D’ACIER",
-          }[kind],
+          PERKS[kind]?.title ||
+            { ammo: "MUNITIONS", power: "COURANT", upgrade: "TRANSCEND" }[kind],
           `#${new T.Color(color).getHexString()}`,
           1.2,
           0.28,

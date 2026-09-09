@@ -1602,6 +1602,46 @@ kbd {
   gap: 8px;
   margin-bottom: 11px;
 }
+.boss-bar {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 46vw);
+  text-align: center;
+  color: #f0c9b2;
+  letter-spacing: 3px;
+}
+.boss-bar .tiny {
+  display: block;
+  margin-bottom: 6px;
+  color: #ffb3a0;
+}
+.boss-track {
+  height: 5px;
+  background: #ffb3a022;
+  border: 1px solid #ffb3a044;
+}
+.boss-track > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff5a3c, #ffb08a);
+  transition: width 0.25s;
+}
+.map-record {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #efb385;
+}
+.map-record:empty {
+  display: none;
+}
+.gameover-screen.new-best .end-details {
+  color: #efb385;
+}
 .perk-slots > span {
   width: 30px;
   height: 30px;
