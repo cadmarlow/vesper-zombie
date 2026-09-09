@@ -22,7 +22,7 @@
   inset: 0;
   background:
     linear-gradient(#061014c9, #061014f5),
-    url("/art/station.png") 65% center/cover;
+    url("/art/station.webp") 65% center/cover;
   opacity: 0.8;
 }
 .orientation-card {

@@ -57,8 +57,8 @@ The skinned zombies in `src/creatures.js`, first-person weapon rigs in `src/weap
 
 Generated using the built-in imagegen tool, then copied into this workspace. These illustrations are menu artwork; the playable maps are rendered by Three.js from the authored geometry in `src/world.js`.
 
-- `public/art/abbey.png`
-- `public/art/station.png`
+- `public/art/abbey.webp`
+- `public/art/station.webp`
 - `public/art/abyss.webp` — prompt and source documented above.
 
 ### Abbey prompt

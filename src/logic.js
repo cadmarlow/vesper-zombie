@@ -118,6 +118,8 @@ export function clearPath(from, to, obstacles, radius = 0.38) {
 
 // One flow field per footprint size. Connections and steering both respect
 // collision clearance, including when an actor is between cell centers.
+const BROAD_CELL = 4,
+  BROAD_MARGIN = 1;
 export class Navigation {
   constructor(obstacles, size = 64, cell = 1, clearance = 0.38) {
     this.obstacles = obstacles;
@@ -176,7 +178,51 @@ export class Navigation {
     }
     return indices;
   }
+  // Broad phase: obstacles bucketed in coarse cells, so a swept test between
+  // two neighbouring points only consults the handful of colliders around it
+  // instead of every wall, pillar and crate on the map.
+  index2(x, z) {
+    return [
+      Math.floor((x + this.size / 2) / BROAD_CELL),
+      Math.floor((z + this.size / 2) / BROAD_CELL),
+    ];
+  }
+  indexObstacles() {
+    this.broad = new Map();
+    for (const o of this.obstacles) {
+      if (o.active === false) continue;
+      const [c0, r0] = this.index2(
+        o.x - o.w / 2 - BROAD_MARGIN,
+        o.z - o.d / 2 - BROAD_MARGIN,
+      );
+      const [c1, r1] = this.index2(
+        o.x + o.w / 2 + BROAD_MARGIN,
+        o.z + o.d / 2 + BROAD_MARGIN,
+      );
+      for (let r = r0; r <= r1; r++)
+        for (let c = c0; c <= c1; c++) {
+          const key = r * 4096 + c;
+          if (!this.broad.has(key)) this.broad.set(key, []);
+          this.broad.get(key).push(o);
+        }
+    }
+  }
+  candidates(from, to) {
+    if (!this.broad) return this.obstacles;
+    const [c0, r0] = this.index2(
+        Math.min(from.x, to.x),
+        Math.min(from.z, to.z),
+      ),
+      [c1, r1] = this.index2(Math.max(from.x, to.x), Math.max(from.z, to.z));
+    if (c0 === c1 && r0 === r1) return this.broad.get(r0 * 4096 + c0) || [];
+    const set = new Set();
+    for (let r = r0; r <= r1; r++)
+      for (let c = c0; c <= c1; c++)
+        for (const o of this.broad.get(r * 4096 + c) || []) set.add(o);
+    return [...set];
+  }
   rebuild() {
+    this.indexObstacles();
     this.distance.fill(-1);
     this.links.fill(0);
     for (let i = 0; i < this.blocked.length; i++) {
@@ -193,7 +239,12 @@ export class Navigation {
           j >= 0 &&
           j < this.blocked.length &&
           !this.blocked[j] &&
-          clearPath(from, this.point(j), this.obstacles, this.clearance)
+          clearPath(
+            from,
+            this.point(j),
+            this.candidates(from, this.point(j)),
+            this.clearance,
+          )
         ) {
           this.links[i] |= 1 << direction;
         }
@@ -206,7 +257,12 @@ export class Navigation {
     // nearby clear goal visible from the player instead of seeding that wall.
     const target = { x, z };
     const goals = this.nearby(x, z).filter((i) =>
-      clearPath(target, this.point(i), this.obstacles, 0),
+      clearPath(
+        target,
+        this.point(i),
+        this.candidates(target, this.point(i)),
+        0,
+      ),
     );
     const playerCell = this.index(x, z);
     goals.sort((a, b) => {
@@ -236,7 +292,8 @@ export class Navigation {
     const from = { x, z };
     const i = this.index(x, z);
     if (i < 0) return from;
-    if (clearPath(from, target, this.obstacles, this.clearance)) return target;
+    if (clearPath(from, target, this.candidates(from, target), this.clearance))
+      return target;
     const distance = this.distance[i];
     let best = null,
       bestDistance = Infinity,
@@ -247,7 +304,8 @@ export class Navigation {
     for (const j of this.nearby(x, z, 2)) {
       if (this.distance[j] < 0) continue;
       const p = this.point(j);
-      if (!clearPath(from, p, this.obstacles, this.clearance)) continue;
+      if (!clearPath(from, p, this.candidates(from, p), this.clearance))
+        continue;
       const travel = Math.hypot(p.x - x, p.z - z);
       if (distance >= 0 && this.distance[j] > distance) {
         if (

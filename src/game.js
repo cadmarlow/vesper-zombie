@@ -85,9 +85,12 @@ export class Game {
     this.adaptiveOcclusionOff = false;
     this.mobileFrameMs = 16.7;
     this.resolutionTimer = 0;
+    // Every frame goes through the composer's own render targets and ends in
+    // a full-screen quad, so a multisampled canvas only adds a resolve per
+    // frame. Anti-aliasing comes from the FXAA pass.
     this.renderer = new T.WebGLRenderer({
       canvas,
-      antialias: true,
+      antialias: false,
       powerPreference: "high-performance",
     });
     this.renderer.shadowMap.enabled = true;
@@ -1196,13 +1199,10 @@ export class Game {
         setZombieDetail(e.model, detail, d < (this.touch ? 17 : 28));
       }
       let target = this.player.position;
-      const direct = new T.Vector3().subVectors(
-        this.player.position,
-        e.model.position,
-      );
+      const direct = vec.subVectors(this.player.position, e.model.position);
       direct.y = 0;
       direct.normalize();
-      const origin = e.model.position.clone();
+      const origin = point.copy(e.model.position);
       origin.y = 1;
       const blocked = this.obstacleDistance(origin, direct, d) < d - 0.1;
       const navigation =
@@ -1212,7 +1212,7 @@ export class Game {
         e.model.position.z,
         this.player.position,
       );
-      const delta = new T.Vector3(
+      const delta = dir.set(
         target.x - e.model.position.x,
         0,
         target.z - e.model.position.z,

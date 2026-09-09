@@ -2,6 +2,28 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 2.5.0 — correctifs et allègement du rendu
+
+Vérifiée le 9 septembre 2026 sur la compilation locale servie sur `http://localhost:4173`, Node.js 25.5.0. Les captures avant/après des trois cartes (décor et horde, ordinateur et mobile émulé) ont été comparées pixel à pixel : les différences se limitent aux particules animées, aux caustiques et à la résolution adaptative ; aucune géométrie, ombre ou matière ne manque. Galerie : `artifacts/remaster-1788970132579/gallery.html` (référence : `artifacts/remaster-1788797399714/`).
+
+- **Travail GPU par image**, qualité élevée, mesuré avec un script de profil hors dépôt qui compte les triangles et appels de dessin par passe (image, normales pour l’occlusion, arme, plein écran) et estime la passe d’ombres :
+
+| Scène                           | Triangles avant | Triangles après | Appels avant | Appels après | Images/s |
+| ------------------------------- | --------------- | --------------- | ------------ | ------------ | -------- |
+| Abbaye desktop, décor           | 757 000         | 404 000         | 285          | 488          | 51 → 60  |
+| Abbaye desktop, 28 ennemis      | 2 795 000       | 2 299 000       | 711          | 933          | 47 → 60  |
+| Boréal desktop, décor           | 707 000         | 239 000         | 343          | 507          | 59 → 60  |
+| Néréide desktop, décor          | 866 000         | 507 000         | 456          | 605          | 60       |
+| Abbaye mobile émulé, 28 ennemis | 1 359 000       | 890 000         | 489          | 558          | 60       |
+| Boréal mobile émulé, décor      | 465 000         | 118 000         | 240          | 250          | 60       |
+| Néréide mobile émulé, décor     | 538 000         | 254 000         | 315          | 296          | 60       |
+
+Les appels de dessin augmentent sur ordinateur à cause du découpage en cellules (chaque cellule visible est un appel) ; les triangles, qui dominent le coût GPU, baissent. Le passage d’ombres n’est pas multiplié : il utilise un maillage par matériau sur une couche réservée. La horde de ce scénario reste à moins de 14 mètres, donc sans niveau lointain ; en partie réelle, les ennemis apparaissent à plus de 10 mètres et en bénéficient.
+
+- **Zombies** par niveau de détail (triangles) : complet 32 000 à 42 000, allégé 15 600 à 19 000, lointain 6 000 à 7 600. À 20 mètres, les trois niveaux sont indiscernables sur une capture 1440 × 900 en 1,5×.
+- **Suites rejouées** sur la nouvelle compilation : 12 tests unitaires, `smoke` (41 contrôles), `waves` (190 vagues, aucune apparition invalide), `feel`, `zombies`, `blood`, `abyss`, `mobile` (multitactile CDP), `graphics-lifecycle`, `remaster` (28 contrôles de rendu et de libération). Rapports : `artifacts/verification-1788971176366/`, `artifacts/waves-regression-1788971155115.json`, `artifacts/blood-1788970623252/`, `artifacts/abyss-1788970896160/`, `artifacts/touch-native-1788970995538/`, `artifacts/graphics-lifecycle-1788971056904/`.
+- Limites : les mesures sont faites sur un Mac avec Chrome headless ; elles quantifient le travail demandé (triangles, appels, passes) et non la chauffe d’un iPhone physique. L’option 30 images/s n’a pas de mesure de température associée.
+
 ## Version 2.4.0 — sang et headshots
 
 Vérifiée le 7 septembre 2026 sur la compilation locale avec Node.js 24.20.0. Les captures montrent les effets dans le jeu, avec situations préparées par l’outil de diagnostic. Aucun déploiement Vercel effectué.
@@ -23,11 +45,11 @@ Vérifiée le 7 septembre 2026 sur la compilation locale, construite avec Node.j
 
 Le nouveau contrôle `npm run test:remaster` couvre **18 scénarios**, soit trois cartes × trois qualités × ordinateur/mobile émulé, avec 28 ennemis de cinq types, portes ouvertes et électricité rétablie. Les mesures portent sur 90 images, après 12 secondes de charge en qualité élevée. La résolution adaptative est active : ses ratios effectifs figurent dans le rapport, ce ne sont pas des mesures à résolution fixe.
 
-| Carte | Ordinateur élevé | Ordinateur équilibré / performance | Mobile émulé élevé / équilibré / performance |
-| --- | --- | --- | --- |
-| Abbaye | 56 images/s | 60 / 60 | 60 / 60 / 60 |
-| Boréal | 53 images/s | 60 / 60 | 60 / 60 / 60 |
-| Néréide | 60 images/s | 60 / 60 | 61 / 61 / 60 |
+| Carte   | Ordinateur élevé | Ordinateur équilibré / performance | Mobile émulé élevé / équilibré / performance |
+| ------- | ---------------- | ---------------------------------- | -------------------------------------------- |
+| Abbaye  | 56 images/s      | 60 / 60                            | 60 / 60 / 60                                 |
+| Boréal  | 53 images/s      | 60 / 60                            | 60 / 60 / 60                                 |
+| Néréide | 60 images/s      | 60 / 60                            | 61 / 61 / 60                                 |
 
 Valeurs médianes arrondies sur ce Mac. Ordinateur : 1440 × 900 CSS, DPR 1,5, ratios élevés observés 1,13 / 1,27 / 1,42, GTAO actif. Mobile : 844 × 390 CSS, DPR 3, rendu plafonné à 2× en élevé, GTAO désactivé. Le 95e percentile atteint **22,3 ms** sur ordinateur élevé et **18,6 ms** sur mobile émulé. Le mode élevé ne tient donc pas constamment 60 images/s sur les deux premières cartes dans cette charge ; les modes équilibré et performance restent à environ 60.
 

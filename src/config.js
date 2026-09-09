@@ -11,6 +11,7 @@ export const MAPS = [
     color: "#ec9565",
     coordinates: "48° 04′ N / 07° 01′ E",
     threat: "Le rite inachevé",
+    art: "/art/abbey.webp",
     intro:
       "Le silence n’est pas l’absence de vie. Ici, c’est un avertissement.",
   },
@@ -26,6 +27,7 @@ export const MAPS = [
     color: "#78d6cf",
     coordinates: "69° 38′ N / 18° 57′ E",
     threat: "Le signal vivant",
+    art: "/art/station.webp",
     intro:
       "Le dernier message disait de ne pas venir. Vous l’avez reçu trop tard.",
   },
@@ -151,6 +153,7 @@ export const WEAPONS = {
     recoil: 0.04,
     sound: 320,
     rarity: "LÉGENDAIRE",
+    energy: true,
     description: "La matière se souvient de ce qu’elle était avant.",
   },
 };

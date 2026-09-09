@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --check src tests scripts index.html package.json vite.config.js
+      - run: npm test
+      - run: npm run build
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Smoke test the production build
+        run: |
+          node scripts/serve.mjs &
+          for i in $(seq 1 30); do curl -sf http://localhost:4173 >/dev/null && break; sleep 1; done
+          CHROME_PATH="$(node -e "console.log(require('@playwright/test').chromium.executablePath())")" \
+          VESPER_URL=http://localhost:4173 node scripts/menu-check.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artifacts
+          path: artifacts
+          if-no-files-found: ignore

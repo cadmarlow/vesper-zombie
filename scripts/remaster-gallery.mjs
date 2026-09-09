@@ -1,5 +1,8 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+const { version } = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url)),
+);
 
 export function writeRemasterGallery(report) {
   const out = report.out;
@@ -19,9 +22,9 @@ export function writeRemasterGallery(report) {
   fs.writeFileSync(
     `${out}/gallery.html`,
     `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>VESPER 2.3 · Captures du jeu</title><style>
+    <title>VESPER ${version} · Captures du jeu</title><style>
     *{box-sizing:border-box}body{margin:0;background:#10171b;color:#e4e7dc;font:16px/1.6 system-ui,sans-serif}main{max-width:1500px;margin:auto;padding:48px 24px}h1{font-size:clamp(28px,5vw,56px);line-height:1.1;margin:0 0 24px}p{max-width:880px;color:#b8c2c0}a{color:#dfb589}small{letter-spacing:.16em;color:#dfb589}section{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-top:40px}figure{margin:0;background:#192328;border:1px solid #2d3b40}img{display:block;width:100%;height:auto}figcaption{padding:14px 18px}table{width:100%;border-collapse:collapse;margin-top:28px;font-size:14px}th,td{padding:10px;text-align:left;border-bottom:1px solid #2d3b40}th{color:#dfb589}.scroll{overflow-x:auto}@media(max-width:780px){section{grid-template-columns:1fr}main{padding:30px 16px}}
-    </style><main><small>VESPER · VERSION 2.3</small><h1>Les trois lieux, dans le jeu.</h1>
+    </style><main><small>VESPER · VERSION ${version}</small><h1>Les trois lieux, dans le jeu.</h1>
     <p>Captures du rendu WebGL réel, avec textures et modèles de la compilation locale. Les portes et l’électricité sont activées pour inspecter les décors. La horde est préparée avec 28 ennemis de cinq types. Cliquer sur une image ouvre sa pleine résolution.</p>
     <p>Mesures sur ce Mac, après 12 secondes de charge en qualité élevée, résolution adaptative active. Les mobiles sont émulés : ces résultats ne mesurent ni la chauffe ni la vitesse d’un téléphone physique. <a href="report.json">Rapport brut</a> · ${report.checks.length} contrôles · ${report.errors.length} erreur(s).</p>
     <div class="scroll"><table><thead><tr><th>Carte</th><th>Profil</th><th>Qualité</th><th>Images/s médianes</th><th>95e percentile</th><th>Ratio de rendu</th></tr></thead><tbody>${report.scenes

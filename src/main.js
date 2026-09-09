@@ -77,7 +77,7 @@ app.innerHTML = `
   <header class="menu-header"><a class="wordmark" href="#" aria-label="Accueil Vesper">${icon("eclipse")}<span>VESPER<span class="brand-divider"> / </span><small>SURVIVAL PROTOCOL</small></span></a><nav aria-label="Navigation principale"><button class="nav-button active" data-panel="home">JOUER</button><button class="nav-button" data-panel="arsenal">ARSENAL</button><button class="nav-button" data-panel="archives">ARCHIVES</button></nav><button class="icon-button" id="settings-button" aria-label="Paramètres">${icon("gear")}</button></header>
   <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
   <aside class="transmission"><span class="tiny">TRANSMISSION <b>00<span id="transmission-number">1</span></b></span><div class="signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p id="map-quote">« Les cloches se sont tues.<br>Ce qui dort sous la nef, non. »</p><span class="transmission-source">DERNIER CONTACT · <b id="map-time">03:47</b></span></aside>
-  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.png`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
+  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.webp`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
     DIFFICULTIES,
   )
     .map(
@@ -86,7 +86,7 @@ app.innerHTML = `
     )
     .join("")}</div></div></section>
   </div><div class="menu-coordinate"><span id="map-coordinates">48° 04′ N / 07° 01′ E</span><div class="coordinate-line"></div><span id="map-condition">ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ</span></div>
-  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.2.4.0</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
+  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.${__APP_VERSION__}</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
  </main>
  <section id="panel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Informations"><div class="panel-shell"><div class="panel-top"><a class="wordmark" href="#">${icon("eclipse")}<span>VESPER</span></a><button class="close-button" id="close-panel">FERMER ${icon("close")}</button></div><div id="panel-content"></div></div></section>
  <section id="loading" class="screen loading-screen hidden"><div class="loading-symbol">${icon("eclipse")}</div><div class="eyebrow">OUVERTURE DU PROTOCOLE</div><h2 id="loading-map">L’Abbaye des Cendres</h2><div class="loading-track"><span></span></div><p>Gardez vos munitions. Faites compter chaque balle.</p></section>
@@ -120,7 +120,7 @@ app.innerHTML = `
  <section id="gameover" class="screen gameover-screen hidden"><div class="gameover-content"><div class="eyebrow" id="end-eyebrow">TRANSMISSION INTERROMPUE</div><h2 id="end-title">La nuit vous a pris.</h2><p id="end-subtitle">D’autres entendront le signal.</p><div class="end-stats" id="end-stats"></div><div class="end-details" id="end-details"></div><button class="primary-button" id="retry-button">RETOURNER DANS LA NUIT ${icon("arrow")}</button><button class="text-button" id="end-menu">RETOUR AU MENU</button></div></section>
  <div id="toast-container" aria-live="polite"></div>`;
 const menuArt = $("#menu-art");
-menuArt.style.backgroundImage = "url(/art/abbey.png)";
+menuArt.style.backgroundImage = "url(/art/abbey.webp)";
 const formatTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 let toastTimer, announceTimer, hitTimer, damageTimer, panelReturnFocus;
@@ -265,7 +265,7 @@ async function startGame(event) {
 function selectMap(id) {
   selectedMap = id;
   const map = MAPS.find((m) => m.id === id);
-  menuArt.style.backgroundImage = `url(${map.art || `/art/${id}.png`})`;
+  menuArt.style.backgroundImage = `url(${map.art || `/art/${id}.webp`})`;
   document.documentElement.style.setProperty("--map-accent", map.color);
   $$("[data-map]").forEach((b) => {
     b.classList.toggle("selected", b.dataset.map === id);
@@ -450,7 +450,7 @@ function openPanel(kind) {
     content.innerHTML = `<div class="eyebrow">CE QUI RESTE APRÈS LA NUIT</div><h2>Archives du signal.</h2><p class="panel-description">Vos expéditions sont enregistrées sur cet appareil.</p><div class="archive-summary"><div><strong>${save.runs || "00"}</strong><span>EXPÉDITIONS</span></div><div><strong>${save.totalKills || "00"}</strong><span>ÉLIMINATIONS</span></div><div><strong>${Math.max(0, ...Object.values(save.records || {}).map((r) => r.wave))}</strong><span>MEILLEURE VAGUE</span></div></div><div class="archive-maps">${MAPS.map(
       (m) => {
         const r = save.records?.[m.id];
-        return `<article><img src="${m.art || `/art/${m.id}.png`}" alt=""/><div><span class="eyebrow">${m.region}</span><h3>${m.name}</h3><p>${r ? `Vague ${r.wave} · ${r.kills} éliminations · ${formatTime(r.time)} · ${r.victory ? "Extraction réussie" : "Signal perdu"}` : "Aucune expédition enregistrée. Le signal vous attend."}</p></div></article>`;
+        return `<article><img src="${m.art || `/art/${m.id}.webp`}" alt=""/><div><span class="eyebrow">${m.region}</span><h3>${m.name}</h3><p>${r ? `Vague ${r.wave} · ${r.kills} éliminations · ${formatTime(r.time)} · ${r.victory ? "Extraction réussie" : "Signal perdu"}` : "Aucune expédition enregistrée. Le signal vous attend."}</p></div></article>`;
       },
     ).join(
       "",
@@ -543,6 +543,13 @@ window.addEventListener(
 );
 const minimap = $("#minimap"),
   mc = minimap.getContext("2d");
+// Rewriting innerHTML thirteen times a second re-creates identical nodes.
+const lastHtml = new Map();
+function setHtml(selector, html) {
+  if (lastHtml.get(selector) === html) return;
+  lastHtml.set(selector, html);
+  $(selector).innerHTML = html;
+}
 let miniFrame = 0;
 function renderHUD(h) {
   $("#wave-number").textContent = String(h.wave).padStart(2, "0");
@@ -597,12 +604,15 @@ function renderHUD(h) {
   $("#reserve-value").textContent = h.weapon.reserve;
   $("#grenade-count").textContent = h.grenades;
   $("#session-timer").textContent = formatTime(h.time);
-  $("#weapon-slots").innerHTML = h.slots
-    .map(
-      (w, i) =>
-        `<span class="${w === h.weapon ? "selected" : ""}"><kbd>${i + 1}</kbd>${WEAPONS[w.id].name}</span>`,
-    )
-    .join("");
+  setHtml(
+    "#weapon-slots",
+    h.slots
+      .map(
+        (w, i) =>
+          `<span class="${w === h.weapon ? "selected" : ""}"><kbd>${i + 1}</kbd>${WEAPONS[w.id].name}</span>`,
+      )
+      .join(""),
+  );
   $("#crosshair").style.display =
     settings.crosshair && !game.mouse.aim ? "" : "none";
   $("#crosshair").classList.toggle("wide", h.weapon.id === "requiem");
@@ -614,16 +624,22 @@ function renderHUD(h) {
   $("#interaction span").textContent = h.interaction || "";
   $("#reload-bar").classList.toggle("hidden", h.reload === null);
   $("#reload-bar i").style.width = (h.reload || 0) * 100 + "%";
-  $("#perk-slots").innerHTML = h.perks
-    .map(
-      (p) =>
-        `<span title="${p === "health" ? "Sang de fer" : "Nerfs d’acier"}">${icon(p === "health" ? "cross" : "bolt")}</span>`,
-    )
-    .join("");
-  $("#powerup-row").innerHTML = [
-    h.double ? `<span>×2 ESSENCES <b>${h.double}s</b></span>` : "",
-    h.insta ? `<span>☠ MORT INSTANTANÉE <b>${h.insta}s</b></span>` : "",
-  ].join("");
+  setHtml(
+    "#perk-slots",
+    h.perks
+      .map(
+        (p) =>
+          `<span title="${p === "health" ? "Sang de fer" : "Nerfs d’acier"}">${icon(p === "health" ? "cross" : "bolt")}</span>`,
+      )
+      .join(""),
+  );
+  setHtml(
+    "#powerup-row",
+    [
+      h.double ? `<span>×2 ESSENCES <b>${h.double}s</b></span>` : "",
+      h.insta ? `<span>☠ MORT INSTANTANÉE <b>${h.insta}s</b></span>` : "",
+    ].join(""),
+  );
   $("#quick-controls").classList.toggle("faded", h.time > 35);
   $("#quick-controls kbd").textContent =
     settings.layout === "azerty" ? "ZQSD" : "WASD";
@@ -653,8 +669,10 @@ function renderHUD(h) {
   $("#objective-progress").style.width = Math.min(100, h.wave * 10) + "%";
   const angle = ((((-h.yaw * 180) / Math.PI) % 360) + 360) % 360;
   const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-  $("#compass-directions").innerHTML =
-    `<span>${dirs[(Math.round(angle / 45) + 7) % 8]}</span> ${dirs[Math.round(angle / 45) % 8]} <span>${dirs[(Math.round(angle / 45) + 1) % 8]}</span>`;
+  setHtml(
+    "#compass-directions",
+    `<span>${dirs[(Math.round(angle / 45) + 7) % 8]}</span> ${dirs[Math.round(angle / 45) % 8]} <span>${dirs[(Math.round(angle / 45) + 1) % 8]}</span>`,
+  );
   if (++miniFrame % 3 === 0) {
     mc.clearRect(0, 0, 180, 180);
     mc.save();

@@ -2,6 +2,20 @@
 
 Un FPS solo de survie occulte, jouable dans le navigateur. Trois lieux, une dernière nuit. Création originale inspirée du principe de survie par vagues.
 
+## Version 2.5.0 — correctifs et allègement du rendu
+
+Le rendu est inchangé à l’image près ; le travail demandé au GPU baisse fortement.
+
+- **Correctifs** : navigation clavier des menus (Tab, Espace) rétablie après une première partie ; un chargement échoué ramène au menu au lieu de bloquer le lancement ; une texture manquante dégrade vers un matériau de secours au lieu d’annuler la partie ; rails de l’Éclipse construits une seule fois ; réserves d’instances libérées au retour au menu ; souffles longs (vague, générateur) non tronqués ; tempo musical stable après une image lente ; un seul pouce par zone tactile ; scripts `release` et `performance` respectant `VESPER_URL`.
+- **Décor** : la scène statique est fusionnée par matériau et par cellule de 20 mètres, ce qui laisse la caméra ignorer les cellules hors champ. Un maillage par matériau, invisible aux caméras du jeu, sert uniquement au calcul des ombres. Les sols et les incrustations plates ne participent plus à l’ombre. Les barreaux, lattes et joints emploient un cube simple à la place du cube biseauté (neuf fois moins de triangles pour un biseau invisible).
+- **Zombies** : trois niveaux de détail au lieu de deux. Le niveau lointain (au-delà de 18 mètres sur ordinateur, 13 sur mobile) descend à environ 6 000 triangles, sans dents ni doigts détaillés. Sur ordinateur, seuls les pans de manteau, la capuche et l’étole restent double face.
+- **Armes et effets** : les modèles d’armes en vue subjective et les armes affichées par le Reliquaire sont construits une seule fois par partie. Les traceurs, débris et douilles n’envoient plus leurs matrices au GPU quand ils sont inactifs. Le canvas n’est plus multi-échantillonné (l’anticrénelage vient déjà de la passe FXAA).
+- **Processeur** : la navigation des ennemis consulte uniquement les obstacles proches du segment testé ; le HUD ne réécrit plus ses listes quand elles n’ont pas changé ; le son est suspendu quand l’onglet est caché.
+- **Réglage** : une cadence maximale de 30 images par seconde peut être choisie dans les paramètres pour limiter la chauffe et la batterie sur téléphone. Elle est désactivée par défaut.
+- **Ressources** : illustrations de menu en WebP (330 Ko au lieu de 4 Mo), version affichée injectée depuis `package.json`, workflow GitHub Actions (formatage, tests unitaires, compilation, contrôle du menu).
+
+Mesures sur ce Mac, qualité élevée, horde de 28 ennemis à moins de 14 mètres : Abbaye desktop 2,80 → 2,30 millions de triangles par image (47 → 60 images/s), Abbaye mobile émulé 1,36 → 0,89 million, Boréal mobile émulé 0,69 → 0,48 million. Scène vide : −47 % à −75 % de triangles selon la carte. Détails dans [VERIFICATION.md](VERIFICATION.md).
+
 ## Version 2.4.0 — sang et headshots
 
 Les impacts sur les zombies produisent une projection de sang dans la direction du tir, une brume brève et des gouttes qui retombent. Un **headshot mortel fait éclater la tête**, avec fragments et blessure au cou ; les tirs non mortels conservent la tête. Les éclaboussures marquent temporairement le sol et les surfaces pleines proches, avec un son d’impact organique.

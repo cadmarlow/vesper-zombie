@@ -1181,7 +1181,9 @@ export class World {
         group.remove(o);
       }
       for (const [material, parts] of buckets) {
-        const model = new T.Mesh(mergeGeometries(parts, false), material);
+        const merged = mergeGeometries(parts, false);
+        if (!merged) continue;
+        const model = new T.Mesh(merged, material);
         model.castShadow = material.emissive?.getHex() === 0;
         model.receiveShadow = true;
         group.add(model);
@@ -1353,7 +1355,7 @@ export class World {
     this.power = true;
     this.powerTime = 0;
     const power = this.interactions.find((i) => i.kind === "power");
-    power.lever.rotation.x = 0.6;
+    if (power?.lever) power.lever.rotation.x = 0.6;
     return true;
   }
   setQuality(quality, mobile = false) {

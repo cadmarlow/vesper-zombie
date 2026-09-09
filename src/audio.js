@@ -18,6 +18,12 @@ export class Sound {
       const data = this.noiseBuffer.getChannelData(0);
       for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
       this.ambient();
+      // The drone and reverb otherwise keep the audio thread busy while the
+      // tab is hidden; the music bus already mutes itself there.
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) this.ctx.suspend().catch(() => {});
+        else this.ctx.resume().catch(() => {});
+      });
     }
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
@@ -123,14 +129,10 @@ export class Sound {
     s.start();
   }
   shot(def) {
-    this.noise(
-      0.15 + def.recoil,
-      0.28,
-      def.class === "ARME ANOMALE" ? 3300 : 1900,
-    );
+    this.noise(0.15 + def.recoil, 0.28, def.energy ? 3300 : 1900);
     this.tone(def.sound, 0.19, 0.32, "triangle", 35);
     this.noise(0.24, 0.1, 800, 0.055);
-    if (def.class === "ARME ANOMALE") {
+    if (def.energy) {
       this.tone(970, 0.28, 0.12, "sawtooth", 130);
       this.tone(1440, 0.3, 0.07, "sine", 480);
     } else this.tone(2100, 0.035, 0.065, "square", 1300);
