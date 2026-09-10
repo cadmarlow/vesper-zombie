@@ -8,7 +8,12 @@ import {
   releaseZombie,
   destroyZombieHead,
 } from "./creatures.js";
-import { weaponModel } from "./weapons.js";
+import {
+  survivorModel,
+  survivorWeapon,
+  animateSurvivor,
+  TEAM_COLORS,
+} from "./survivor.js";
 import { ENEMIES, WEAPONS } from "./config.js";
 import { Navigation } from "./logic.js";
 import { setSurfaceQuality } from "./surfaces.js";
@@ -135,7 +140,10 @@ export class Session {
   }
   ensurePlayerModel(p) {
     if (p.model || !this.game?.world) return;
-    const model = zombieModel("survivor", "lite");
+    const seat = [...this.roster.keys()].indexOf(p.id);
+    const model = survivorModel(
+      TEAM_COLORS[Math.max(0, seat) % TEAM_COLORS.length],
+    );
     setSurfaceQuality(model, this.game.settings.quality);
     model.position.set(p.tx, 0, p.tz);
     p.label = nameSprite(p.name);
@@ -146,12 +154,11 @@ export class Session {
   removePlayerModel(p) {
     if (!p.model) return;
     this.game.scene.remove(p.model);
-    if (p.gun) disposeModel(p.gun);
     if (p.label) {
       p.label.material.map.dispose();
       p.label.material.dispose();
     }
-    releaseZombie(p.model);
+    disposeModel(p.model);
     p.model = p.gun = p.label = null;
   }
   // Positions of every player (me first), for targeting and pickups.
@@ -341,38 +348,16 @@ export class Session {
       p.speed = T.MathUtils.damp(p.speed, dt > 0 ? moved / dt : 0, 8, dt);
       const down = p.flags & F_DOWN;
       m.visible = !down;
-      animateZombie(m, g.time + p.seed, p.speed / 1.65, false, 0);
-      // A survivor keeps a closed mouth and a level head.
-      m.userData.jaw.rotation.set(0.02, 0, 0);
-      // Weapon at the ready in the right hand instead of a shambling reach.
-      const arms = m.userData.arms,
-        crouch = p.flags & F_CROUCH;
-      if (arms) {
-        arms[1].rotation.set(-1.25 - p.pitch * 0.6, -0.25, 0.28);
-        arms[0].rotation.set(-1.05 - p.pitch * 0.6, 0.55, -0.35);
-        m.userData.elbows[1].rotation.x = -0.35;
-        m.userData.elbows[0].rotation.x = -1.1;
-        m.userData.torso.rotation.x = 0.08 + (crouch ? 0.35 : 0);
-        m.userData.head.rotation.x = -0.25 - p.pitch * 0.5;
-      }
-      m.scale.y = m.userData.baseScaleY || (m.userData.baseScaleY = m.scale.y);
-      m.scale.y *= crouch ? 0.72 : 1;
-      if (p.gunId !== p.weapon) {
-        if (p.gun) {
-          p.gun.removeFromParent();
-          disposeModel(p.gun);
-        }
-        p.gun = weaponModel(p.weapon, p.level > 0);
-        p.gun.scale.setScalar(0.62);
-        p.gun.position.set(0.02, -0.02, 0.16);
-        p.gun.rotation.set(-Math.PI / 2 + 0.2, 0, 0);
-        m.userData.wrists[1].add(p.gun);
-        p.gunId = p.weapon;
-      }
-      if (p.gun) {
-        p.gun.userData.flash.visible =
+      const crouch = !!(p.flags & F_CROUCH);
+      const gun = survivorWeapon(m, p.weapon, p.level > 0);
+      animateSurvivor(m, g.time + p.seed, p.speed / 3.65, {
+        crouch,
+        pitch: p.pitch,
+        firing: !!(p.flags & F_FIRING),
+      });
+      if (gun)
+        gun.userData.flash.visible =
           !!(p.flags & F_FIRING) && Math.random() < 0.5;
-      }
     }
   }
   teamStatus() {
