@@ -10,7 +10,7 @@ Techniquement, le créateur du salon **héberge** la simulation (vagues, ennemis
 
 ### Mettre le relais en ligne
 
-1. **Railway** : créez un projet depuis ce dépôt GitHub. Le fichier `railway.json` installe les dépendances et démarre `node server/index.js` sur le port fourni par Railway. Vous pouvez aussi définir le dossier racine du service sur `server/` (il a son propre `package.json`). Notez l’adresse publique, par exemple `vesper-relay.up.railway.app`.
+1. **Railway** : créez un projet depuis ce dépôt GitHub. Les fichiers `railway.json` et `nixpacks.toml` installent les dépendances, sautent la compilation du site et démarrent `node server/index.js` sur le port fourni par Railway. Générez un domaine public (Settings → Networking) et notez l’adresse, par exemple `vesper-relay.up.railway.app` ; `https://<adresse>/` doit répondre `{"service":"vesper-relay",…}`. En cas de souci, définissez le dossier racine du service sur `server/` (il a son propre `package.json`).
 2. **Vercel** : ajoutez la variable d’environnement `VITE_RELAY_URL` avec la valeur `wss://vesper-relay.up.railway.app` (adresse Railway en `wss://`), puis redéployez. Sans cette variable, le salon indique que le relais n’est pas configuré.
 3. En local, `npm run relay` démarre le relais sur le port 8787 ; le jeu servi sur `localhost` ou en réseau local s’y connecte automatiquement.
 

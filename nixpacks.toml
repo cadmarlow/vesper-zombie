@@ -1,0 +1,7 @@
+# Railway (Nixpacks) builds the relay only: dependencies are installed by the
+# default install phase; the site itself is built and hosted by Vercel.
+[phases.build]
+cmds = ["echo 'relay: nothing to build'"]
+
+[start]
+cmd = "node server/index.js"
