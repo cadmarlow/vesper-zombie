@@ -4,4 +4,4 @@
 cmds = ["echo 'relay: nothing to build'"]
 
 [start]
-cmd = "node server/index.js"
+cmd = "node $([ -f server/index.js ] && echo server/index.js || echo index.js)"
