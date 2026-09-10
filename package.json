@@ -27,7 +27,8 @@
     "test:remaster": "node scripts/remaster-check.mjs",
     "test:blood": "node scripts/blood-check.mjs",
     "relay": "node server/index.js",
-    "test:coop": "node scripts/coop-check.mjs"
+    "test:coop": "node scripts/coop-check.mjs",
+    "test:deep": "node scripts/deep-play-check.mjs"
   },
   "dependencies": {
     "@fontsource/barlow": "^5.3.0",

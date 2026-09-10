@@ -4,6 +4,15 @@ Les rapports et captures mentionnés dans l’historique sont des fichiers de tr
 
 ## Version 3.0.0 — jouer entre amis
 
+### Parties complètes aux commandes réelles (10 septembre 2026)
+
+`npm run test:deep` fait jouer un pilote automatique qui n’emploie que les commandes du joueur : clavier (ZQSD, Maj, R, E, G, V, N, 1/2), souris capturée (deltas de visée, clic pour tirer), boutons et formulaires de l’interface (cartes, difficulté, salon coopératif). Il lit l’état du jeu comme un joueur lit l’écran (radar, munitions, prix) pour décider de ses actions ; il n’écrit jamais dans le moteur. Résultats, difficulté Survivant :
+
+- **Solo, Abbaye, 6 vagues** : grille, générateur, Reliquaire (Spectre), Sang de fer, munitions achetés par la touche E ; Archonte apparu à la vague 5 avec sa barre de vie, tué ; HUD (vague, essences) conforme au moteur ; 11/11 contrôles. Un premier essai s’était terminé par une mort à la vague 4 : le pilote avait vidé son pistolet-mitrailleur sans changer d’arme ni racheter de munitions, mort légitime et écran de fin cohérent (44 éliminations, 37 tirs à la tête, précision 31 %, nouveau record).
+- **Solo, Boréal, 8 vagues** : les quatre atouts, deux paliers de Transfiguration (HUD « MARAUDER ✦II »), munitions rachetées, boss vaincu, 11/11 contrôles, 60 images/s constantes.
+- **Solo, Néréide, 6 vagues, sur la compilation de production** : deux sas et générateur achetés, boss de la vague 5 vaincu au pistolet seul (environ deux minutes), 15 525 essences, aucune erreur. Le pilote n’a pas retrouvé le chemin du Reliquaire sur le quai (limite de son propre guidage, non du jeu).
+- **Coopération, Abbaye, 6 vagues, deux navigateurs sur le relais local** : l’hôte achète grille, générateur, Reliquaire, Sang de fer, Transfiguration I et Nerfs d’acier ; l’invité achète le Reliquaire (Requiem) et des munitions via l’hôte ; boss de la vague 5 vaincu à deux ; numéros de vague et effectifs identiques sur les deux écrans ; liste d’équipe affichée des deux côtés ; 13/13 contrôles, aucune erreur. Même parcours sur la compilation de production jusqu’à la vague 3 : 12/13 (l’invité n’a pas eu le temps d’acheter en deux répits).
+
 Vérifiée le 9 septembre 2026 sur le serveur de développement avec un relais local (`npm run relay`). `scripts/coop-check.mjs` ouvre deux navigateurs Chrome : **13 contrôles réussis** — code de salon, deux joueurs dans le salon, démarrage simultané sur Boréal avec rôles hôte/invité, position et nom de l’invité vus par l’hôte, quatre ennemis reflétés chez l’invité, impact de l’invité appliqué par l’hôte, élimination créditée à l’invité et reflétée des deux côtés, grille achetée par l’invité ouverte pour les deux, courant propagé, attaque simulée par l’hôte blessant l’invité, invité à terre puis de retour à la vague suivante, fin de partie commune quand tout le monde est à terre. Les suites solo (`smoke`, `waves`, `feel`) restent vertes.
 
 Limites : les tests emploient un relais local sur la même machine, sans latence réelle ; la migration d’hôte n’existe pas (si l’hôte part, la partie s’arrête pour les autres) ; le serveur ne valide pas les achats des invités (jeu entre amis).
