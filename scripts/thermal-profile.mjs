@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 // Isolated production-build CPU/GPU measurements. No instrumentation is shipped.
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
@@ -17,9 +18,7 @@ await new Promise((resolve, reject) => {
 process.env.VESPER_URL = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const report = {

@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 import assert from "node:assert/strict";
@@ -14,9 +15,7 @@ const check = (name, ok) => {
 };
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 try {

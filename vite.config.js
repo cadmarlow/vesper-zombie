@@ -3,8 +3,33 @@ import { readFileSync } from "node:fs";
 const { version } = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url)),
 );
+const build = process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`;
+const release = JSON.stringify({ version, build });
 export default defineConfig({
-  define: { __APP_VERSION__: JSON.stringify(version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __BUILD_ID__: JSON.stringify(build),
+  },
+  plugins: [
+    {
+      name: "release-version",
+      generateBundle() {
+        this.emitFile({
+          type: "asset",
+          fileName: "version.json",
+          source: release,
+        });
+      },
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.split("?")[0] !== "/version.json") return next();
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-store");
+          res.end(release);
+        });
+      },
+    },
+  ],
   build: {
     manifest: true,
     rolldownOptions: {

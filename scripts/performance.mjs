@@ -1,9 +1,8 @@
+import { chromiumOptions } from "./browser.mjs";
 import { chromium } from "@playwright/test";
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

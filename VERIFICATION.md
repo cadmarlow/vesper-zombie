@@ -2,6 +2,16 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 3.1.0 — mise à jour de l'app installée
+
+Version affichée sur petit écran, dans la pause et dans les paramètres. Métadonnées de publication générées au build ; vérification au retour dans l'app et avant le lancement, sans rechargement d'une partie en cours. Les en-têtes HTTP empêchent la conservation d'un ancien document HTML ou fichier de version, sans purger les ressources ni les données du joueur.
+
+44 tests unitaires/réseau réussis. `updates-check` valide 22 contrôles sur Chrome et WebKit : tailles de 320 × 568 à 1280 × 720, reprise d'une ancienne page, report de la mise à jour pendant une partie, navigation avant une nouvelle partie, conservation des données et endpoint indisponible. Rapport : `artifacts/updates-1789427326129/report.json`. Les 41 contrôles de combat repassent après l'ajout du contrôle avant lancement.
+
+La sélection du navigateur de test laisse désormais Playwright utiliser son navigateur headless prévu pour la CI, au lieu de forcer l'exécutable Chromium complet. Les essais locaux sur Mac continuent d'utiliser Chrome installé. La capture de souris de secours est exercée par un clic natif.
+
+La première CI de livraison a échoué sur la capture de souris. La reproduction avec le navigateur headless en rendu logiciel n'avance que d'environ deux secondes de simulation pendant les dizaines de secondes d'attente : ces tests en temps réel ne sont pas adaptés à cet environnement. La CI couvre donc explicitement règles, relais, build, menus et vagues simulées. Les contrôles de combat, de coopération navigateur, de mises à jour et de rendu restent dans `npm run verify` et doivent être exécutés sur une machine graphique avant publication ; ils ne sont pas annoncés comme couverts par la CI hébergée.
+
 ## Stabilisation, réanimation et bande-son — livraison du 15 septembre 2026
 
 Validation locale effectuée le 14 septembre : 40 tests unitaires et réseau réussis, compilation et formatage valides, 63 modules sans import inutilisé ni cycle. La livraison utilise le protocole **3** et nécessite la publication du client et du relais ensemble.

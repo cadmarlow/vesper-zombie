@@ -68,7 +68,13 @@ export function createStaticServer() {
       const data = await readFile(file);
       res.writeHead(200, {
         "Content-Type": mime[path.extname(file)] || "application/octet-stream",
-        "Cache-Control": "no-cache",
+        "Cache-Control": [
+          "index.html",
+          "version.json",
+          "manifest.webmanifest",
+        ].includes(path.basename(file))
+          ? "no-store"
+          : "no-cache",
         "X-Content-Type-Options": "nosniff",
         "Accept-Ranges": "bytes",
         "Content-Length": info.size,

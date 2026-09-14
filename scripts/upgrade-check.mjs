@@ -6,6 +6,7 @@ const scripts = process.argv.slice(2).length
   ? process.argv.slice(2)
   : [
       "menu-check",
+      "updates-check",
       "smoke",
       "feel-check",
       "touch-native-check",
@@ -23,6 +24,7 @@ const scripts = process.argv.slice(2).length
       "blood-check",
     ];
 const allowed = new Set([
+  "updates-check",
   "foundation-check",
   "stability-check",
   "coop-check",

@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 import { chromium, webkit } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,9 +13,7 @@ const check = (name, ok) => {
 };
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
 });
 const safari =
   process.env.VESPER_PEER_ENGINE === "webkit"

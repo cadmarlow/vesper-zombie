@@ -2,6 +2,7 @@ import { MUSIC_TRACKS } from "./content/music.js";
 import { DEFAULT_SETTINGS } from "./content/defaults.js";
 import { readSettings } from "./app/storage.js";
 import { createLauncher } from "./app/launch.js";
+import { createUpdates } from "./app/updates.js";
 import { mountShell } from "./ui/shell.js";
 import { createHUD } from "./ui/hud.js";
 import { $, $$, icon, escapeHtml } from "./ui/dom.js";
@@ -37,6 +38,35 @@ let selectedMap = "abbey",
 const sound = new Sound();
 let settings = readSettings();
 mountShell(difficulty);
+let currentScreen = "menu";
+let updateStatus = { latest: null, checking: false, error: false };
+const updates = createUpdates({
+  version: __APP_VERSION__,
+  build: __BUILD_ID__,
+  onChange(status) {
+    updateStatus = status;
+    renderUpdateStatus();
+  },
+});
+function renderUpdateStatus() {
+  const safe = ["menu", "gameover"].includes(currentScreen);
+  $("#update-notice").hidden = !updateStatus.latest || !safe;
+  if (updateStatus.latest)
+    $("#update-message").textContent =
+      `VESPER ${updateStatus.latest.version} est disponible.`;
+  const status = $("#update-check-status");
+  if (status)
+    status.textContent = updateStatus.checking
+      ? "Vérification…"
+      : updateStatus.latest
+        ? safe
+          ? "Mise à jour disponible."
+          : "Mise à jour disponible au retour au menu."
+        : updateStatus.error
+          ? "Vérification impossible. Réessayez avec une connexion."
+          : "Vous utilisez la dernière version vérifiée.";
+}
+$("#update-now").onclick = () => updates.apply();
 const renderHUD = createHUD();
 const menuArt = $("#menu-art");
 menuArt.style.backgroundImage = "url(/art/abbey.webp)";
@@ -67,6 +97,8 @@ function announce(a) {
   );
 }
 function state(s) {
+  currentScreen = s;
+  renderUpdateStatus();
   for (const [id, show] of [
     ["menu", s === "menu"],
     ["loading", s === "loading"],
@@ -343,6 +375,12 @@ function openPanel(kind) {
       persistSettings();
       openPanel("settings");
     };
+    content.insertAdjacentHTML(
+      "beforeend",
+      `<div class="app-update-settings"><div><b>VESPER · v${__APP_VERSION__}</b><small id="update-check-status"></small></div><button class="secondary-button" id="check-update">VÉRIFIER LA MISE À JOUR</button></div>`,
+    );
+    $("#check-update").onclick = () => updates.check();
+    renderUpdateStatus();
   } else if (kind === "arsenal") {
     content.innerHTML = `<div class="eyebrow">INVENTAIRE DU PROTOCOLE</div><h2>Chaque balle compte.</h2><p class="panel-description">Six armes. Deux emplacements. Une chance de traverser la nuit.<br>Le Reliquaire offre une arme aléatoire pour 950 essences.</p><div class="arsenal-grid">${Object.entries(
       WEAPONS,
@@ -448,13 +486,17 @@ function renderLobby() {
       lobbyStatus = "Connexion au relais…";
       $("#coop-status").textContent = lobbyStatus;
       try {
+        await updates.check();
+        if (updates.apply()) return false;
         await net.connect();
         return true;
       } catch (error) {
         lobbyStatus =
           error?.message === "relay-not-configured"
             ? "Aucun relais configuré pour ce site (VITE_RELAY_URL)."
-            : "Le relais est injoignable. Vérifiez votre connexion ou réessayez.";
+            : error?.message === "version-mismatch"
+              ? "Mise à jour nécessaire. Revenez au menu puis mettez VESPER à jour."
+              : "Le relais est injoignable. Vérifiez votre connexion ou réessayez.";
         $("#coop-status").textContent = lobbyStatus;
         return false;
       }
@@ -608,6 +650,10 @@ const touchControls = new TouchControls(
 const launcher = createLauncher({
   sound,
   net,
+  beforeLaunch: async () => {
+    await updates.check();
+    return !updates.apply();
+  },
   canvas: $("#game-canvas"),
   getSettings: () => settings,
   getSelection: () => ({ map: selectedMap, difficulty }),
@@ -644,6 +690,14 @@ const launcher = createLauncher({
     $("#mobile-orientation").classList.remove("hidden");
   },
 });
+window.addEventListener("pageshow", () => void updates.check());
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) void updates.check();
+});
+setInterval(() => {
+  if (!document.hidden && currentScreen === "menu") void updates.check();
+}, 60000);
+void updates.check();
 function updateViewport() {
   const height = window.visualViewport?.height || innerHeight;
   document.documentElement.style.setProperty("--app-height", `${height}px`);

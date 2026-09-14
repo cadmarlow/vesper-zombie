@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 import fs from "node:fs";
 import { openGameAudit } from "./game-audit.mjs";
 // Two browsers, one relay: create/join, start, sync, hits, doors, death/respawn.
@@ -6,9 +7,7 @@ fs.mkdirSync("artifacts", { recursive: true });
 const errors = [];
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const results = [];

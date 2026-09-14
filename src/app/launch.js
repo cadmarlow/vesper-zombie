@@ -34,11 +34,13 @@ export function createLauncher({
   onReady,
   onError,
   showOrientation,
+  beforeLaunch = async () => true,
 }) {
   const gate = new LaunchGate();
   let game;
   const launch = async (request) => {
     const { map, difficulty, touch, coop } = request;
+    if (!(await beforeLaunch())) return;
     onLoading(mapDefinition(map), difficulty);
     await new Promise((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(resolve)),

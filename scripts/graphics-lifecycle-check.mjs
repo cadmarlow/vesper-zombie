@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 import assert from "node:assert/strict";
@@ -5,9 +6,7 @@ import { openGameAudit } from "./game-audit.mjs";
 process.env.VESPER_URL ||= "http://localhost:4173";
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const out = `artifacts/graphics-lifecycle-${Date.now()}`;

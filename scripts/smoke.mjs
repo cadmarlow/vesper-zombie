@@ -1,12 +1,11 @@
+import { chromiumOptions } from "./browser.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { openGameAudit } from "./game-audit.mjs";
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const context = await browser.newContext({
@@ -86,7 +85,7 @@ try {
   // Slow shader compilation can outlive the initial click's browser activation.
   // The game exposes a click-to-capture fallback; exercise that real path.
   if (!(await evaluate(() => !!document.pointerLockElement)))
-    await page.locator("#game-canvas").click();
+    await page.mouse.click(720, 450);
   await page.waitForFunction(() => !!document.pointerLockElement);
   check(
     "Pointer lock acquired",

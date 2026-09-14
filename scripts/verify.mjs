@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import { chromium } from "@playwright/test";
 import { createRelay } from "../server/index.js";
 import { createStaticServer } from "./serve.mjs";
 
@@ -44,15 +43,10 @@ try {
     server.listen(0, "127.0.0.1", resolve);
   });
   const address = await relay.ready;
-  const macChrome =
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   const env = {
     ...process.env,
     VESPER_URL: `http://127.0.0.1:${server.address().port}`,
     VESPER_RELAY: `ws://127.0.0.1:${address.port}`,
-    CHROME_PATH:
-      process.env.CHROME_PATH ||
-      (fs.existsSync(macChrome) ? macChrome : chromium.executablePath()),
   };
   const requested = process.argv.slice(2).filter((arg) => arg !== "--full");
   const suites = requested.length
@@ -61,6 +55,7 @@ try {
       ? []
       : [
           "menu-check",
+          "updates-check",
           "smoke",
           "touch-native-check",
           "coop-check",

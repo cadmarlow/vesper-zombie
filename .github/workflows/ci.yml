@@ -17,8 +17,10 @@ jobs:
       - run: npm ci
       - name: Install test browsers
         run: npx playwright install --with-deps chromium webkit
-      - name: Verify architecture, rules and the playable production build
-        run: npm run verify
+      # Hosted runners use software rendering. Real-time input and frame-rate
+      # checks run on a graphics-capable machine with npm run verify before release.
+      - name: Verify architecture, rules, relay, menus and simulated waves
+        run: npm run verify -- menu-check waves-check
       - uses: actions/upload-artifact@v4
         if: always()
         with:

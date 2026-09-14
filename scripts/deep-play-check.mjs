@@ -1,3 +1,4 @@
+import { chromiumOptions } from "./browser.mjs";
 // Deep play-through with real inputs only: keyboard, pointer-locked mouse
 // deltas and UI buttons. The game state is READ to decide inputs (like a
 // player reading the screen), never written.
@@ -24,9 +25,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const browser = await chromium.launch({
   headless: true,
-  executablePath:
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ...chromiumOptions,
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 async function openPage(label) {

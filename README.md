@@ -57,13 +57,19 @@ npm run verify:full
 
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 
-La CI utilise `npm run verify`. Les rapports et captures sont produits dans `artifacts/`, exclu de Git. Les résultats et limites des vérifications sont consignés dans [VERIFICATION.md](VERIFICATION.md).
+La CI utilise `npm run verify -- menu-check waves-check` : formatage, architecture, tests unitaires et réseau, build, menus et vagues simulées. Les essais de commandes en temps réel, de coopération dans le navigateur et de rendu nécessitent une machine graphique ; exécuter `npm run verify` sur cette machine avant une livraison. Les rapports et captures sont produits dans `artifacts/`, exclu de Git. Les résultats et limites des vérifications sont consignés dans [VERIFICATION.md](VERIFICATION.md).
 
 `npm run profile:thermal -- mon-essai` mesure le build dans son propre navigateur : trois cartes avec et sans horde, pause, 30/60 images/s et fin de partie. Il produit les temps CPU, appels de rendu et compteurs graphiques bruts dans `artifacts/thermal-mon-essai/`. Ne pas lancer d'autre audit graphique en même temps. Les compteurs ne mesurent ni la température ni les watts. `npm run test:thermal` vérifie la mise au repos et l'identité du rendu.
 
 `npm run test:relay-load` lance séparément un essai local borné de 1 000 clients synthétiques dans 250 salons. Il vérifie la livraison des messages et mesure la latence du relais, sans tester une infrastructure distante. Pour relancer quelques suites avec leurs serveurs isolés : `npm run verify -- coop-check foundation-check`.
 
 ## Mise en ligne
+
+La version du jeu vient de `package.json` et apparaît dans le menu, la pause et les paramètres, y compris sur mobile. Augmenter cette version à chaque livraison ; `version.json` est généré automatiquement avec l'identifiant de la publication. Ce numéro est distinct de la version du protocole réseau.
+
+Une app déjà ouverte vérifie les nouvelles publications à son retour au premier plan, au menu et avant une nouvelle partie ou connexion coopérative. La mise à jour recharge la page avec une adresse renouvelée et conserve les sauvegardes/réglages locaux. Une partie en cours n'est pas rechargée. Les paramètres permettent également de vérifier manuellement. HTML, manifeste et métadonnées de version ne sont pas conservés en cache ; les ressources du jeu gardent leur cache normal.
+
+Pour les utilisateurs restés sur 3.0.0, fermer complètement l'app depuis le sélecteur d'applications puis la rouvrir une fois : cette ancienne version ne possédait pas encore ce contrôle. Il n'est pas nécessaire de supprimer l'icône ou les données du jeu.
 
 Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La configuration Vercel est dans `vercel.json`. Les ressources sont locales ; le personnage coopératif et les cinq morceaux sont dans `public/models/` et `public/music/`. Provenance : [ASSETS.md](ASSETS.md), [personnage](public/models/ASSETS.md) et [musique](public/music/ASSETS.md).
 
