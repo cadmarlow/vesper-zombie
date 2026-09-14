@@ -51,7 +51,7 @@ function instances(parent, geometry, material, transforms) {
 
 export function enrichWorld(world) {
   const { root, static: stage, materials: m } = world;
-  const abbey = world.id === "abbey",
+  const abbey = world.theme === "abbey",
     r = rng(abbey ? 20261 : 20262);
   const effects = new T.Group();
   effects.name = "atmosphere";

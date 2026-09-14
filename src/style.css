@@ -3215,7 +3215,7 @@ kbd {
   z-index: 1;
 }
 
-@media (max-width: 600px) and (max-height: 809px) and (orientation: portrait) {
+@media (max-width: 600px) and (max-height: 849px) and (orientation: portrait) {
   .menu-screen {
     min-height: 0;
     overflow-y: auto;
@@ -3464,6 +3464,16 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+/* The second launch action needs scroll space on short landscape menus. */
+@media (min-width: 651px) and (max-height: 430px) and (orientation: landscape) {
+  .menu-screen {
+    overflow-y: auto;
+  }
+  .menu-footer {
+    top: max(calc(100% - 44px), 410px);
+    bottom: auto;
+  }
 }
 .lobby-form {
   max-width: 520px;

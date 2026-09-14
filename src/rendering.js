@@ -2,6 +2,17 @@ import * as T from "three";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
 
 export class WorldOcclusionPass extends GTAOPass {
+  _renderOverride(renderer, ...args) {
+    // The beauty pass has just updated the same scene and camera. AO changes
+    // visibility/materials only; a second full transform traversal is redundant.
+    const autoUpdate = this.scene.matrixWorldAutoUpdate;
+    this.scene.matrixWorldAutoUpdate = false;
+    try {
+      return super._renderOverride(renderer, ...args);
+    } finally {
+      this.scene.matrixWorldAutoUpdate = autoUpdate;
+    }
+  }
   _overrideVisibility() {
     super._overrideVisibility();
     // GTAOPass r185 excludes points/lines, but treats glow sprites, mist and
@@ -70,6 +81,7 @@ export class ContactShadows {
   }
   dispose() {
     this.scene.remove(this.mesh);
+    this.mesh.dispose();
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.texture.dispose();

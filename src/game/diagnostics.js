@@ -1,0 +1,114 @@
+import { WEAPONS } from "../content/weapons.js";
+
+// Developer/test adapter. Gameplay modules never import this file.
+const owners = {
+  canvas: "view",
+  settings: "run",
+  state: "run",
+  keys: "input",
+  mouse: "input",
+  enemies: "run",
+  effects: "run",
+  projectiles: "run",
+  pickups: "run",
+  gunCache: "view",
+  time: "run",
+  last: "run",
+  yaw: "input",
+  pitch: "input",
+  hudTimer: "run",
+  navTimer: "run",
+  fps: "view",
+  mobileResolutionScale: "view",
+  desktopResolutionScale: "view",
+  resolutionRecovery: "view",
+  adaptiveOcclusionOff: "view",
+  mobileFrameMs: "view",
+  resolutionTimer: "view",
+  renderer: "view",
+  scene: "view",
+  environmentTarget: "view",
+  camera: "view",
+  viewScene: "view",
+  viewCamera: "view",
+  weaponAmbient: "view",
+  weaponKey: "view",
+  weaponRim: "view",
+  weaponBounce: "view",
+  knife: "view",
+  knifeTrail: "view",
+  composer: "view",
+  ao: "view",
+  viewPass: "view",
+  bloom: "view",
+  antialias: "view",
+  film: "view",
+  flash: "view",
+  flashlight: "view",
+  player: "run",
+  phase: "run",
+  session: "run",
+  phaseTimer: "run",
+  touch: "run",
+  slot: "run",
+  renderSize: "view",
+  world: "run",
+  nextEnemyId: "run",
+  nextPickupId: "run",
+  nextProjectileId: "run",
+  nextWeaponLight: "view",
+  downed: "run",
+  map: "run",
+  difficulty: "run",
+  difficultyId: "run",
+  mapEnvironment: "view",
+  combatEffects: "view",
+  contactShadows: "view",
+  navigation: "run",
+  largeNavigation: "run",
+  weapons: "run",
+  wave: "run",
+  remaining: "run",
+  spawnTimer: "run",
+  reloadTime: "run",
+  reloadDuration: "run",
+  shotTimer: "run",
+  meleeTimer: "run",
+  meleePending: "run",
+  meleeSwing: "run",
+  knifeImpactTime: "run",
+  recoil: "run",
+  stepTimer: "run",
+  growlTimer: "run",
+  powerups: "run",
+  touchMove: "input",
+  touchSprint: "input",
+  touchRun: "input",
+  extraction: "run",
+  extractionTimer: "run",
+  lastHurtEffect: "run",
+  saved: "run",
+  nextShadowFrame: "view",
+  warmupSession: "run",
+  gun: "view",
+  flashTimer: "run",
+};
+export function observeGame(game) {
+  return new Proxy(game, {
+    get(target, key) {
+      if (key === "weapon") return target.run.weapons?.[target.run.slot];
+      if (key === "definition")
+        return WEAPONS[target.run.weapons?.[target.run.slot]?.id];
+      if (key in owners) return target[owners[key]][key];
+      const value = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+    set(target, key, value) {
+      if (key in owners) {
+        target[owners[key]][key] = value;
+        return true;
+      }
+      return Reflect.set(target, key, value);
+    },
+  });
+}

@@ -1,0 +1,20 @@
+export default {
+  id: "station",
+  number: "02",
+  name: "Le Complexe Boréal",
+  short: "COMPLEXE BORÉAL",
+  region: "NORVÈGE · CERCLE ARCTIQUE",
+  time: "02:13",
+  description: "Une station oubliée. Un signal qui ne devrait plus émettre.",
+  tags: ["RECHERCHE SECRÈTE", "NUIT POLAIRE"],
+  color: "#78d6cf",
+  coordinates: "69° 38′ N / 18° 57′ E",
+  threat: "Le signal vivant",
+  art: "/art/station.webp",
+  intro:
+    "Le dernier message disait de ne pas venir. Vous l’avez reçu trop tard.",
+  theme: "station",
+  seed: 72,
+  cold: 1,
+  sectorPrefix: null,
+};

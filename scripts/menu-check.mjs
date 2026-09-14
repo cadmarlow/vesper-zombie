@@ -61,6 +61,7 @@ try {
         failures.push({ width, height, ...layout });
     }
   for (const [width, height] of [
+    [844, 390],
     [900, 780],
     [1024, 650],
     [568, 390],

@@ -1,3 +1,4 @@
+import { openGameAudit } from "./game-audit.mjs";
 import { chromium } from "@playwright/test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -13,7 +14,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }),
   external = [],
   checks = [];
 const BUILD_URL = process.env.VESPER_URL || "http://localhost:4173";
-const DEV_URL = process.env.VESPER_DEV_URL || "http://localhost:5173";
+
 const out = `artifacts/release-${Date.now()}`;
 fs.mkdirSync(out, { recursive: true });
 page.on("pageerror", (e) => errors.push(e.message));
@@ -99,7 +100,8 @@ try {
   await page.keyboard.press("Escape");
   check("Production pause works", await page.locator("#pause").isVisible());
   check("All production assets are local", external.length === 0);
-  await page.goto(DEV_URL);
+  process.env.VESPER_URL ||= BUILD_URL;
+  await openGameAudit(page);
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing");
   await page.evaluate(() => {

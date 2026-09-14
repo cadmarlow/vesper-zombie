@@ -1,3 +1,8 @@
+import { mapDefinition } from "./maps/catalog.js";
+import { buildMap, validateWorld } from "./maps/builders.js";
+import { weaponModel } from "./weapons.js";
+import { disposeModel } from "./resources.js";
+export { disposeModel } from "./resources.js";
 import * as T from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import {
@@ -10,17 +15,16 @@ import {
   label,
   glowSprite,
   createMaterials,
-  weaponModel,
 } from "./assets.js";
 import { rng } from "./logic.js";
 import { PERKS, UPGRADE } from "./config.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
-import { enrichWorld } from "./world-detail.js";
-import { buildAbyss } from "./world-abyss.js";
-import { buildArchitecture } from "./world-architecture.js";
 
 export class World {
   constructor(scene, id, quality) {
+    const definition = mapDefinition(id);
+    this.theme = definition.theme;
+    this.definition = definition;
     this.scene = scene;
     this.id = id;
     this.quality = quality;
@@ -33,8 +37,8 @@ export class World {
     this.lights = [];
     this.animated = [];
     this.doors = [];
-    this.materials = createMaterials(id);
-    this.random = rng(id === "abbey" ? 37 : 72);
+    this.materials = createMaterials(this.theme);
+    this.random = rng(definition.seed);
     this.power = false;
     this.powerTime = 0;
     this.powerLevel = 0;
@@ -51,23 +55,15 @@ export class World {
       [19, -22],
       [0, -25],
     ];
-    if (id === "abyss") {
-      this.detail = buildAbyss(this);
-      this.machines();
-    } else {
-      this.environment();
-      this.floor();
-      if (id === "abbey") this.abbey();
-      else this.station();
-      this.machines();
-      this.dressing();
-      this.electricalNetwork();
-      this.weather();
-      this.detail = enrichWorld(this);
+    try {
+      buildMap(this, definition);
+      validateWorld(this);
+      this.batchProps();
+      this.batch();
+    } catch (error) {
+      this.dispose();
+      throw error;
     }
-    buildArchitecture(this);
-    this.batchProps();
-    this.batch();
   }
   obstacle(x, z, w, d, h = 3, extra = {}) {
     const o = { x, z, w, d, h, active: true, ...extra };
@@ -83,7 +79,7 @@ export class World {
   }
   environment() {
     const s = this.scene,
-      abbey = this.id === "abbey";
+      abbey = this.theme === "abbey";
     s.background = new T.Color(abbey ? 0x101b24 : 0x102330);
     s.fog = new T.FogExp2(abbey ? 0x151e21 : 0x142730, 0.012);
     this.lighting = {
@@ -323,351 +319,7 @@ export class World {
       );
     }
   }
-  abbey() {
-    const m = this.materials;
-    for (const x of [-11, 11])
-      for (const z of [-21, -11, -1, 9, 22])
-        this.column(x, z, z === 22 ? 10 : 11.5);
-    for (const z of [-21, -11, -1, 9, 22]) {
-      this.arch(0, 11.8, z, 22, 6.4);
-      for (const x of [-18, 18]) {
-        this.column(x, z, 6.5);
-        this.arch(x < 0 ? -14.5 : 14.5, 6.9, z, 7, 4);
-      }
-    }
-    for (const x of [-11, 11])
-      for (const z of [-16, -6, 4, 15.5])
-        this.arch(x, 11.8, z, z === 15.5 ? 13 : 10, 4, Math.PI / 2);
-    // Broken perimeter: buttresses, pointed windows and luminous stained glass.
-    for (const x of [-23, 23]) {
-      this.solid(m.stone, x, 2.1, 0, 1.1, 4.2, 58);
-      for (let z = -25; z < 28; z += 8) {
-        this.solid(m.stone, x, 6.4, z, 1.65, 8.5, 1.9);
-        box(this.static, m.trim, x, 10.8, z, 2, 0.4, 2.1);
-        this.arch(x, 6.2, z + 4, 5.7, 3.3, Math.PI / 2);
-        const window = box(this.static, m.dark, x, 5.6, z + 4, 0.3, 3.1, 4.3);
-        for (let i = -1; i <= 1; i++)
-          box(
-            this.static,
-            m.copper,
-            x + (x < 0 ? 0.17 : -0.17),
-            5.5,
-            z + 4 + i * 1.05,
-            0.04,
-            2.9,
-            0.065,
-          );
-      }
-    }
-    this.solid(m.stone, -16, 7, -28, 16, 14, 1.5);
-    this.solid(m.stone, 16, 7, -28, 16, 14, 1.5);
-    this.arch(0, 7, -28, 16, 8);
-    box(this.static, m.stone, 0, 16.5, -28, 17, 3, 1.5);
-    const rose = new T.Group();
-    rose.position.set(0, 13.4, -27.15);
-    this.static.add(rose);
-    mesh(new T.TorusGeometry(2.8, 0.22, 8, 48), m.trim, rose);
-    mesh(new T.TorusGeometry(2.48, 0.085, 6, 40), m.gold, rose);
-    mesh(
-      new T.CircleGeometry(2.42, 40),
-      glow(0x8b3c32, 0.35),
-      rose,
-      0,
-      0,
-      -0.05,
-    );
-    for (let i = 0; i < 12; i++) {
-      const a = (i * Math.PI) / 6;
-      box(
-        rose,
-        m.trim,
-        Math.sin(a) * 1.22,
-        Math.cos(a) * 1.22,
-        0,
-        0.09,
-        2.48,
-        0.15,
-      ).rotation.z = -a;
-      const petal = mesh(
-        new T.TorusGeometry(0.64, 0.065, 5, 20),
-        m.gold,
-        rose,
-        Math.sin(a) * 1.7,
-        Math.cos(a) * 1.7,
-        0.1,
-      );
-      petal.scale.y = 1.3;
-    }
-    mesh(new T.TorusGeometry(0.65, 0.13, 6, 24), m.trim, rose);
-    // Side aisles are navigable; seats form readable cover islands.
-    for (let z of [15, 10, 1, -4, -14])
-      for (let x of [-4.9, 4.9]) {
-        if (z === -4) continue;
-        this.solid(m.wood, x, 0.55, z, 3.2, 1.1, 0.8);
-        box(this.static, m.wood, x, 0.44, z + 0.4, 3.25, 0.15, 0.7);
-        box(this.static, m.trim, x - 1.6, 0.6, z, 0.14, 1.2, 0.85);
-        box(this.static, m.trim, x + 1.6, 0.6, z, 0.14, 1.2, 0.85);
-      }
-    // Ritual altar with orbiting copper rings, luminous fissure and engraved plinth.
-    this.solid(m.stone, 0, 0.6, -19, 5, 1.2, 3);
-    box(this.static, m.trim, 0, 1.3, -19, 5.5, 0.25, 3.4);
-    const rings = new T.Group();
-    rings.position.set(0, 4, -19);
-    this.root.add(rings);
-    for (let i = 0; i < 3; i++) {
-      const ring = mesh(
-        new T.TorusGeometry(1.45 + i * 0.3, 0.038, 6, 72),
-        i === 1 ? m.red : m.gold,
-        rings,
-      );
-      ring.rotation.x = i * 0.8;
-      ring.rotation.y = i * 0.6;
-    }
-    const core = mesh(new T.IcosahedronGeometry(0.65, 1), m.black, rings);
-    core.rotation.z = 0.5;
-    const inner = glowSprite(0xff7539, 4.5);
-    rings.add(inner);
-    inner.material.opacity = 0.35;
-    this.coreHalo = inner;
-    this.animated.push({ object: rings, kind: "relic" });
-    this.lantern(0, 2.3, -18, 0xff6438, 23, true);
-    for (const z of [-21, -1, 19])
-      for (const x of [-10, 10]) this.lantern(x, 2.5, z);
-    for (let x of [-3.4, 3.4]) {
-      this.candles(x, -18, 10);
-      this.candles(x, -20, 7);
-    }
-    for (let z of [-13, 6, 23]) this.candles(-12, z, 6);
-    // Distant silhouette, mausoleums and fallen masonry.
-    for (let i = 0; i < 14; i++) {
-      const x = (i % 2 ? -1 : 1) * (28 + this.random() * 14),
-        z = -35 + this.random() * 70,
-        h = 12 + this.random() * 20;
-      box(this.static, m.stone, x, h / 2, z, 4, h, 5);
-      mesh(new T.ConeGeometry(3, 8, 4), m.dark, this.static, x, h + 4, z);
-    }
-    for (let i = 0; i < 70; i++) {
-      const side = this.random() < 0.5 ? -1 : 1,
-        x = side * (19.3 + this.random() * 2),
-        z = -25 + this.random() * 51;
-      const rock = mesh(
-        new T.DodecahedronGeometry(0.12 + this.random() * 0.4, 0),
-        m.stone,
-        this.static,
-        x,
-        0.15,
-        z,
-      );
-      rock.rotation.set(this.random() * 4, this.random() * 4, 0);
-      rock.scale.y = 0.55;
-    }
-    this.gate(5, "La nef interdite");
-  }
-  station() {
-    const m = this.materials;
-    const floorStripe = mat(0xd0a652, 0.7, 0.3);
-    for (const x of [-23, 23]) {
-      this.solid(m.metal, x, 3, 0, 1, 6, 58);
-      for (let z = -26; z <= 26; z += 6) {
-        this.solid(m.dark, x, 6, z, 1.5, 12, 0.75);
-        box(this.static, m.metal, x, 10, z, 2, 0.5, 1.2);
-        box(
-          this.static,
-          m.cyan,
-          x + (x < 0 ? 0.65 : -0.65),
-          4,
-          z,
-          0.06,
-          3,
-          0.12,
-        );
-      }
-    }
-    for (let z = -25; z < 29; z += 10) {
-      for (let x of [-13, 13]) {
-        this.solid(m.metal, x, 4.5, z, 0.75, 9, 0.75);
-        box(this.static, m.rust, x, 1, z, 1.25, 0.25, 1.25);
-        for (let h of [2, 6])
-          box(this.static, m.gold, x, h, z, 0.85, 0.2, 0.85);
-      }
-      box(this.static, m.dark, 0, 9, z, 28, 0.75, 0.7);
-      for (let x = -12; x <= 12; x += 4) {
-        const brace = box(this.static, m.rust, x, 9.9, z, 0.18, 2.8, 0.18);
-        brace.rotation.z = x % 8 === 0 ? 0.8 : -0.8;
-      }
-      box(this.static, m.metal, 0, 11, z, 28, 0.25, 0.45);
-    }
-    // Ribbed industrial blocks frame wide looping routes around cargo islands.
-    for (const [x, z, w, d] of [
-      [-17, 12, 6, 7],
-      [17, 7, 6, 9],
-      [-17, -15, 6, 7],
-      [17, -21, 6, 7],
-    ]) {
-      this.solid(m.metal, x, 2, z, w, 4, d);
-      for (let i = 0; i < w * 3; i++)
-        box(
-          this.static,
-          m.dark,
-          x - w / 2 + i / 3,
-          2,
-          z + d / 2 + 0.02,
-          0.065,
-          3.8,
-          0.04,
-        );
-      box(this.static, m.snow, x, 4.05, z, w + 0.15, 0.1, d + 0.15);
-      const l = label("B Ø R E A L", "#8db4b8", w * 0.75, 0.6);
-      l.position.set(x, 2.7, z + d / 2 + 0.06);
-      this.static.add(l);
-    }
-    for (const [x, z] of [
-      [-5, 12],
-      [5, -1],
-      [-5, -11],
-    ]) {
-      this.solid(m.metal, x, 0.8, z, 3, 1.6, 2.5);
-      box(this.static, m.rust, x, 0.85, z, 3.05, 0.12, 2.55);
-      for (const dx of [-1.1, 1.1])
-        box(this.static, m.dark, x + dx, 0.8, z + 0.03, 0.13, 1.7, 2.6);
-    }
-    // Overhead conduits and cages.
-    for (const x of [-20, 20]) {
-      const p = cylinder(this.static, m.rust, x, 6, 0, 0.3, 54, 0.3, 12);
-      p.rotation.x = Math.PI / 2;
-      for (let z = -24; z < 26; z += 4) {
-        const ring = mesh(
-          new T.TorusGeometry(0.36, 0.055, 6, 14),
-          m.dark,
-          this.static,
-          x,
-          6,
-          z,
-        );
-      }
-      const p2 = cylinder(
-        this.static,
-        m.metal,
-        x + 0.8,
-        5.7,
-        0,
-        0.17,
-        54,
-        0.17,
-        8,
-      );
-      p2.rotation.x = Math.PI / 2;
-    }
-    for (let x of [-8, 8]) {
-      for (let z = -28; z < 28; z += 2) {
-        const stripe = box(
-          this.static,
-          floorStripe,
-          x,
-          0.02,
-          z,
-          0.45,
-          0.015,
-          0.8,
-        );
-        stripe.rotation.y = -0.5;
-      }
-    }
-    // Central reactor visible from the spawn, surrounded by orbiting induction rings.
-    this.solid(m.dark, 0, 0.45, -20, 7, 0.9, 7);
-    cylinder(this.static, m.metal, 0, 1, -20, 2.7, 0.7, 2.4, 32);
-    const reactor = new T.Group();
-    reactor.position.set(0, 4.5, -20);
-    this.root.add(reactor);
-    const glass = cylinder(reactor, m.glass, 0, 0, 0, 1.5, 6.5, 1.5, 32);
-    cylinder(reactor, m.cyan, 0, 0, 0, 0.23, 6, 0.23, 12);
-    for (let i = 0; i < 5; i++) {
-      const ring = mesh(
-        new T.TorusGeometry(2.05, 0.1, 8, 48),
-        i % 2 ? m.cyan : m.metal,
-        reactor,
-        0,
-        -2.8 + i * 1.4,
-        0,
-      );
-      ring.rotation.x = Math.PI / 2;
-    }
-    for (let a = 0; a < Math.PI * 2; a += Math.PI / 3) {
-      cylinder(
-        reactor,
-        m.dark,
-        Math.sin(a) * 2.6,
-        0,
-        Math.cos(a) * 2.6,
-        0.13,
-        7,
-      );
-      const tube = cylinder(
-        reactor,
-        m.cyan,
-        Math.sin(a) * 2.65,
-        0,
-        Math.cos(a) * 2.65,
-        0.035,
-        6,
-      );
-    }
-    cylinder(this.static, m.metal, 0, 8.2, -20, 3, 0.8, 2.7, 32);
-    const orb = glowSprite(0x4bfce3, 9);
-    orb.position.set(0, 4, -20);
-    orb.material.opacity = 0.3;
-    this.coreHalo = orb;
-    this.root.add(orb);
-    this.animated.push({ object: reactor, kind: "reactor" });
-    this.lantern(0, 4, -18, 0x50f5de, 60, true);
-    box(this.static, m.metal, 0, 6, -28, 48, 12, 1.4);
-    const sign = label("SECTEUR 07 / ANOMALIE ACTIVE", "#79e0d8", 10, 1);
-    sign.position.set(0, 9.5, -27.2);
-    this.static.add(sign);
-    // Antenna, perimeter snow drifts, mountains.
-    cylinder(this.static, m.metal, -20, 15, -32, 0.7, 18, 0.5, 12);
-    sphere(this.static, m.snow, -20, 25, -32, 5);
-    const wire = mesh(
-      new T.IcosahedronGeometry(5.05, 2),
-      new T.MeshBasicMaterial({ color: 0x263e48, wireframe: true }),
-      this.static,
-      -20,
-      25,
-      -32,
-    );
-    for (let i = 0; i < 18; i++) {
-      const a = (i / 18) * Math.PI * 2,
-        h = 14 + this.random() * 22;
-      const mount = mesh(
-        new T.ConeGeometry(12 + this.random() * 15, h, 5),
-        i % 2 ? m.snow : m.stone,
-        this.static,
-        Math.sin(a) * 75,
-        h / 2 - 6,
-        Math.cos(a) * 75,
-      );
-      mount.rotation.y = this.random() * 4;
-    }
-    for (const z of [-22, -5, 17])
-      for (const x of [-12, 12])
-        this.lantern(x, 4, z, z === -5 ? 0x62f7e7 : 0xffb260, 14, true);
-    for (let i = 0; i < 45; i++) {
-      const x = (this.random() < 0.5 ? -1 : 1) * (21 + this.random()),
-        z = (this.random() - 0.5) * 56;
-      const rock = sphere(
-        this.static,
-        m.snow,
-        x,
-        0.07,
-        z,
-        0.3 + this.random() * 0.8,
-        1,
-        0.23,
-        1.5,
-      );
-    }
-    this.gate(3, "Secteur de confinement");
-  }
+
   gate(z, name) {
     const m = this.materials; // Cross-map progression barrier; a broad central door opens a full second arena.
     const g = new T.Group();
@@ -677,7 +329,7 @@ export class World {
     g.add(bars);
     for (let x = -10; x <= 10; x += 0.5) {
       box(bars, m.black, x, 2.5, 0, 0.085, 5, 0.12);
-      if (this.id === "abbey")
+      if (this.theme === "abbey")
         mesh(new T.ConeGeometry(0.14, 0.42, 4), m.gold, bars, x, 5.2, 0);
     }
     for (let y of [0.4, 2, 4]) box(bars, m.rust, 0, y, 0, 21, 0.1, 0.18);
@@ -903,7 +555,7 @@ export class World {
   }
   dressing() {
     const m = this.materials,
-      abbey = this.id === "abbey";
+      abbey = this.theme === "abbey";
     const canvas = document.createElement("canvas");
     canvas.width = 256;
     canvas.height = 512;
@@ -1044,7 +696,7 @@ export class World {
     }
     const geo = new T.BufferGeometry();
     geo.setAttribute("position", new T.BufferAttribute(positions, 3));
-    const snow = this.id === "station";
+    const snow = this.theme === "station";
     const particleTex = glowSprite().material.map;
     this.particles = new T.Points(
       geo,
@@ -1195,7 +847,7 @@ export class World {
     groups.forEach(merge);
   }
   electricalNetwork() {
-    const color = this.id === "abbey" ? 0xffcf88 : 0x69ecf2;
+    const color = this.theme === "abbey" ? 0xffcf88 : 0x69ecf2;
     this.materials.cyan.emissiveIntensity = 0.035;
     this.coreHalo.material.opacity = 0.045;
     for (const [index, z] of [-20, -7, 7, 20].entries()) {
@@ -1244,7 +896,8 @@ export class World {
     this.powerLevel = this.power ? Math.min(1, this.powerTime / 3.2) : 0;
     // Soften powered highlights while keeping ambient visibility on each map.
     const poweredBrightness =
-      this.lighting?.poweredBrightness ?? (this.id === "abbey" ? 0.86 : 0.84);
+      this.lighting?.poweredBrightness ??
+      (this.theme === "abbey" ? 0.86 : 0.84);
     const glowLevel = this.powerLevel * poweredBrightness;
     for (const c of this.circuits) {
       const ramp = this.power
@@ -1324,7 +977,7 @@ export class World {
     if (this.aurora) this.aurora.material.uniforms.time.value = time;
     const p = this.particles.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) {
-      p.array[i * 3 + 1] += dt * (this.id === "station" ? -1.1 : 0.3);
+      p.array[i * 3 + 1] += dt * (this.theme === "station" ? -1.1 : 0.3);
       p.array[i * 3] += Math.sin(time * 0.5 + i) * dt * 0.14;
       if (p.array[i * 3 + 1] > 22) p.array[i * 3 + 1] = 0;
       if (p.array[i * 3 + 1] < 0) p.array[i * 3 + 1] = 22;
@@ -1403,12 +1056,13 @@ export class World {
       this.boxDisplays.set(id, display);
     }
     b.display = this.boxDisplays.get(id);
+    b.display.userData.weaponId = id;
     b.root.add(b.display);
   }
   dispose() {
     // Render targets (including their depth texture) belong to the old light.
     // Removing its meshes alone does not release the shadow allocation.
-    this.sun.shadow.dispose();
+    this.sun?.shadow.dispose();
     for (const display of this.boxDisplays?.values() || []) {
       display.removeFromParent();
       disposeModel(display);
@@ -1417,25 +1071,4 @@ export class World {
     disposeModel(this.root);
     this.scene.remove(this.root);
   }
-}
-export function disposeModel(root) {
-  const geometries = new Set(),
-    materials = new Set(),
-    textures = new Set();
-  root.traverse((o) => {
-    if (o.geometry) geometries.add(o.geometry);
-    for (const m of Array.isArray(o.material)
-      ? o.material
-      : o.material
-        ? [o.material]
-        : []) {
-      materials.add(m);
-      for (const v of Object.values(m)) if (v?.isTexture) textures.add(v);
-    }
-  });
-  geometries.forEach((g) => g.dispose());
-  materials.forEach((m) => m.dispose());
-  textures.forEach((t) => {
-    if (!t.userData.sharedSurface) t.dispose();
-  });
 }

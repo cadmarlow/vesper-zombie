@@ -1,4 +1,4 @@
-import { WEAPONS, UPGRADE } from "./config.js";
+import { WEAPONS, ENEMIES, UPGRADE } from "./config.js";
 export const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 export function rng(seed = 1) {
   return () => {
@@ -12,25 +12,24 @@ export function rng(seed = 1) {
 export function waveCount(wave, difficulty = 1) {
   return Math.ceil((5 + wave * 2.5) * difficulty);
 }
-export function enemyType(wave, random = Math.random) {
+// Ordered cumulative thresholds preserve the original distribution at every wave.
+export function enemyType(wave, random = Math.random, definitions = ENEMIES) {
   const r = random();
-  if (wave >= 5 && r < 0.11) return "brute";
-  if (wave >= 6 && r < 0.23) return "wraith";
-  if (wave >= 4 && r < 0.39) return "spitter";
-  if (wave >= 2 && r < 0.62) return "runner";
-  return "walker";
+  return (
+    Object.entries(definitions)
+      .filter(([, d]) => d.spawn && !d.hidden && wave >= d.spawn.wave)
+      .sort((a, b) => a[1].spawn.below - b[1].spawn.below)
+      .find(([, d]) => r < d.spawn.below)?.[0] || "walker"
+  );
 }
-export function mysteryWeapon(random = Math.random) {
+export function mysteryWeapon(random = Math.random, definitions = WEAPONS) {
   const r = random();
-  return r < 0.09
-    ? "eclipse"
-    : r < 0.24
-      ? "longinus"
-      : r < 0.44
-        ? "requiem"
-        : r < 0.72
-          ? "marauder"
-          : "spectre";
+  return (
+    Object.entries(definitions)
+      .filter(([, d]) => d.boxBelow)
+      .sort((a, b) => a[1].boxBelow - b[1].boxBelow)
+      .find(([, d]) => r < d.boxBelow)?.[0] || "spectre"
+  );
 }
 export function newWeapon(id) {
   const def = WEAPONS[id];

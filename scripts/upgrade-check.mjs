@@ -1,24 +1,29 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 
-// Run against the actual distribution. Vite is needed only by release-check's
-// diagnostic scope scenario. Keep GPU tests sequential for meaningful results.
+// Run against the actual distribution. Keep GPU tests sequential for meaningful results.
 const scripts = process.argv.slice(2).length
   ? process.argv.slice(2)
   : [
+      "menu-check",
       "smoke",
       "feel-check",
       "touch-native-check",
       "release-check",
       "waves-check",
       "online-check",
+      "coop-check",
+      "foundation-check",
       "graphics-lifecycle-check",
+      "thermal-check",
       "zombie-check",
       "abyss-check",
       "remaster-check",
       "blood-check",
     ];
 const allowed = new Set([
+  "foundation-check",
+  "coop-check",
   "abyss-check",
   "menu-check",
   "zombie-check",
@@ -30,6 +35,7 @@ const allowed = new Set([
   "waves-check",
   "online-check",
   "graphics-lifecycle-check",
+  "thermal-check",
   "remaster-check",
   "blood-check",
 ]);

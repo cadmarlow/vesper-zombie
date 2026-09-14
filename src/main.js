@@ -1,3 +1,10 @@
+import { DEFAULT_SETTINGS } from "./content/defaults.js";
+import { readSettings } from "./app/storage.js";
+import { createLauncher } from "./app/launch.js";
+import { mountShell } from "./ui/shell.js";
+import { createHUD } from "./ui/hud.js";
+import { $, $$, icon, escapeHtml } from "./ui/dom.js";
+
 import "./style.css";
 import "./mobile.css";
 import { TouchControls } from "./touch.js";
@@ -8,7 +15,6 @@ import {
   WEAPONS,
   ENEMIES,
   DIFFICULTIES,
-  DEFAULT_SETTINGS,
   PERKS,
   UPGRADE,
   readSave,
@@ -23,107 +29,14 @@ import "@fontsource/barlow-condensed/latin-600.css";
 import "@fontsource/rajdhani/latin-400.css";
 import "@fontsource/rajdhani/latin-500.css";
 import "@fontsource/rajdhani/latin-600.css";
-const $ = (s) => document.querySelector(s),
-  $$ = (s) => [...document.querySelectorAll(s)];
-const icon = (name, cls = "") => {
-  const shapes = {
-    eclipse:
-      '<circle cx="12" cy="12" r="8"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/><path d="m8 8 4 10 4-10"/>',
-    arrow: '<path d="M4 12h15m-6-6 6 6-6 6"/>',
-    sound:
-      '<path d="m4 9 5 0 5-4v14l-5-4H4zM17 8c3 2 3 6 0 8m3-11c5 4 5 10 0 14"/>',
-    gear: '<path d="m9 3 1-2h4l1 2 3 2 3 0 2 4-2 2v3l2 2-2 4h-3l-3 2h-5l-2-2H5l-2-4 2-2v-3L3 9l2-4h3z"/><circle cx="12.5" cy="12" r="3.5"/>',
-    close: '<path d="m5 5 14 14M5 19 19 5"/>',
-    skull:
-      '<path d="M5 16C0 7 6 2 12 2s12 5 7 14l-3 1v5H8v-5z"/><path d="m8 10 2 2-3 1zm8 0-2 2 3 1zM10 18v4m4-4v4"/>',
-    bolt: '<path d="m14 2-9 12h6l-1 8 9-12h-6z"/>',
-    cross: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
-    target:
-      '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 1v5m0 12v5M1 12h5m12 0h5"/>',
-    chevron: '<path d="m9 5 7 7-7 7"/>',
-    shield:
-      '<path d="m12 2 8 3v7c0 5-8 10-8 10S4 17 4 12V5z"/><path d="m8 12 3 3 5-6"/>',
-    bullet: '<path d="M9 7 12 2l3 5v14H9zM9 16h6"/>',
-    magazine: '<path d="M6 3h12l-1 18H7zM9 7h6m-6 4h6m-6 4h5"/>',
-    knife: '<path d="m18 2-2 10-4 4-4-4zM6 14l4 4-4 4-4-4z"/>',
-    grenade: '<path d="M10 7V3h6v3l4 3M9 8h7l3 5-1 7-6 2-6-3-1-6zM9 3H6v4"/>',
-    jump: '<path d="m7 9 5-6 5 6m-5-6v14M5 21h14"/>',
-    phone:
-      '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M10 17h4m6-16 3 3-3 3M1 17l3 3-3 3"/>',
-    fullscreen: '<path d="M3 9V3h6m6 0h6v6m0 6v6h-6m-6 0H3v-6"/>',
-    run: '<circle cx="15" cy="4" r="2"/><path d="m12 8 4 4 4 1M12 8l-4 4-4-1m8-3-1 7 5 3 2 4m-7-7-4 5H3"/>',
-    crouch:
-      '<circle cx="13" cy="4" r="2"/><path d="m12 8-4 5 7 2-2 6h6m-7-13 4 4 5 1M8 13l-4 3 3 5"/>',
-    radio:
-      '<path d="M7 10h10v11H7zM9 14h6m-6 4h4M9 10V5m6 2V3M4 3c-3 3-3 6 0 9m16-9c3 3 3 6 0 9"/>',
-  };
-  return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shapes[name] || shapes.eclipse}</svg>`;
-};
 let selectedMap = "abbey",
   difficulty = "normal",
   game,
-  activePanel = null,
-  lastRecord;
+  activePanel = null;
 const sound = new Sound();
-let settings = { ...DEFAULT_SETTINGS };
-try {
-  settings = {
-    ...settings,
-    ...JSON.parse(localStorage.getItem("vesper-settings") || "{}"),
-  };
-} catch {}
-const app = $("#app");
-app.innerHTML = `
- <canvas id="game-canvas" aria-label="Jeu de survie Vesper en trois dimensions"></canvas>
- <main id="menu" class="screen menu-screen">
-  <div class="menu-art" id="menu-art"></div><div class="menu-shade"></div><div class="grain"></div><div class="embers"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <header class="menu-header"><a class="wordmark" href="#" aria-label="Accueil Vesper">${icon("eclipse")}<span>VESPER<span class="brand-divider"> / </span><small>SURVIVAL PROTOCOL</small></span></a><nav aria-label="Navigation principale"><button class="nav-button active" data-panel="home">JOUER</button><button class="nav-button" data-panel="arsenal">ARSENAL</button><button class="nav-button" data-panel="archives">ARCHIVES</button></nav><button class="icon-button" id="settings-button" aria-label="Paramètres">${icon("gear")}</button></header>
-  <div class="menu-content"><section class="hero-copy"><div class="eyebrow"><span class="live-dot"></span> UN SIGNAL DANS L’OBSCURITÉ</div><h1>VESPER<span class="title-slice" aria-hidden="true"></span></h1><div class="subtitle"><span></span> LES DERNIERS VIVANTS <span></span></div><p class="hero-description">La nuit est tombée.<br>Quelque chose s’est relevé.</p><button id="play-button" class="primary-button">ENTRER DANS LA NUIT ${icon("arrow")}</button><button id="coop-button" class="secondary-button coop-button">${icon("radio")} JOUER ENTRE AMIS</button><div class="play-meta"><span>SOLO</span><i></i><span>SURVIE PAR VAGUES</span><i></i><span>${MAPS.length} CARTES</span></div></section>
-  <aside class="transmission"><span class="tiny">TRANSMISSION <b>00<span id="transmission-number">1</span></b></span><div class="signal"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p id="map-quote">« Les cloches se sont tues.<br>Ce qui dort sous la nef, non. »</p><span class="transmission-source">DERNIER CONTACT · <b id="map-time">03:47</b></span></aside>
-  <section class="deployment"><div class="section-label"><span>CHOISIR VOTRE DESTINATION</span><span class="tiny">01 — ${MAPS.at(-1).number}</span></div><div class="map-cards">${MAPS.map((m) => `<button class="map-card ${m.id === "abbey" ? "selected" : ""}" data-map="${m.id}" aria-pressed="${m.id === "abbey"}"><img src="${m.art || `/art/${m.id}.webp`}" alt="${m.name}"/><div class="map-card-shade"></div><span class="map-number">${m.number}</span><span class="map-selected">${icon("target")} SÉLECTIONNÉE</span><div class="map-card-copy"><span class="tiny">${m.region}</span><h2>${m.name}</h2><span class="map-tags">${m.tags.join(" <b>·</b> ")}</span><span class="map-record" data-record="${m.id}"></span></div></button>`).join("")}</div><div class="difficulty-row"><span>DIFFICULTÉ</span><div class="difficulty-options">${Object.entries(
-    DIFFICULTIES,
-  )
-    .map(
-      ([id, d]) =>
-        `<button data-difficulty="${id}" class="${id === difficulty ? "selected" : ""}" title="${d.desc}">${d.name}</button>`,
-    )
-    .join("")}</div></div></section>
-  </div><div class="menu-coordinate"><span id="map-coordinates">48° 04′ N / 07° 01′ E</span><div class="coordinate-line"></div><span id="map-condition">ÉCLIPSE TOTALE · AUCUN SURVIVANT SIGNALÉ</span></div>
-  <footer class="menu-footer"><div><span class="live-dot"></span> PROTOCOLE VESPER <b>V.${__APP_VERSION__}</b></div><button id="controls-button">${icon("target")} GUIDE DE SURVIE</button><div class="footer-right"><button id="sound-button" aria-label="Activer ou couper le son">${icon("sound")}<span>SON ACTIVÉ</span></button><button id="fullscreen-button" class="icon-button" aria-label="Plein écran">${icon("fullscreen")}</button></div></footer>
- </main>
- <section id="panel" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Informations"><div class="panel-shell"><div class="panel-top"><a class="wordmark" href="#">${icon("eclipse")}<span>VESPER</span></a><button class="close-button" id="close-panel">FERMER ${icon("close")}</button></div><div id="panel-content"></div></div></section>
- <section id="loading" class="screen loading-screen hidden"><div class="loading-symbol">${icon("eclipse")}</div><div class="eyebrow">OUVERTURE DU PROTOCOLE</div><h2 id="loading-map">L’Abbaye des Cendres</h2><div class="loading-track"><span></span></div><p>Gardez vos munitions. Faites compter chaque balle.</p></section>
- <section id="hud" class="screen hud hidden" aria-label="Interface de partie"><div id="scope" class="scope hidden"><span></span></div>
-  <div class="hud-top-left"><div class="tiny" id="hud-map">ABBAYE DES CENDRES</div><div class="wave-line"><span class="wave-number" id="wave-number">00</span><div><span class="eyebrow">VAGUE</span><span id="wave-status">LA NUIT COMMENCE</span></div></div><div class="enemy-counter">${icon("skull")}<span id="enemy-count">0</span> <span>PRÉSENCES</span></div></div>
-  <div class="compass"><div class="compass-ticks">│ · · │ · · │ · · │ · · │ · · │ · · │</div><div id="compass-directions">N <span>NE</span> E</div><span class="compass-marker">◆</span></div>
-  <div class="hud-objective"><div class="tiny" id="power-state">COURANT COUPÉ</div><div class="objective-title" id="objective-title">Survivre à la première vague</div><div id="objective-subtitle">Éliminez les présences pour gagner des essences.</div><div class="objective-progress"><span id="objective-progress"></span></div><div class="hud-tools"><button id="hud-help" aria-label="Guide de survie">?</button><button id="hud-pause" aria-label="Mettre en pause">Ⅱ</button></div></div>
-  <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker" class="hitmarker">╳</div><div id="damage-overlay" class="damage-overlay"></div>
-  <div id="downed" class="downed hidden"><span class="eyebrow">À TERRE</span><b>Vos coéquipiers finissent la vague</b></div>
-  <div id="boss-bar" class="boss-bar hidden"><span class="tiny" id="boss-name">L’ARCHONTE</span><div class="boss-track"><span id="boss-fill"></span></div></div>
-  <div id="announcement" class="announcement"><div class="eyebrow"></div><h2></h2><p></p></div>
-  <div id="interaction" class="interaction hidden"><kbd>E</kbd><span></span></div>
-  <div class="hud-bottom-left"><div class="minimap-wrap"><canvas id="minimap" width="180" height="180" aria-label="Radar : ennemis en rouge, machines en doré"></canvas><span class="radar-caption">RADAR DE PROXIMITÉ</span></div><div id="team-list" class="team-list"></div><div id="perk-slots" class="perk-slots"></div><div class="player-name">${icon("shield")} <b id="movement-state">DEBOUT</b> <span>01</span></div><div class="health-row">${icon("cross")}<strong id="health-value">100</strong><span id="health-max">/ 100</span></div><div class="health-track"><span id="health-fill"></span></div><div class="stamina-track"><span id="stamina-fill"></span></div><div class="essence-row">${icon("eclipse")}<strong id="points-value">650</strong><span>ESSENCES</span></div></div>
-  <div class="hud-bottom-center"><div id="powerup-row"></div><div id="reload-bar" class="reload-bar hidden"><span>RECHARGEMENT</span><div><i></i></div></div><div id="quick-controls"><span><kbd>ZQSD</kbd> DÉPLACEMENT</span><span><kbd>MAJ</kbd> COURIR</span><span><kbd>C</kbd> S’ACCROUPIR</span><span><kbd>R</kbd> RECHARGER</span><span><kbd>V</kbd> COUTEAU</span><span><kbd>G</kbd> GRENADE</span><span><kbd>ÉCHAP</kbd> PAUSE</span></div></div>
-  <div class="hud-bottom-right"><div class="weapon-class" id="weapon-class">PISTOLET</div><div class="weapon-name" id="weapon-name">VIGILE .45</div><div class="ammo-row"><span id="ammo-value">12</span><span class="ammo-slash">/</span><span id="reserve-value">84</span></div><div class="weapon-slots" id="weapon-slots"></div><div class="grenade-row">◇ <span id="grenade-count">3</span> <span>GRENADES</span><kbd>G</kbd></div></div>
-  <div id="score-feed" class="score-feed"></div><div class="session-timer" id="session-timer">00:00</div>
- </section>
- <div id="touch-controls" class="touch-controls hidden" aria-label="Commandes tactiles">
-  <div id="touch-move" class="mobile-move-zone" aria-label="Joystick de déplacement"><div id="touch-stick" class="mobile-stick"><span class="stick-sprint">⌃⌃</span><span class="stick-knob"></span></div><span class="mobile-move-tip">GLISSE POUR BOUGER<br><b>POUSSE POUR COURIR</b></span></div>
-  <div id="touch-look" class="mobile-look-zone" aria-label="Glisser pour regarder"></div>
-  <button data-action="fire" class="mobile-button mobile-fire" aria-label="Tirer et glisser pour viser">${icon("bullet")}<small>TIRER</small></button>
-  <span class="mobile-fire-tip">MAINTIENS ET GLISSE POUR VISER</span>
-  <button data-action="aim" class="mobile-button mobile-aim" aria-label="Viser" aria-pressed="false">${icon("target")}</button>
-  <button data-action="jump" class="mobile-button mobile-jump" aria-label="Sauter">${icon("jump")}</button>
-  <button data-action="crouch" class="mobile-button mobile-crouch" aria-label="S’accroupir" aria-pressed="false">${icon("crouch")}</button>
-  <button data-action="grenade" class="mobile-button mobile-grenade" aria-label="Lancer une grenade">${icon("grenade")}<b id="mobile-grenades">3</b></button>
-  <button data-action="melee" class="mobile-button mobile-melee" aria-label="Coup de couteau">${icon("knife")}</button>
-  <div class="mobile-weapon"><button data-action="reload" aria-label="Recharger"><span id="mobile-weapon-name">VIGILE .45</span><span><b id="mobile-ammo">12</b><i id="mobile-reserve">/ 84</i>${icon("magazine")}</span></button><button data-action="switch" aria-label="Changer d’arme">${icon("arrow")}<small>1 / 2</small></button></div>
-  <button data-action="interact" id="mobile-interact" class="mobile-interact hidden">${icon("target")}<span></span></button>
- </div>
- <section id="mobile-orientation" class="mobile-orientation hidden" role="dialog" aria-modal="true" aria-labelledby="orientation-title"><div class="orientation-art"></div><div class="orientation-card">${icon("phone")}<span class="eyebrow">VESPER · ÉDITION TACTILE</span><h2 id="orientation-title">Toute la nuit.<br>Entre tes mains.</h2><p>Tourne ton téléphone pour jouer en paysage.</p><div class="orientation-controls"><span><b>POUCE GAUCHE</b>Déplacer · courir</span><span><b>POUCE DROIT</b>Viser · tirer</span></div><small id="orientation-status">La partie commencera après la rotation.</small><button id="orientation-back" class="text-button">RETOUR AU MENU</button></div></section>
- <section id="pause" class="screen pause-screen hidden"><div class="pause-content"><div class="eyebrow">UN INSTANT DE SILENCE</div><h2>La nuit attend.</h2><p>Votre partie est en pause.</p><button class="primary-button" id="resume-button">REPRENDRE ${icon("arrow")}</button><button class="secondary-button" id="pause-settings">PARAMÈTRES</button><button class="text-button mobile-pause-help" id="pause-help">GUIDE TACTILE</button><button class="text-button" id="quit-button">QUITTER LA PARTIE</button><div class="pause-hint">ÉCHAP POUR REPRENDRE</div></div></section>
- <section id="gameover" class="screen gameover-screen hidden"><div class="gameover-content"><div class="eyebrow" id="end-eyebrow">TRANSMISSION INTERROMPUE</div><h2 id="end-title">La nuit vous a pris.</h2><p id="end-subtitle">D’autres entendront le signal.</p><div class="end-stats" id="end-stats"></div><div class="end-details" id="end-details"></div><button class="primary-button" id="retry-button">RETOURNER DANS LA NUIT ${icon("arrow")}</button><button class="text-button" id="end-menu">RETOUR AU MENU</button></div></section>
- <div id="toast-container" aria-live="polite"></div>`;
+let settings = readSettings();
+mountShell(difficulty);
+const renderHUD = createHUD();
 const menuArt = $("#menu-art");
 menuArt.style.backgroundImage = "url(/art/abbey.webp)";
 const formatTime = (s) =>
@@ -231,58 +144,8 @@ function onEvent(type, payload) {
       break;
   }
 }
-async function startGame(event, coop = null) {
-  if (game?.state === "loading") return;
-  // Some touch browsers report zero maxTouchPoints. A touch launch also covers
-  // hybrid devices whose primary pointer is a mouse or trackpad.
-  const touch =
-    event?.pointerType === "touch" || matchMedia("(pointer: coarse)").matches;
-  // Unlock audio in the actual click/tap, before loading the 3D engine.
-  sound.setVolume(settings.volume);
-  sound.setMusicVolume(settings.musicVolume);
-  void sound.init().catch(() => {});
-  if (touch && innerWidth < (window.visualViewport?.height || innerHeight)) {
-    awaitingLandscape = true;
-    $("#orientation-status").textContent =
-      "La partie commencera après la rotation.";
-    $("#mobile-orientation").classList.remove("hidden");
-    return;
-  }
-  if (touch && event?.isTrusted && !document.fullscreenElement)
-    document.documentElement.requestFullscreen?.().catch(() => {});
-  closePanel();
-  if (coop) {
-    selectedMap = coop.map;
-    difficulty = coop.difficulty;
-  }
-  $("#loading-map").textContent = MAPS.find((m) => m.id === selectedMap).name;
-  state("loading");
-  await new Promise((r) =>
-    requestAnimationFrame(() => requestAnimationFrame(r)),
-  );
-  try {
-    if (!game) {
-      const { Game } = await import("./game.js");
-      game = new Game($("#game-canvas"), settings, onEvent, sound);
-      if (import.meta.env.DEV) {
-        window.__vesper = game;
-      }
-    }
-    let session = null;
-    if (coop) {
-      const { Session } = await import("./multiplayer.js");
-      session = new Session(net, { hostId: coop.host, players: coop.players });
-    }
-    await game.start(selectedMap, difficulty, touch, session);
-    $("#hud-map").textContent = MAPS.find((m) => m.id === selectedMap).short;
-  } catch (e) {
-    console.error(e);
-    state("menu");
-    toast({
-      title: "Le jeu n’a pas pu démarrer",
-      text: "Vérifiez que l’accélération graphique et WebGL 2 sont activés dans votre navigateur.",
-    });
-  }
+function startGame(event, coop = null) {
+  return launcher.start(event, coop);
 }
 function refreshRecords() {
   const save = readSave();
@@ -341,7 +204,12 @@ $("#resume-button").onclick = () => {
   }
   game.resume();
 };
-$("#retry-button").onclick = startGame;
+$("#retry-button").onclick = (event) => {
+  if (game?.run.session) {
+    game.menu();
+    openPanel("multi");
+  } else startGame(event);
+};
 $("#end-menu").onclick = () => game.menu();
 $("#quit-button").onclick = () => {
   openPanel("quit");
@@ -534,7 +402,7 @@ function openPanel(kind) {
     )
       .map(
         (p) =>
-          `${p.name} : ${p.description.replace(/\.$/, "").charAt(0).toLowerCase()}${p.description.replace(/\.$/, "").slice(1)}`,
+          `${escapeHtml(p.name)} : ${p.description.replace(/\.$/, "").charAt(0).toLowerCase()}${p.description.replace(/\.$/, "").slice(1)}`,
       )
       .join(
         " ; ",
@@ -555,7 +423,7 @@ function renderLobby() {
   const room = net.room;
   const isHost = room && room.host === net.id;
   if (!room) {
-    content.innerHTML = `<div class="eyebrow">JOUER ENTRE AMIS</div><h2>Une nuit à plusieurs.</h2><p class="panel-description">Jusqu’à quatre survivants dans la même partie. Créez un salon et partagez son code, ou entrez celui d’un ami. Le créateur du salon héberge la partie : sa connexion doit rester ouverte.</p><div class="lobby-form"><label for="coop-name">Votre nom</label><input id="coop-name" maxlength="16" placeholder="Survivant" value="${playerName.replace(/"/g, "&quot;")}"/><div class="lobby-actions"><button class="primary-button" id="coop-create">CRÉER UN SALON ${icon("arrow")}</button><div class="lobby-join"><input id="coop-code" maxlength="4" placeholder="CODE" autocapitalize="characters"/><button class="secondary-button" id="coop-join">REJOINDRE</button></div></div><p class="lobby-status" id="coop-status">${lobbyStatus}</p></div>`;
+    content.innerHTML = `<div class="eyebrow">JOUER ENTRE AMIS</div><h2>Une nuit à plusieurs.</h2><p class="panel-description">Jusqu’à quatre survivants dans la même partie. Créez un salon et partagez son code, ou entrez celui d’un ami. Le créateur du salon héberge la partie : sa connexion doit rester ouverte.</p><div class="lobby-form"><label for="coop-name">Votre nom</label><input id="coop-name" maxlength="16" placeholder="Survivant" value="${escapeHtml(playerName)}"/><div class="lobby-actions"><button class="primary-button" id="coop-create">CRÉER UN SALON ${icon("arrow")}</button><div class="lobby-join"><input id="coop-code" maxlength="4" placeholder="CODE" autocapitalize="characters"/><button class="secondary-button" id="coop-join">REJOINDRE</button></div></div><p class="lobby-status" id="coop-status">${lobbyStatus}</p></div>`;
     $("#coop-name").oninput = (e) => {
       playerName = e.target.value.trim();
       try {
@@ -595,7 +463,7 @@ function renderLobby() {
     return;
   }
   const map = MAPS.find((m) => m.id === room.map) || MAPS[0];
-  content.innerHTML = `<div class="eyebrow">SALON ${room.code}</div><h2>${room.players.length} survivant${room.players.length > 1 ? "s" : ""} prêt${room.players.length > 1 ? "s" : ""}.</h2><p class="panel-description">Partagez le code <b class="lobby-code">${room.code}</b> avec vos amis. ${isHost ? "Choisissez la destination et lancez la nuit quand tout le monde est là." : "L’hôte choisit la destination et lance la partie."}</p><div class="lobby-grid"><section><h3>ÉQUIPE</h3><ul class="lobby-players">${room.players.map((p) => `<li><span>${p.name}</span><small>${p.id === room.host ? "HÔTE" : ""}${p.id === net.id ? " · VOUS" : ""}</small></li>`).join("")}${Array.from({ length: Math.max(0, 4 - room.players.length) }, () => `<li class="empty"><span>Place libre</span></li>`).join("")}</ul></section><section><h3>DESTINATION</h3>${
+  content.innerHTML = `<div class="eyebrow">SALON ${room.code}</div><h2>${room.players.length} survivant${room.players.length > 1 ? "s" : ""} prêt${room.players.length > 1 ? "s" : ""}.</h2><p class="panel-description">Partagez le code <b class="lobby-code">${room.code}</b> avec vos amis. ${isHost ? "Choisissez la destination et lancez la nuit quand tout le monde est là." : "L’hôte choisit la destination et lance la partie."}</p><div class="lobby-grid"><section><h3>ÉQUIPE</h3><ul class="lobby-players">${room.players.map((p) => `<li><span>${escapeHtml(p.name)}</span><small>${p.id === room.host ? "HÔTE" : ""}${p.id === net.id ? " · VOUS" : ""}</small></li>`).join("")}${Array.from({ length: Math.max(0, 4 - room.players.length) }, () => `<li class="empty"><span>Place libre</span></li>`).join("")}</ul></section><section><h3>DESTINATION</h3>${
     isHost
       ? `<div class="setting"><label for="coop-map">Carte</label><select id="coop-map">${MAPS.map((m) => `<option value="${m.id}" ${m.id === room.map ? "selected" : ""}>${m.name}</option>`).join("")}</select></div><div class="setting"><label for="coop-difficulty">Difficulté</label><select id="coop-difficulty">${Object.entries(
           DIFFICULTIES,
@@ -648,6 +516,7 @@ net.on("start", (m) => {
     difficulty: m.difficulty,
     host: m.host,
     players: m.players,
+    run: m.run,
   });
 });
 $("#coop-button").onclick = () => openPanel("multi");
@@ -695,230 +564,7 @@ window.addEventListener(
   },
   true,
 );
-const minimap = $("#minimap"),
-  mc = minimap.getContext("2d");
-// Rewriting innerHTML thirteen times a second re-creates identical nodes.
-const lastHtml = new Map();
-function setHtml(selector, html) {
-  if (lastHtml.get(selector) === html) return;
-  lastHtml.set(selector, html);
-  $(selector).innerHTML = html;
-}
-let miniFrame = 0;
-function renderHUD(h) {
-  $("#wave-number").textContent = String(h.wave).padStart(2, "0");
-  $("#hud-map").textContent = h.sector
-    ? `NÉRÉIDE · ${h.sector.toUpperCase()}`
-    : MAPS.find((m) => m.id === h.map).short;
-  $("#wave-status").textContent =
-    h.phase === "rest"
-      ? `PROCHAINE DANS ${h.timer} S${game.touch || h.peer ? "" : " · [N]"}`
-      : "SURVIVEZ À LA HORDE";
-  $("#downed").classList.toggle("hidden", !h.downed);
-  setHtml(
-    "#team-list",
-    (h.team || [])
-      .map(
-        (p) =>
-          `<div class="${p.down ? "down" : ""}"><span>${p.name}</span><i><b style="width:${Math.max(0, Math.min(100, (p.health / p.maxHealth) * 100))}%"></b></i><small>${p.down ? "À TERRE" : p.weapon}</small></div>`,
-      )
-      .join(""),
-  );
-  $("#enemy-count").textContent = h.phase === "wave" ? h.remaining : "—";
-  $("#health-value").textContent = Math.ceil(h.health);
-  $("#health-max").textContent = "/ " + h.maxHealth;
-  $("#health-fill").style.width = `${(h.health / h.maxHealth) * 100}%`;
-  $("#health-fill").classList.toggle("low", h.health < 35);
-  $("#stamina-fill").style.width = h.stamina + "%";
-  $("#movement-state").textContent = h.crouched
-    ? "ACCROUPI"
-    : h.sprinting
-      ? "COURSE"
-      : h.exhausted
-        ? "ESSOUFFLÉ"
-        : "DEBOUT";
-  $("#power-state").textContent = h.power
-    ? "CIRCUIT SOUS TENSION"
-    : "COURANT COUPÉ";
-  $("#power-state").classList.toggle("powered", h.power);
-  for (const [action, selected] of [
-    ["crouch", h.crouched],
-    ["aim", game.mouse.aim],
-  ]) {
-    const button = $(`[data-action="${action}"]`);
-    button.classList.toggle("selected", !!selected);
-    button.setAttribute("aria-pressed", String(!!selected));
-  }
-  $("#mobile-weapon-name").textContent = h.definition.name;
-  $("#mobile-ammo").textContent = String(h.weapon.ammo).padStart(2, "0");
-  $("#mobile-reserve").textContent = `/ ${h.weapon.reserve}`;
-  $("#mobile-grenades").textContent = h.grenades;
-  $(".mobile-weapon").classList.toggle("reloading", h.reload !== null);
-  $("[data-action='switch']").disabled = h.slots.length < 2;
-  $("#mobile-interact").classList.toggle("hidden", !h.interaction);
-  $("#mobile-interact span").textContent = h.interaction || "";
-  $("#points-value").textContent = h.points.toLocaleString("fr-FR");
-  $("#weapon-name").textContent =
-    h.definition.name +
-    (h.weapon.level ? ` ✦${UPGRADE.names[h.weapon.level]}` : "");
-  $("#weapon-class").textContent = h.weapon.level
-    ? "TRANSFIGURÉE"
-    : h.definition.class;
-  $("#ammo-value").textContent = String(h.weapon.ammo).padStart(2, "0");
-  $("#ammo-value").classList.toggle("low", h.weapon.ammo < 4);
-  $("#reserve-value").textContent = h.weapon.reserve;
-  $("#grenade-count").textContent = h.grenades;
-  $("#session-timer").textContent = formatTime(h.time);
-  setHtml(
-    "#weapon-slots",
-    h.slots
-      .map(
-        (w, i) =>
-          `<span class="${w === h.weapon ? "selected" : ""}"><kbd>${i + 1}</kbd>${WEAPONS[w.id].name}</span>`,
-      )
-      .join(""),
-  );
-  $("#crosshair").style.display =
-    settings.crosshair && !game.mouse.aim ? "" : "none";
-  $("#crosshair").classList.toggle("wide", h.weapon.id === "requiem");
-  $("#scope").classList.toggle(
-    "hidden",
-    !(game.mouse.aim && h.weapon.id === "longinus" && h.reload === null),
-  );
-  const boss = h.boss?.[0];
-  $("#boss-bar").classList.toggle("hidden", !boss);
-  if (boss) {
-    $("#boss-name").textContent =
-      h.boss.length > 1
-        ? `${boss.name.toUpperCase()} · ${h.boss.length}`
-        : boss.name.toUpperCase();
-    $("#boss-fill").style.width =
-      `${(h.boss.reduce((a, b) => a + b.health, 0) / h.boss.reduce((a, b) => a + b.max, 0)) * 100}%`;
-  }
-  $("#interaction").classList.toggle("hidden", !h.interaction);
-  $("#interaction span").textContent = h.interaction || "";
-  $("#reload-bar").classList.toggle("hidden", h.reload === null);
-  $("#reload-bar i").style.width = (h.reload || 0) * 100 + "%";
-  setHtml(
-    "#perk-slots",
-    h.perks
-      .map(
-        (p) =>
-          `<span title="${PERKS[p]?.name || p}">${icon(PERKS[p]?.icon || "bolt")}</span>`,
-      )
-      .join(""),
-  );
-  setHtml(
-    "#powerup-row",
-    [
-      h.double ? `<span>×2 ESSENCES <b>${h.double}s</b></span>` : "",
-      h.insta ? `<span>☠ MORT INSTANTANÉE <b>${h.insta}s</b></span>` : "",
-    ].join(""),
-  );
-  $("#quick-controls").classList.toggle("faded", h.time > 35);
-  $("#quick-controls kbd").textContent =
-    settings.layout === "azerty" ? "ZQSD" : "WASD";
-  let title, sub;
-  if (h.extraction !== null) {
-    title = `Extraction · ${h.extraction} s`;
-    sub = "Restez près de la balise (rayon de 4,5 m).";
-  } else if (!h.door) {
-    title = "Ouvrir la zone interdite";
-    sub =
-      MAPS.find((m) => m.id === h.map)?.gateHint ||
-      "Grille centrale · 750 essences";
-  } else if (!h.power) {
-    title = "Rétablir le courant";
-    sub =
-      MAPS.find((m) => m.id === h.map)?.powerHint ||
-      "Générateur · Aile gauche, au fond";
-  } else if (h.wave < 10 || (h.wave === 10 && h.phase === "wave")) {
-    title = "Survivre à 10 vagues";
-    sub = "Améliorez vos armes. Préparez votre extraction.";
-  } else {
-    title = "Le choix vous appartient";
-    sub = "Balise à l’entrée · Extraction ou survie sans fin";
-  }
-  $("#objective-title").textContent = title;
-  $("#objective-subtitle").textContent = sub;
-  $("#objective-progress").style.width = Math.min(100, h.wave * 10) + "%";
-  const angle = ((((-h.yaw * 180) / Math.PI) % 360) + 360) % 360;
-  const dirs = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
-  setHtml(
-    "#compass-directions",
-    `<span>${dirs[(Math.round(angle / 45) + 7) % 8]}</span> ${dirs[Math.round(angle / 45) % 8]} <span>${dirs[(Math.round(angle / 45) + 1) % 8]}</span>`,
-  );
-  if (++miniFrame % 3 === 0) {
-    mc.clearRect(0, 0, 180, 180);
-    mc.save();
-    mc.beginPath();
-    mc.arc(90, 90, 86, 0, Math.PI * 2);
-    mc.clip();
-    mc.fillStyle = "#111d22c9";
-    mc.fillRect(0, 0, 180, 180);
-    mc.strokeStyle = "#96b8b315";
-    for (let i = 0; i < 180; i += 18) {
-      mc.beginPath();
-      mc.moveTo(i, 0);
-      mc.lineTo(i, 180);
-      mc.moveTo(0, i);
-      mc.lineTo(180, i);
-      mc.stroke();
-    }
-    const scale = 3.1,
-      px = h.position.x,
-      pz = h.position.z;
-    mc.fillStyle = "#a8bcb236";
-    for (const o of h.obstacles) {
-      if (o.active === false) continue;
-      mc.fillRect(
-        90 + (o.x - o.w / 2 - px) * scale,
-        90 + (o.z - o.d / 2 - pz) * scale,
-        o.w * scale,
-        o.d * scale,
-      );
-    }
-    for (const i of h.interactions) {
-      if (i.kind === "door") continue;
-      mc.fillStyle = i.kind === "extract" ? "#8bcbbb" : "#d9ad6f";
-      mc.fillRect(
-        88 + (i.position.x - px) * scale,
-        88 + (i.position.z - pz) * scale,
-        4,
-        4,
-      );
-    }
-    for (const e of h.enemies) {
-      if (e.dead) continue;
-      mc.fillStyle = e.type === "brute" ? "#ffb551" : "#e66d5b";
-      mc.beginPath();
-      mc.arc(
-        90 + (e.model.position.x - px) * scale,
-        90 + (e.model.position.z - pz) * scale,
-        e.type === "brute" ? 3 : 2,
-        0,
-        7,
-      );
-      mc.fill();
-    }
-    mc.translate(90, 90);
-    mc.rotate(-h.yaw);
-    mc.fillStyle = "#f0e8d2";
-    mc.beginPath();
-    mc.moveTo(0, -6);
-    mc.lineTo(-4, 4);
-    mc.lineTo(0, 2);
-    mc.lineTo(4, 4);
-    mc.fill();
-    mc.restore();
-    mc.strokeStyle = "#b4c1ad42";
-    mc.beginPath();
-    mc.arc(90, 90, 86, 0, 7);
-    mc.stroke();
-  }
-}
 function renderEnd(r) {
-  lastRecord = r;
   $("#end-eyebrow").textContent = r.victory
     ? "EXTRACTION CONFIRMÉE"
     : "TRANSMISSION INTERROMPUE";
@@ -942,17 +588,54 @@ function renderEnd(r) {
 }
 const touchControls = new TouchControls(
   $("#touch-controls"),
-  () => game,
+  () => game?.inputPort,
   () => settings,
 );
-let awaitingLandscape = false;
+const launcher = createLauncher({
+  sound,
+  net,
+  canvas: $("#game-canvas"),
+  getSettings: () => settings,
+  getSelection: () => ({ map: selectedMap, difficulty }),
+  onGame: {
+    created: (instance) => {
+      game = instance;
+    },
+    event: onEvent,
+  },
+  onLoading: (map, selectedDifficulty) => {
+    selectedMap = map.id;
+    difficulty = selectedDifficulty;
+    closePanel();
+    $("#loading-map").textContent = map.name;
+    state("loading");
+  },
+  onReady: (map) => {
+    $("#hud-map").textContent = map.short;
+  },
+  onError: (error) => {
+    console.error(error);
+    state("menu");
+    toast({
+      title: "Le jeu n’a pas pu démarrer",
+      text:
+        error.message === "session-lost"
+          ? "La partie entre amis a été fermée. Rejoignez le salon pour relancer."
+          : "Le chargement a échoué. Vous pouvez réessayer depuis le menu.",
+    });
+  },
+  showOrientation: () => {
+    $("#orientation-status").textContent =
+      "La partie commencera après la rotation.";
+    $("#mobile-orientation").classList.remove("hidden");
+  },
+});
 function updateViewport() {
   const height = window.visualViewport?.height || innerHeight;
   document.documentElement.style.setProperty("--app-height", `${height}px`);
-  if (awaitingLandscape && innerWidth > height) {
-    awaitingLandscape = false;
+  if (launcher.awaitingLandscape && innerWidth > height) {
     $("#mobile-orientation").classList.add("hidden");
-    void startGame({ pointerType: "touch" });
+    void launcher.resumeAfterRotation();
   } else if (game?.touch && game.state === "playing" && innerWidth < height) {
     game.pause();
     $("#orientation-status").textContent =
@@ -966,7 +649,7 @@ function updateViewport() {
 window.addEventListener("resize", updateViewport);
 window.visualViewport?.addEventListener("resize", updateViewport);
 $("#orientation-back").onclick = () => {
-  awaitingLandscape = false;
+  launcher.cancelDeferred();
   $("#mobile-orientation").classList.add("hidden");
   if (game?.state === "paused") openPanel("quit");
 };

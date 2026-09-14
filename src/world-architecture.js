@@ -408,12 +408,12 @@ function abyss(world) {
 }
 
 export function buildArchitecture(world) {
-  if (world.id === "abbey") abbey(world);
-  else if (world.id === "station") station(world);
+  if (world.theme === "abbey") abbey(world);
+  else if (world.theme === "station") station(world);
   else abyss(world);
   // Broken stone and dust clusters use one instanced submission; placement is
   // bounded to existing cover so there are no new collision surprises.
-  const random = rng(world.id === "abbey" ? 6182 : 4193),
+  const random = rng(world.theme === "abbey" ? 6182 : 4193),
     count = 260;
   const chunks = new T.InstancedMesh(
     new T.DodecahedronGeometry(1, 0),

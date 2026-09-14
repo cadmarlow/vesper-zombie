@@ -6,6 +6,7 @@ const { version } = JSON.parse(
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(version) },
   build: {
+    manifest: true,
     rolldownOptions: {
       output: {
         codeSplitting: {

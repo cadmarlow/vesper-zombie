@@ -152,10 +152,11 @@ function hand(parent, cloth, glove, detail, x, y, z, left = false) {
 export function weaponModel(id, upgraded = false, viewModel = false) {
   const g = new T.Group(),
     def = WEAPONS[id],
-    pistol = id === "vigil",
-    shotgun = id === "requiem",
-    sniper = id === "longinus",
-    alien = id === "eclipse";
+    look = def.look || id,
+    pistol = look === "vigil",
+    shotgun = look === "requiem",
+    sniper = look === "longinus",
+    alien = look === "eclipse";
   g.name = `weapon-${id}`;
   const metal = new T.MeshStandardMaterial({
     color: 0x687475,
@@ -219,7 +220,7 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
         ? 0.91
         : alien
           ? 0.8
-          : id === "spectre"
+          : look === "spectre"
             ? 0.69
             : 0.83;
   if (pistol) {
@@ -667,6 +668,7 @@ export function weaponModel(id, upgraded = false, viewModel = false) {
     flash,
     len,
     id,
+    look,
     slide,
     magazine,
     left,
@@ -682,17 +684,17 @@ export function animateWeapon(g, dt, reload, shot, sprint, time, aim) {
   const d = g.userData;
   d.cycle = Math.max(0, d.cycle - dt * 12);
   d.slide.position.z =
-    Math.sin(d.cycle * Math.PI) * (d.id === "requiem" ? 0.11 : 0.048);
+    Math.sin(d.cycle * Math.PI) * (d.look === "requiem" ? 0.11 : 0.048);
   const release =
     T.MathUtils.smoothstep(reload, 0.16, 0.3) *
     (1 - T.MathUtils.smoothstep(reload, 0.55, 0.74));
-  if (d.id !== "requiem") {
+  if (d.look !== "requiem") {
     d.magazine.position.set(-release * 0.018, -release * 0.31, release * 0.09);
     d.magazine.rotation.x = -release * 0.16;
   }
   d.left.position.copy(d.supportRest);
   d.left.rotation.copy(d.supportRotation);
-  if (reload > 0 && d.id === "requiem") {
+  if (reload > 0 && d.look === "requiem") {
     // Tube-fed: the support hand feeds shells through the loading port, then
     // racks the fore-end. No magazine ever drops from this weapon.
     const window =

@@ -62,7 +62,12 @@ export async function prepareSurfaces(mobile = false, map = "abbey") {
           return [name, maps.every(Boolean) ? maps : null];
         }),
       )
-        .then((entries) => new Map(entries))
+        .then((entries) => {
+          // A fulfilled library can still contain failed individual scans.
+          // Keep today's fallback, but retry missing channels on the next run.
+          if (entries.some(([, maps]) => !maps)) libraries.delete(key);
+          return new Map(entries);
+        })
         .catch((error) => {
           libraries.delete(key);
           throw error;

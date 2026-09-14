@@ -252,8 +252,6 @@ export function glowSprite(color = 0xff9955, size = 2) {
   m.scale.set(size, size, 1);
   return m;
 }
-export { zombieModel, animateZombie } from "./creatures.js";
-export { weaponModel } from "./weapons.js";
 
 // Operator's field knife: bevelled steel, fuller, brass guard, wrapped grip and a gloved hand.
 export function knifeModel() {

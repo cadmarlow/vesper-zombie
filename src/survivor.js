@@ -1,3 +1,4 @@
+import { WEAPONS } from "./content/weapons.js";
 // Third-person teammate: a soldier built from rigid parts on a small bone
 // tree, with a two-handed rifle stance solved by a two-bone reach so both
 // hands sit on the grip and fore-end of whichever weapon they carry.
@@ -5,6 +6,7 @@ import * as T from "three";
 import { mat, glow } from "./assets.js";
 import { surface } from "./surfaces.js";
 import { weaponModel } from "./weapons.js";
+import { disposeModel } from "./resources.js";
 
 export const TEAM_COLORS = [0xe8a64a, 0x52bfe0, 0xe0655c, 0x8fd47c];
 const UPPER_ARM = 0.305,
@@ -210,12 +212,15 @@ export function survivorModel(color = TEAM_COLORS[0]) {
 export function survivorWeapon(g, id, upgraded) {
   const d = g.userData;
   if (d.gunId === `${id}-${upgraded ? 1 : 0}`) return d.gun;
-  if (d.gun) d.gun.removeFromParent();
+  if (d.gun) {
+    d.gun.removeFromParent();
+    disposeModel(d.gun);
+  }
   const gun = weaponModel(id, upgraded);
   gun.scale.setScalar(0.7);
   d.mount.add(gun);
   // A pistol is held out at arm's length; long guns rest against the chest.
-  const pistol = id === "vigil";
+  const pistol = (WEAPONS[id].look || id) === "vigil";
   d.mount.parent.position.set(
     pistol ? 0.06 : 0.12,
     pistol ? 0.0 : -0.04,
@@ -224,7 +229,7 @@ export function survivorWeapon(g, id, upgraded) {
   d.gun = gun;
   d.gunId = `${id}-${upgraded ? 1 : 0}`;
   // Where the hands go, in the weapon's own frame.
-  const long = !["vigil"].includes(id);
+  const long = !pistol;
   d.grip.set(0.013, -0.171, long ? 0.075 : 0.02);
   d.foreGrip.set(0.0, -0.075, long ? -0.34 : -0.12);
   return gun;

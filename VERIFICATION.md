@@ -2,6 +2,61 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Mesure CPU et rendu — 14 septembre 2026
+
+Comparaison du build avant/après, Chrome isolé sur Apple M1 Pro, 1440 × 900, DPR 1,5, qualité élevée et adaptation désactivée. Chaque scénario mesure quatre secondes après préchauffage. Rapports : `artifacts/thermal-baseline/report.json` et `artifacts/thermal-optimized/report.json`.
+
+| Situation | Images 3D/s avant → après | CPU du processus de rendu avant → après |
+| --- | --- | --- |
+| Pause | 51,7 → 0 | 28,1 % → 6,2 % |
+| Fin de partie | 60 → 0 | 40,6 % → 6,4 % |
+| Partie, 28 ennemis, trois cartes | environ 60 → 60 | pas de baisse générale établie |
+
+Les pourcentages CPU utilisent un cœur comme 100 %. Le rendu s'arrête au repos, les rappels audio passent à 10 Hz et le plafond 30/60 images/s est maintenant respecté sur les écrans rapides. La passe d'occlusion évite un second recalcul des matrices. Aucune réduction de résolution, d'effet ou de niveau graphique par défaut. Les mesures en partie fluctuent de quelques pourcents : aucun gain global de FPS ou de CPU en partie à 60 Hz n'est revendiqué.
+
+`thermal-check` réussit 22 contrôles : cadence réelle, pause/reprise, visibilité, réglages, relance et destruction ; comparaison strictement identique des pixels avec/sans réutilisation des matrices sur les trois cartes. Deux tests unitaires couvrent les écrans de 60 à 240 Hz, les interruptions et changements de cadence. Rapport : `artifacts/thermal-check-1789412378941/report.json`.
+
+Les compteurs du processus GPU représentent son usage **CPU**, pas le taux d'occupation du GPU physique. Les requêtes de temps WebGL/ANGLE-Metal sont conservées brutes et ne sont pas utilisées pour annoncer un gain GPU, car leur chronométrage inclut des effets du pilote. Aucune mesure de température ni de puissance électrique. Les performances d'un téléphone physique restent à vérifier.
+
+## Base modulaire — 14 septembre 2026
+
+Refactorisation locale, sous Node.js 24.20.0. Les règles, statistiques, décors, matériaux et animations existants sont conservés. Les gros coordinateurs ont été répartis par responsabilité : `game.js` passe de 2 553 à 697 lignes ; les cartes, définitions de contenu, systèmes de jeu, HUD et réplication réseau ont leurs modules dédiés. Le guide de reprise est [ARCHITECTURE.md](ARCHITECTURE.md).
+
+Les corrections couvrent les chargements concurrents/annulés/en échec, la rotation pendant un lancement coopératif, l’attente de tous les joueurs, la pause commune, l’état à terre, les achats concurrents, les événements d’anciens runs ou du mauvais émetteur, les paramètres corrompus, le nettoyage des modèles/instances GPU et le nouvel essai des textures après un chargement échoué. Une trame WebSocket trop volumineuse est désormais limitée à la connexion fautive ; la régression a été reproduite avant correction puis vérifiée. La cadence de 30 images/s ne fait plus baisser indûment la résolution adaptative. Le menu court défile pour rendre le bouton coopératif accessible.
+
+| Vérification                         | Résultat                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------- |
+| Formatage, syntaxe et dépendances    | 60 modules, aucun import manquant/inutilisé ni cycle détecté                                |
+| Tests unitaires et réseau réel local | 28 tests réussis                                                                            |
+| Combat, économie, armes, transitions | 41 contrôles d’intégration réussis                                                          |
+| Progression et navigation            | 190 vagues terminées, trois cartes, aucun spawn invalide ni vague bloquée                   |
+| Menu                                 | 391 combinaisons de dimensions sans chevauchement des actions                               |
+| Tactile Chrome/WebKit                | 75 contrôles réussis, dont deux contacts simultanés et rotation                             |
+| Parcours du build Chrome/WebKit      | 267 contrôles réussis, aucune erreur ni ressource en échec                                  |
+| Sensations et livraison              | 34 + 21 contrôles réussis                                                                   |
+| Durée de vie graphique               | 29 contrôles réussis ; géométries et textures stables sur trois cycles de hordes par profil |
+| Ennemis, Néréide, rendu, sang        | 22 + 41 + 28 + 60 contrôles réussis                                                         |
+
+La coopération couvre impacts et crédits des invités, armes des coéquipiers, achats partagés, chute/réapparition, fin commune, relance du même salon, rotation mobile et perte de l’hôte. Les scénarios de reprise se trouvent dans `scripts/foundation-check.mjs` ; ils combinent ordinateur et mobile sur les trois cartes et comprennent également un salon de quatre navigateurs.
+
+**Charge du relais :** 1 000 clients synthétiques dans 250 salons, 28 ennemis par instantané, 100 cycles par salon. Les 75 000 instantanés et 75 000 entrées attendus ont été reçus, sans déconnexion imprévue. Environ 25 500 messages livrés/s, latence médiane 33 ms et 95e percentile 39 ms. Cet essai dure environ six secondes sur la boucle locale, avec clients et relais dans le même processus ; il ne certifie pas la capacité d’un hébergement public.
+
+Rapports de référence :
+
+- `artifacts/verification-1789405639615/test-results.json`
+- `artifacts/waves-regression-1789396365655.json`
+- `artifacts/foundation.json`
+- `artifacts/online-1789404154312/report.json`
+- `artifacts/graphics-lifecycle-1789404325371/report.json`
+- `artifacts/remaster-1789404476470/report.json`
+- `artifacts/relay-load.json`
+
+Les captures de l’Abbaye avant/après ont été inspectées : mêmes éléments de décor, matériaux et interface ; les tirages d’armes et poses animées varient entre captures. La suite de rendu couvre les trois cartes dans les trois qualités, sur ordinateur et mobile émulé. Les mesures élevées avec 28 ennemis vont de 53 à 61 images/s sur ce Mac ; elles ne constituent pas une promesse de performance sur téléphone.
+
+Reproduction : `npm run verify:full`, puis `npm run test:relay-load`. Les suites complètes ont été exécutées successivement ; le contrôle Archives attendait encore cinq entrées avant l’ajout historique de l’Archonte et a été corrigé. Après les derniers correctifs d’achats/relais, les tests unitaires, le build, le combat et la coopération ont été revérifiés. La CI est configurée pour `npm run verify` ; aucun déploiement n’a été effectué pendant ce chantier.
+
+**Limites :** mobile émulé sur ce Mac, sans appareil physique ; le WebKit automatisé refuse la capture souris sur ordinateur, couverte par Chrome. La coopération reste une simulation hébergée par le joueur hôte, sans migration de cette simulation ni autorité serveur anti-triche. Client et relais doivent être livrés ensemble avec le protocole **2**. Les sections suivantes constituent l’historique des vérifications antérieures.
+
 ## Version 3.0.0 — jouer entre amis
 
 ### Parties complètes aux commandes réelles (10 septembre 2026)

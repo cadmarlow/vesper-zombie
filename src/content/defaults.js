@@ -1,0 +1,15 @@
+export const DEFAULT_SETTINGS = {
+  volume: 0.65,
+  musicVolume: 0.75,
+  sensitivity: 1,
+  touchSensitivity: 1,
+  touchAimAssist: true,
+  touchAdaptiveQuality: true,
+  adaptiveQuality: true,
+  frameRate: 60,
+  fov: 80,
+  quality: "high",
+  shake: true,
+  layout: "azerty",
+  crosshair: true,
+};

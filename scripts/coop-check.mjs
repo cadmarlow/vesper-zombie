@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import { openGameAudit } from "./game-audit.mjs";
 // Two browsers, one relay: create/join, start, sync, hits, doors, death/respawn.
 import { chromium } from "@playwright/test";
-const URL = process.env.VESPER_URL || "http://localhost:5173";
+fs.mkdirSync("artifacts", { recursive: true });
+const errors = [];
 const browser = await chromium.launch({
   headless: true,
   executablePath:
@@ -18,12 +21,15 @@ const open = async (label) => {
     viewport: { width: 1280, height: 720 },
   });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => console.log(label, "PAGEERROR", e.message));
+  page.on("pageerror", (e) => {
+    errors.push(e.message);
+    console.log(label, "PAGEERROR", e.message);
+  });
   page.on("console", (m) => {
     if (m.type() === "error")
       console.log(label, "CONSOLE", m.text().slice(0, 200));
   });
-  await page.goto(URL);
+  await openGameAudit(page);
   return page;
 };
 const host = await open("host"),
@@ -105,7 +111,7 @@ check(
 // Host spawns enemies; peer should mirror them
 await host.evaluate(() => {
   const g = window.__vesper;
-  g.phaseTimer = 1e6;
+  g.phaseTimer = 3600;
   g.player.invulnerable = 1e9;
   for (let i = 0; i < 4; i++)
     g.spawnEnemy(
@@ -270,6 +276,7 @@ check(
   states[0] === "gameover" && states[1] === "gameover",
   JSON.stringify(states),
 );
+check("No browser errors", errors.length === 0, JSON.stringify(errors));
 await host.screenshot({ path: `artifacts/coop-${Date.now()}.png` });
 await browser.close();
 if (results.some(([, ok]) => !ok)) process.exit(1);
