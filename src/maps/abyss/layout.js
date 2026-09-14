@@ -10,7 +10,7 @@ import {
   glowSprite,
   label,
 } from "../../assets.js";
-import { worldSurface } from "../../surfaces.js";
+import { worldSurface, projectSurfaceUV } from "../../surfaces.js";
 import { rng } from "../../logic.js";
 
 function livingLeaf() {
@@ -381,8 +381,20 @@ export function buildAbyss(w) {
     root.add(g);
     const bars = new T.Group();
     g.add(bars);
-    for (const dx of [-width / 2 - 0.4, width / 2 + 0.4])
-      box(g, metal, dx, 3, 0, 0.8, 6, 1.1);
+    for (const dx of [-width / 2 - 0.4, width / 2 + 0.4]) {
+      const post = box(g, metal, dx, 3, 0, 0.8, 6, 1.1);
+      // These fixed posts are outside the static batch. Give their scans the
+      // same world-space scale as the wall, instead of stretching one UV tile.
+      g.updateMatrix();
+      post.updateMatrix();
+      const projected = post.geometry
+        .clone()
+        .applyMatrix4(new T.Matrix4().multiplyMatrices(g.matrix, post.matrix));
+      projectSurfaceUV(projected, metal.userData.worldMeters);
+      post.geometry = post.geometry.clone();
+      post.geometry.setAttribute("uv", projected.getAttribute("uv"));
+      projected.dispose();
+    }
     box(g, bronze, 0, 6, 0, width + 1.6, 0.4, 1.2);
     for (let xx = -width / 2 + 0.25; xx < width / 2; xx += 0.65)
       box(bars, metal, xx, 2.7, 0, 0.17, 5.4, 0.24);
@@ -422,8 +434,13 @@ export function buildAbyss(w) {
   };
   for (const z of [24, -23])
     for (const s of [-1, 1]) {
-      w.solid(metal, s * 21, 2.4, z, 30, 4.8, 0.9);
-      box(stage, bronze, s * 21, 4.9, z, 30, 0.13, 1);
+      const wall = w.solid(metal, s * 21, 2.4, z, 30, 4.8, 0.9);
+      // Bury the wall edge inside the post: both used to expose the same
+      // plane at x=±6, making their different texture projections flicker.
+      // The original collider also covers the post and stays in place.
+      wall.position.x += s * 0.2;
+      wall.scale.x -= 0.4;
+      box(stage, bronze, s * 21.2, 4.9, z, 29.6, 0.13, 1);
       for (let x = 9; x < 35; x += 5) {
         const hatch = ring(stage, bronze, s * x, 2.8, z + 0.5, 0.72, 0.065);
         mesh(
@@ -860,7 +877,8 @@ export function buildAbyss(w) {
   ]) {
     w.solid(metal, x, 0.63, z, 3.3, 1.26, 2.1);
     for (const dx of [-1.3, 1.3])
-      box(stage, bronze, x + dx, 0.68, z, 0.12, 1.35, 2.2);
+      // Keep the straps above the lid: coincident top faces shimmer at close range.
+      box(stage, bronze, x + dx, 0.69, z, 0.12, 1.35, 2.2);
     const lid = box(stage, pale, x, 1.3, z, 3.4, 0.11, 2.2);
     lid.rotation.y = angle;
     for (let j = 0; j < 5; j++)

@@ -1,12 +1,14 @@
 const PICKUP_TYPES = ["health", "ammo", "double", "insta"];
-// Tuple ordering is part of protocol v2, independent from registry insertion order.
+// Tuple ordering is part of the wire contract, independent from registry order.
 export function snapshot(context, players, id, tick, me) {
   const g = context;
   const box = g.run.world.interactions.find((i) => i.kind === "box");
   return {
     t: "state",
     paused: g.run.state === "paused",
+    rescue: g.run.session?.rescue.snapshot() || [],
     n: tick,
+    time: +g.run.time.toFixed(3),
     wave: g.run.wave,
     phase: g.run.phase,
     timer: +g.run.phaseTimer.toFixed(1),

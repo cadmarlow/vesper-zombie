@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from "../content/defaults.js";
+import { MUSIC_TRACKS } from "../content/music.js";
 const object = (value) =>
   value && typeof value === "object" && !Array.isArray(value);
 export function readSettings(storage) {
@@ -18,6 +19,7 @@ export function readSettings(storage) {
     fov: [65, 105],
   };
   const choices = {
+    musicTrack: ["random", ...MUSIC_TRACKS.map((track) => track.id)],
     quality: ["low", "medium", "high"],
     layout: ["azerty", "qwerty"],
     frameRate: [30, 60],

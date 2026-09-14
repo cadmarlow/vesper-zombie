@@ -262,81 +262,43 @@ try {
     await page.evaluate(() => window.__vesper.enemies.at(-1).health === 1000),
   );
   await step(0.5);
-  // Render all three scores offline, including their tail; no remote media is involved.
+  // Stream the creator's soundtrack through the same Web Audio music bus.
   const audioReports = [];
-  for (const map of ["abbey", "station", "abyss"]) {
-    const audio = await page.evaluate(async (map) => {
-      const Score = window.__vesper.sound.score.constructor;
-      const rate = 22050,
-        ctx = new OfflineAudioContext(2, rate * 20, rate);
-      const score = new Score(ctx, ctx.destination);
-      for (let i = 0; i < 32; i++)
-        score.scheduleBeat(i * 0.48, i, {
-          map,
-          phase: "wave",
-          wave: 8,
-          power: true,
-        });
-      const buffer = await ctx.startRendering();
-      let sum = 0,
-        peak = 0;
-      const bytes = new Uint8Array(buffer.length * 4);
-      const view = new DataView(bytes.buffer);
-      for (let i = 0; i < buffer.length; i++)
-        for (let c = 0; c < 2; c++) {
-          const v = buffer.getChannelData(c)[i];
-          sum += v * v;
-          peak = Math.max(peak, Math.abs(v));
-          view.setInt16(
-            (i * 2 + c) * 2,
-            Math.max(-1, Math.min(1, v)) * 32767,
-            true,
-          );
-        }
-      let binary = "";
-      for (let i = 0; i < bytes.length; i += 8192)
-        binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-      return {
-        data: btoa(binary),
-        rms: Math.sqrt(sum / (buffer.length * 2)),
-        peak,
-        rate,
-      };
-    }, map);
-    check(
-      `${map}: score renders audible signal without clipping`,
-      audio.rms > 0.008 && audio.peak < 0.98,
+  for (const id of [
+    "lumiere",
+    "derniere-charge",
+    "cloches",
+    "ce-qui-reste",
+    "chair-acier",
+  ]) {
+    await page.evaluate((id) => {
+      const g = window.__vesper;
+      g.sound.setMusicTrack(id);
+      g.sound.score.unlock();
+    }, id);
+    await page.waitForFunction(
+      () => {
+        const a = window.__vesper.sound.score.audio;
+        return a.readyState >= 3 && !a.paused && a.currentTime > 0.05;
+      },
+      null,
+      { timeout: 15000 },
     );
-    const pcm = Buffer.from(audio.data, "base64"),
-      header = Buffer.alloc(44);
-    header.write("RIFF");
-    header.writeUInt32LE(36 + pcm.length, 4);
-    header.write("WAVEfmt ", 8);
-    header.writeUInt32LE(16, 16);
-    header.writeUInt16LE(1, 20);
-    header.writeUInt16LE(2, 22);
-    header.writeUInt32LE(audio.rate, 24);
-    header.writeUInt32LE(audio.rate * 4, 28);
-    header.writeUInt16LE(4, 32);
-    header.writeUInt16LE(16, 34);
-    header.write("data", 36);
-    header.writeUInt32LE(pcm.length, 40);
-    fs.writeFileSync(`${out}/music-${map}.wav`, Buffer.concat([header, pcm]));
-    audioReports.push({ map, rms: audio.rms, peak: audio.peak });
+    const audio = await page.evaluate(() => {
+      const score = window.__vesper.sound.score;
+      return {
+        id: score.track.id,
+        duration: score.audio.duration,
+        error: score.audio.error,
+      };
+    });
+    check(
+      `${id}: soundtrack streams and plays`,
+      audio.id === id && audio.duration > 60 && !audio.error,
+    );
+    audioReports.push(audio);
   }
   fs.writeFileSync(`${out}/audio.json`, JSON.stringify(audioReports, null, 2));
-  check(
-    "The three maps have distinct compositions",
-    !fs
-      .readFileSync(`${out}/music-abbey.wav`)
-      .equals(fs.readFileSync(`${out}/music-station.wav`)) &&
-      ["abbey", "station"].every(
-        (map) =>
-          !fs
-            .readFileSync(`${out}/music-${map}.wav`)
-            .equals(fs.readFileSync(`${out}/music-abyss.wav`)),
-      ),
-  );
   const mobile = await browser.newPage({
     viewport: { width: 390, height: 844 },
     hasTouch: true,

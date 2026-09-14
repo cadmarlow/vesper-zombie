@@ -1,9 +1,11 @@
 import { WorldReplica } from "./network/replica.js";
 import { TeammateView } from "./network/teammates.js";
 import { snapshot } from "./network/snapshot.js";
+import { Rescue } from "./network/rescue.js";
 
 import {
   HOST_EVENTS,
+  PLAYER_FLAGS as FLAGS,
   PEER_EVENTS,
   validEvent,
   validPlayer,
@@ -21,11 +23,6 @@ import { Navigation } from "./logic.js";
 import { disposeModel } from "./resources.js";
 
 const SNAPSHOT_INTERVAL = 1 / 20;
-const F_CROUCH = 1,
-  F_SPRINT = 2,
-  F_FIRING = 4,
-  F_DOWN = 8,
-  F_AIM = 16;
 
 export class Session {
   constructor(net, { hostId, players, runId = net.room?.run }) {
@@ -53,6 +50,7 @@ export class Session {
   }
   attach(game) {
     this.context = game;
+    this.rescue = new Rescue(this);
     this.teammates = new TeammateView(game, this.roster, this.players);
     this.replica = new WorldReplica(
       game,
@@ -151,7 +149,7 @@ export class Session {
       list.push({
         id: p.id,
         position: new T.Vector3(p.tx, p.ty, p.tz),
-        alive: !(p.flags & F_DOWN) && p.health > 0,
+        alive: !(p.flags & FLAGS.DOWN) && p.health > 0,
         local: false,
       });
     return list;
@@ -234,18 +232,22 @@ export class Session {
   update(dt) {
     const g = this.context;
     this.tick++;
+    this.rescue.update(dt);
     this.updateRemotePlayers(dt);
     if (this.host) {
       this.snapshotTimer -= dt;
       if (this.snapshotTimer <= 0) {
-        this.snapshotTimer = SNAPSHOT_INTERVAL;
+        this.snapshotTimer = Math.max(
+          0,
+          this.snapshotTimer + SNAPSHOT_INTERVAL,
+        );
         this.net.relay("all", this.snapshot());
       }
       this.collectForPeers();
     } else {
       this.inputTimer -= dt;
       if (this.inputTimer <= 0) {
-        this.inputTimer = SNAPSHOT_INTERVAL;
+        this.inputTimer = Math.max(0, this.inputTimer + SNAPSHOT_INTERVAL);
         this.toHost({ k: "input", ...this.myState() });
       }
       for (const p of this.remoteProjectiles.values())
@@ -259,12 +261,15 @@ export class Session {
   myState() {
     const g = this.context,
       p = g.run.player;
+    const rescueTarget = this.rescue?.intent() || 0;
     const flags =
-      (p.crouched ? F_CROUCH : 0) |
-      (p.sprinting ? F_SPRINT : 0) |
-      (g.input.mouse.fire && g.run.shotTimer > 0 ? F_FIRING : 0) |
-      (g.run.downed ? F_DOWN : 0) |
-      (g.input.mouse.aim ? F_AIM : 0);
+      (p.crouched ? FLAGS.CROUCH : 0) |
+      (p.sprinting ? FLAGS.SPRINT : 0) |
+      (g.input.mouse.fire && g.run.shotTimer > 0 ? FLAGS.FIRING : 0) |
+      (g.run.downed ? FLAGS.DOWN : 0) |
+      (g.input.mouse.aim ? FLAGS.AIM : 0) |
+      (g.run.eliminated ? FLAGS.DEAD : 0) |
+      (rescueTarget ? FLAGS.REVIVING : 0);
     return {
       x: +p.position.x.toFixed(2),
       y: +p.position.y.toFixed(2),
@@ -278,6 +283,7 @@ export class Session {
       hp: Math.round(p.health),
       mhp: p.maxHealth,
       f: flags,
+      r: rescueTarget,
     };
   }
   applyInput(m) {
@@ -310,6 +316,15 @@ export class Session {
     p.health = m.hp;
     p.maxHealth = m.mhp || 100;
     p.flags = m.f || 0;
+    p.rescueTarget = m.r || 0;
+    // A late downed input cannot undo the host's confirmed elimination.
+    if (p.flags & FLAGS.DOWN && this.rescue?.status(p.id)?.dead)
+      p.flags |= FLAGS.DEAD;
+    // Ignore already-in-flight downed inputs until the revived peer acknowledges.
+    if (p.reviveUntil > this.context.run.time && p.flags & FLAGS.DOWN) {
+      p.flags &= ~(FLAGS.DOWN | FLAGS.DEAD);
+      p.health = Math.max(p.health, Math.ceil(p.maxHealth * 0.5));
+    } else if (!(p.flags & FLAGS.DOWN)) p.reviveUntil = 0;
   }
   updateRemotePlayers(...args) {
     this.teammates.updateRemotePlayers(...args);
@@ -320,7 +335,15 @@ export class Session {
       name: p.name,
       health: p.health,
       maxHealth: p.maxHealth,
-      down: !!(p.flags & F_DOWN),
+      down: !!(p.flags & FLAGS.DOWN),
+      dead: !!(p.flags & FLAGS.DEAD),
+      rescue: this.rescue?.status(p.id),
+      distance: Math.round(
+        Math.hypot(
+          p.tx - this.context.run.player.position.x,
+          p.tz - this.context.run.player.position.z,
+        ),
+      ),
       weapon: WEAPONS[p.weapon]?.name || "",
     }));
   }
@@ -340,7 +363,7 @@ export class Session {
     for (const pickup of g.run.pickups) {
       if (pickup.life <= 0) continue;
       for (const p of this.players.values()) {
-        if (!p.model || p.flags & F_DOWN) continue;
+        if (!p.model || p.flags & FLAGS.DOWN) continue;
         if (
           new T.Vector3(p.tx, p.ty, p.tz).distanceTo(pickup.mesh.position) < 1.8
         ) {
@@ -369,6 +392,7 @@ export class Session {
     if (s.n <= this.lastSnapshotTick || g.run.state === "menu" || !g.run.world)
       return;
     this.lastSnapshotTick = s.n;
+    this.rescue.receive(s.rescue);
     this.replica.apply(s);
   }
   // Peer: move and animate the mirrored horde.
@@ -405,6 +429,12 @@ export class Session {
       }
       case "damage":
         if (this.peer) g.commands.hurt(m.amount);
+        break;
+      case "revived":
+        if (this.peer) g.commands.revive();
+        break;
+      case "eliminated":
+        if (this.peer) g.commands.eliminate();
         break;
       case "score":
         if (this.peer) g.commands.creditKill(m.points, m.head, m.type);
@@ -479,7 +509,7 @@ export class Session {
       interaction,
       {
         position: { x: actor.tx, z: actor.tz },
-        alive: !(actor.flags & F_DOWN) && actor.health > 0,
+        alive: !(actor.flags & FLAGS.DOWN) && actor.health > 0,
         points: actor.points,
       },
       !!m.take,
@@ -516,7 +546,7 @@ export class Session {
       now = this.context.run.time;
     if (
       !player ||
-      player.flags & F_DOWN ||
+      player.flags & FLAGS.DOWN ||
       now - player.lastGrenade < 0.2 ||
       Math.hypot(m.x - player.tx, m.z - player.tz) > 2.5
     )

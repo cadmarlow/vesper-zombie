@@ -37,6 +37,7 @@ export class Game {
     this.sound = sound || new Sound();
     this.sound.setVolume(settings.volume);
     this.sound.setMusicVolume(settings.musicVolume ?? 0.75);
+    this.sound.setMusicTrack(settings.musicTrack);
 
     this.run.state = "menu";
     this.input.keys = new Set();
@@ -76,6 +77,9 @@ export class Game {
       pause: (...args) => this.pause(...args),
       resume: (...args) => this.resume(...args),
       respawn: (...args) => this.respawn(...args),
+      revive: (...args) => this.player.revive(...args),
+      eliminate: (...args) => this.player.eliminate(...args),
+      obstacleDistance: (...args) => this.obstacleDistance(...args),
       explosionEffects: (...args) => this.explosionEffects(...args),
       end: (...args) => this.end(...args),
       throwGrenade: (...args) => this.throwGrenade(...args),
@@ -169,6 +173,7 @@ export class Game {
     this.view.renderer.shadowMap.needsUpdate = true;
     this.sound.setVolume(settings.volume);
     this.sound.setMusicVolume(settings.musicVolume ?? 0.75);
+    this.sound.setMusicTrack(settings.musicTrack);
     this.view.camera.fov = settings.fov;
     this.view.camera.updateProjectionMatrix();
     this.resize();
@@ -240,6 +245,7 @@ export class Game {
     this.input.touchMove = { x: 0, y: 0 };
     this.input.touchSprint = false;
     this.input.touchRun = false;
+    this.input.touchInteract = false;
     this.input.mouse.fire = this.input.mouse.aim = false;
     if (document.pointerLockElement) document.exitPointerLock();
     this.emit("state", "paused");
@@ -369,9 +375,12 @@ export class Game {
         this.run.reloadTime > 0
           ? 1 - this.run.reloadTime / this.run.reloadDuration
           : null,
-      interaction: this.interactionText(this.nearInteraction()),
+      interaction:
+        this.run.session?.rescue.prompt() ||
+        this.interactionText(this.nearInteraction()),
       perks: [...this.run.player.perks],
       downed: this.run.downed,
+      rescue: this.run.session?.rescue.hud(),
       team: this.run.session?.teamStatus() || null,
       peer: !!this.run.session?.peer,
       boss: this.run.enemies
@@ -466,8 +475,8 @@ export class Game {
     if (visible && (active || dirty))
       this.frame = requestAnimationFrame(this.loop);
     else {
-      // The music scheduler looks 400 ms ahead. A light idle tick preserves
-      // the score while the frozen image requires no new GPU submissions.
+      // A light idle tick updates music volume while the frozen image
+      // requires no new GPU submissions.
       this.idleFrame = setTimeout(
         () => this.loop(performance.now()),
         visible ? 100 : 1000,

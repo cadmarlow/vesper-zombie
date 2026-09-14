@@ -14,6 +14,7 @@ const scripts = process.argv.slice(2).length
       "online-check",
       "coop-check",
       "foundation-check",
+      "stability-check",
       "graphics-lifecycle-check",
       "thermal-check",
       "zombie-check",
@@ -23,6 +24,7 @@ const scripts = process.argv.slice(2).length
     ];
 const allowed = new Set([
   "foundation-check",
+  "stability-check",
   "coop-check",
   "abyss-check",
   "menu-check",

@@ -73,6 +73,8 @@ Le démarrage crée un numéro de partie `run`. Chaque client construit sa scèn
 
 Un achat partagé suit `demande → validation par l’hôte → confirmation`. La demande possède un numéro unique, le prix provient des règles de l’hôte, et le débit chez l’invité arrive à confirmation. Une demande répétée ne répète pas l’achat. Les instantanés emploient des identifiants stables pour armes, ennemis et interactions. Les formats de tuples sont décrits par `network/snapshot.js` et validés dans `server/protocol.js`.
 
+`network/rescue.js` fait progresser la réanimation sur l’hôte : intention maintenue, distance et ligne de vue, interruption sur dégâts, expiration à 45 secondes. Les invités reçoivent les jauges dans les instantanés et les confirmations réservées à l’hôte. Les drapeaux distinguent à terre, éliminé et en train de réanimer. Les positions des zombies utilisent deux instantanés horodatés avec 100 ms de retard de présentation ; leur phase de marche s’intègre dans le temps au lieu de multiplier la durée totale de partie par une vitesse variable.
+
 Une pause s’applique à l’équipe. Le départ d’un invité le retire des cibles et des modèles ; la perte de l’hôte ramène les autres au menu. Il n’y a pas de migration de simulation en cours de partie. Les salons restent en mémoire du relais ; leur distribution sur plusieurs serveurs demanderait un travail distinct.
 
 Toute évolution du format des messages doit adapter émetteur, validation et lecteur. Une rupture de compatibilité augmente `PROTOCOL_VERSION` et exige de publier client et relais ensemble. Les bornes du protocole, notamment santé et nombre d’entités, doivent être revues si de nouvelles règles dépassent les valeurs actuelles.
@@ -84,6 +86,10 @@ Toute évolution du format des messages doit adapter émetteur, validation et le
 La passe d'occlusion réutilise les matrices calculées par la passe du monde qui la précède. Conserver cet ordre de rendu. `thermal-check` compare les pixels avec la passe d'origine sur les trois cartes et vérifie pause, reprise, réglages, visibilité et destruction.
 
 `RunLifecycle` possède la construction et le nettoyage des ressources de partie. Un seul chargement peut être actif ; chaque étape asynchrone vérifie que la demande est encore valide. Échec, annulation et retour au menu libèrent les ressources déjà créées. `Game.destroy()` arrête aussi la boucle et les contrôles de la vue.
+
+`survivor.js` charge une seule fois le personnage GLB, puis clone son squelette et ses ressources possédées pour chaque coéquipier. Les textures restent partagées ; `releaseSurvivor` arrête le mélangeur d’animations avant de libérer le modèle. Les armes réutilisent les modèles du jeu. Les attributions des fichiers sont conservées à côté des ressources dans `public/models/ASSETS.md` et `public/music/ASSETS.md`.
+
+La bande-son utilise un unique élément audio branché au bus de musique Web Audio. `content/music.js` contient le catalogue. Le geste de lancement ou d’entrée dans le salon débloque l’audio avant les opérations asynchrones, notamment sur Safari. Les changements de morceau réutilisent ce même lecteur ; masquer la page suspend la lecture.
 
 Les modèles possédés sont libérés via `resources.disposeModel` ; les instances GPU, squelettes, géométries, matériaux et textures propres au modèle sont concernés. Les textures marquées `sharedSurface` appartiennent au cache partagé et restent réutilisables entre parties. Un remplacement de modèle doit libérer l’ancien. Les particules, sang et zombies conservent leurs réserves existantes ; ne pas les reconstruire dans chaque image.
 

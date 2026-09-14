@@ -27,7 +27,8 @@ export function mountShell(difficulty) {
   <div class="compass"><div class="compass-ticks">│ · · │ · · │ · · │ · · │ · · │ · · │</div><div id="compass-directions">N <span>NE</span> E</div><span class="compass-marker">◆</span></div>
   <div class="hud-objective"><div class="tiny" id="power-state">COURANT COUPÉ</div><div class="objective-title" id="objective-title">Survivre à la première vague</div><div id="objective-subtitle">Éliminez les présences pour gagner des essences.</div><div class="objective-progress"><span id="objective-progress"></span></div><div class="hud-tools"><button id="hud-help" aria-label="Guide de survie">?</button><button id="hud-pause" aria-label="Mettre en pause">Ⅱ</button></div></div>
   <div id="crosshair" class="crosshair"><i></i><i></i><i></i><i></i><b></b></div><div id="hitmarker" class="hitmarker">╳</div><div id="damage-overlay" class="damage-overlay"></div>
-  <div id="downed" class="downed hidden"><span class="eyebrow">À TERRE</span><b>Vos coéquipiers finissent la vague</b></div>
+  <div id="downed" class="downed hidden"><span class="eyebrow">À TERRE</span><b id="downed-title">Un coéquipier peut vous réanimer</b><p id="downed-status"></p></div>
+  <div id="rescue-progress" class="rescue-progress hidden"><span></span><div><b></b></div></div>
   <div id="boss-bar" class="boss-bar hidden"><span class="tiny" id="boss-name">L’ARCHONTE</span><div class="boss-track"><span id="boss-fill"></span></div></div>
   <div id="announcement" class="announcement"><div class="eyebrow"></div><h2></h2><p></p></div>
   <div id="interaction" class="interaction hidden"><kbd>E</kbd><span></span></div>

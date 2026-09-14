@@ -1115,12 +1115,19 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
     look = type,
     variation = 0.5,
   } = g.userData;
-  const phase =
-      t *
-      (look === "runner" ? 8.5 : 4.6) *
-      Math.max(0.25, speed) *
-      (0.92 + variation * 0.16),
-    stride = attacking ? 0.12 : 0.43;
+  // Integrate cadence. Multiplying the entire run time by a changing speed
+  // made network corrections jump to unrelated poses, especially late in a run.
+  const dt = Math.max(0, Math.min(0.1, t - (g.userData.animationTime ?? t)));
+  g.userData.animationTime = t;
+  const movement = T.MathUtils.clamp(speed, 0, 1.5);
+  const phase = (g.userData.walkPhase =
+    ((g.userData.walkPhase ?? variation * Math.PI * 2) +
+      dt *
+        (look === "runner" ? 8.5 : 4.6) *
+        movement *
+        (0.92 + variation * 0.16)) %
+    (Math.PI * 4));
+  const stride = (attacking ? 0.12 : 0.43) * Math.min(1, movement);
   hips.position.y = 0.865 + Math.abs(Math.sin(phase)) * 0.025;
   hips.rotation.y = Math.sin(phase) * 0.09;
   hips.rotation.z = Math.sin(phase) * 0.025;
@@ -1140,8 +1147,10 @@ export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
   legs.forEach((leg, i) => {
     const p = phase + i * Math.PI;
     leg.root.rotation.x = Math.sin(p) * stride;
-    leg.shin.rotation.x = Math.max(0, -Math.sin(p)) * 0.63;
-    leg.foot.rotation.x = -Math.max(0, Math.cos(p)) * 0.14;
+    leg.shin.rotation.x =
+      Math.max(0, -Math.sin(p)) * 0.63 * Math.min(1, movement);
+    leg.foot.rotation.x =
+      -Math.max(0, Math.cos(p)) * 0.14 * Math.min(1, movement);
   });
   arms.forEach((arm, i) => {
     arm.rotation.set(

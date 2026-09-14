@@ -2,6 +2,16 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Stabilisation, réanimation et bande-son — livraison du 15 septembre 2026
+
+Validation locale effectuée le 14 septembre : 40 tests unitaires et réseau réussis, compilation et formatage valides, 63 modules sans import inutilisé ni cycle. La livraison utilise le protocole **3** et nécessite la publication du client et du relais ensemble.
+
+`stability-check` réussit 17 contrôles avec un invité Chrome tactile et 17 avec WebKit : surfaces des tables et raccords de murs, personnage animé, réanimation dans les deux sens, interruptions, élimination et retour, messages retardés après dix minutes de simulation, suppression des cadavres et choix musical. Un ancien message « à terre » ne peut plus annuler une élimination confirmée. Rapports finaux : `artifacts/stability-1789419766423/report.json` et `artifacts/stability-1789419799936/report.json`.
+
+Les parcours de coopération à quatre, relances, combat, commandes tactiles, trois cartes et 190 vagues simulées passent. Mesure Chrome sur ce Mac, qualité haute et 28 ennemis : environ 60 images/s sur les trois cartes ; le rendu 3D s'arrête en pause et en fin de partie. Rapport : `artifacts/thermal-stabilization/report.json`. Ces résultats ne mesurent pas la température et ne valident pas un téléphone physique ni une installation sur son écran d'accueil.
+
+Les sections suivantes conservent les résultats historiques des versions précédentes.
+
 ## Mesure CPU et rendu — 14 septembre 2026
 
 Comparaison du build avant/après, Chrome isolé sur Apple M1 Pro, 1440 × 900, DPR 1,5, qualité élevée et adaptation désactivée. Chaque scénario mesure quatre secondes après préchauffage. Rapports : `artifacts/thermal-baseline/report.json` et `artifacts/thermal-optimized/report.json`.

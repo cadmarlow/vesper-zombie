@@ -6,6 +6,7 @@ import { Net } from "../src/net.js";
 import { Session } from "../src/multiplayer.js";
 import {
   canRelay,
+  PLAYER_FLAGS,
   validSnapshot,
   MAX_MESSAGE_BYTES,
 } from "../server/protocol.js";
@@ -24,6 +25,40 @@ const waitFor = (net, type, predicate = () => true) =>
       }
     });
   });
+test("late downed inputs preserve elimination until the player respawns", () => {
+  const session = new Session(
+    { id: 1 },
+    {
+      hostId: 1,
+      players: [{ id: 1 }, { id: 2 }],
+    },
+  );
+  session.context = { run: { time: 100 } };
+  const state = { dead: false };
+  session.rescue = { status: () => state };
+  const player = { id: 2, seen: 0 };
+  const input = {
+    x: 1,
+    y: 1.7,
+    z: 0,
+    yaw: 0,
+    pitch: 0,
+    w: "vigil",
+    points: 500,
+    grenades: 3,
+    hp: 0,
+    mhp: 100,
+    f: PLAYER_FLAGS.DOWN,
+  };
+  session.applyPlayerState(player, input);
+  assert.equal(player.flags, PLAYER_FLAGS.DOWN);
+  state.dead = true;
+  session.applyPlayerState(player, input);
+  assert.equal(player.flags, PLAYER_FLAGS.DOWN | PLAYER_FLAGS.DEAD);
+  session.applyPlayerState(player, { ...input, f: 0, hp: 100 });
+  assert.equal(player.flags, 0);
+  assert.equal(player.health, 100);
+});
 test("relay requires all players ready and blocks forged host events", async (t) => {
   const relay = createRelay({ port: 0, host: "127.0.0.1" });
   const address = await relay.ready;

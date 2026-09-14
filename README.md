@@ -65,8 +65,14 @@ La CI utilise `npm run verify`. Les rapports et captures sont produits dans `art
 
 ## Mise en ligne
 
-Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La configuration Vercel est dans `vercel.json`. Les illustrations, polices et textures sont locales ; les modèles et sons sont procéduraux. Provenance des ressources : [ASSETS.md](ASSETS.md).
+Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La configuration Vercel est dans `vercel.json`. Les ressources sont locales ; le personnage coopératif et les cinq morceaux sont dans `public/models/` et `public/music/`. Provenance : [ASSETS.md](ASSETS.md), [personnage](public/models/ASSETS.md) et [musique](public/music/ASSETS.md).
 
 La coopération nécessite un relais WebSocket distinct. `railway.json` et `nixpacks.toml` lancent `node server/index.js`, avec le port fourni par `PORT`. Le dossier `server/` peut également être déployé seul. La route HTTP `/` donne l’état du relais. Définir **`VITE_RELAY_URL=wss://adresse-du-relais` avant le build du client**. Sans cette variable, la coopération distante n’est pas configurée ; le solo reste disponible.
 
-Client et relais doivent utiliser la même version de protocole, actuellement **2**. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+Client et relais doivent utiliser la même version de protocole, actuellement **3**. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+
+## Réanimation et bande-son
+
+En coopération, un joueur à terre reste visible et peut être réanimé pendant 45 secondes. Approchez-vous à moins de 2,5 m, puis maintenez **E** sur ordinateur ou le bouton de réanimation sur mobile pendant trois secondes. Relâcher, tirer, quitter la portée ou recevoir des dégâts interrompt la progression. Le joueur revient sur place avec la moitié de sa santé et trois secondes de protection. Après élimination, il revient à la prochaine vague si son équipe survit.
+
+Les cinq morceaux originaux sont dans `public/music/`. Une nouvelle partie choisit aléatoirement un morceau différent du précédent. Le menu Réglages permet de choisir un titre et son volume pendant la partie ; un titre choisi reste sélectionné. La musique est diffusée par un seul lecteur, sans décoder les cinq morceaux en mémoire.

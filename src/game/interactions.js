@@ -30,6 +30,7 @@ export class InteractionSystem {
     // A shared purchase is debited on acknowledgement. Do not spend the same
     // balance on a local machine while that confirmation is still in flight.
     if (this.run.session?.pendingPurchase) return;
+    if (this.run.session?.rescue?.nearby()) return;
     const i = this.nearInteraction();
     if (!i) return;
     const actor = {

@@ -30,6 +30,9 @@ export class WorldReplica {
   }
   apply(s) {
     const g = this.context;
+    const time = s.time ?? g.run.time;
+    this.latestTime = time;
+    this.renderTime ??= time - 0.1;
     if (s.wave !== g.run.wave) g.run.wave = s.wave;
     g.run.phase = s.phase;
     g.run.phaseTimer = s.timer;
@@ -122,6 +125,7 @@ export class WorldReplica {
           attacking: false,
           speed: 0,
           remote: true,
+          samples: [],
         };
         this.remoteEnemies.set(id, e);
         g.run.enemies.push(e);
@@ -129,6 +133,8 @@ export class WorldReplica {
       e.tx = x;
       e.tz = z;
       e.tyaw = yaw;
+      e.samples.push({ time, x, z, yaw });
+      if (e.samples.length > 8) e.samples.shift();
       e.health = hp;
       e.attacking = !!attacking;
       if (stagger && e.stagger <= 0) e.stagger = 0.16;
@@ -203,10 +209,18 @@ export class WorldReplica {
   }
   updateRemoteEnemies(dt) {
     const g = this.context;
+    if (this.renderTime !== undefined) {
+      const drift = this.latestTime - 0.1 - this.renderTime;
+      // Slow hosts must slow this clock too, never rewind an already shown
+      // pose. A long interruption may require a forward resynchronization.
+      if (drift > 0.5) this.renderTime = this.latestTime - 0.1;
+      else this.renderTime += dt * T.MathUtils.clamp(1 + drift * 8, 0, 1.5);
+    }
     for (const e of g.run.enemies) {
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
+        if (e.deathTime <= 0) e.model.visible = false;
         continue;
       }
       e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
@@ -214,9 +228,26 @@ export class WorldReplica {
       const m = e.model,
         bx = m.position.x,
         bz = m.position.z;
-      m.position.x = T.MathUtils.damp(m.position.x, e.tx, 12, dt);
-      m.position.z = T.MathUtils.damp(m.position.z, e.tz, 12, dt);
-      let delta = e.tyaw - m.rotation.y;
+      const samples = e.samples;
+      while (samples.length > 2 && samples[1].time <= this.renderTime)
+        samples.shift();
+      const a = samples[0],
+        b = samples[1] || a;
+      const mix =
+        a && b.time > a.time
+          ? T.MathUtils.clamp(
+              (this.renderTime - a.time) / (b.time - a.time),
+              0,
+              1,
+            )
+          : 1;
+      m.position.x = a ? T.MathUtils.lerp(a.x, b.x, mix) : e.tx;
+      m.position.z = a ? T.MathUtils.lerp(a.z, b.z, mix) : e.tz;
+      const targetYaw = a
+        ? a.yaw +
+          Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * mix
+        : e.tyaw;
+      let delta = targetYaw - m.rotation.y;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
       m.rotation.y += delta * Math.min(1, dt * 10);
       const moved = Math.hypot(m.position.x - bx, m.position.z - bz);
@@ -238,12 +269,7 @@ export class WorldReplica {
       );
       updateEnemyVisibility(e, g.run.time, d);
     }
-    const gone = g.run.enemies.filter((e) => e.dead && e.deathTime <= 0);
-    for (const e of gone) {
-      g.view.scene.remove(e.model);
-      releaseZombie(e.model);
-      this.remoteEnemies.delete(e.id);
-    }
-    g.run.enemies = g.run.enemies.filter((e) => !gone.includes(e));
+    // The host removes corpses. Removing them locally first could recreate a
+    // falling body from the next delayed snapshot.
   }
 }

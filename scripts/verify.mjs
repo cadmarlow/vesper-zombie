@@ -65,6 +65,7 @@ try {
           "touch-native-check",
           "coop-check",
           "foundation-check",
+          "stability-check",
           "thermal-check",
           "waves-check",
         ];

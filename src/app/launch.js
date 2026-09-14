@@ -84,6 +84,7 @@ export function createLauncher({
       const settings = getSettings();
       sound.setVolume(settings.volume);
       sound.setMusicVolume(settings.musicVolume);
+      sound.setMusicTrack?.(settings.musicTrack);
       void sound.init().catch(() => {});
       const selection = getSelection();
       const request = {

@@ -1,6 +1,7 @@
 export const DEFAULT_SETTINGS = {
   volume: 0.65,
   musicVolume: 0.75,
+  musicTrack: "random",
   sensitivity: 1,
   touchSensitivity: 1,
   touchAimAssist: true,

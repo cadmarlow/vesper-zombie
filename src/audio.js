@@ -1,4 +1,4 @@
-// Original real-time sound design. No remote media or copyrighted sound samples.
+// Procedural effects and the creator's locally hosted soundtrack.
 import { Score } from "./music.js";
 export class Sound {
   constructor() {
@@ -13,6 +13,7 @@ export class Sound {
       this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
       this.score = new Score(this.ctx, this.master);
+      this.score.selection = this.musicSelection || "random";
       const length = this.ctx.sampleRate * 4;
       this.noiseBuffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
       const data = this.noiseBuffer.getChannelData(0);
@@ -21,10 +22,16 @@ export class Sound {
       // The drone and reverb otherwise keep the audio thread busy while the
       // tab is hidden; the music bus already mutes itself there.
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) this.ctx.suspend().catch(() => {});
-        else this.ctx.resume().catch(() => {});
+        if (document.hidden) {
+          this.score.audio.pause();
+          this.ctx.suspend().catch(() => {});
+        } else {
+          this.ctx.resume().catch(() => {});
+          this.score.unlock();
+        }
       });
     }
+    this.score.unlock();
     if (this.ctx.state === "suspended") await this.ctx.resume();
   }
   setVolume(v) {
@@ -35,6 +42,10 @@ export class Sound {
   setMusicVolume(v) {
     this.musicVolume = v;
     this.score?.setVolume(v);
+  }
+  setMusicTrack(selection = "random") {
+    this.musicSelection = selection;
+    this.score?.select(selection);
   }
   music(state) {
     if (!this.score) return;

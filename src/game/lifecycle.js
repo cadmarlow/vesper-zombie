@@ -1,4 +1,5 @@
 import { mapDefinition } from "../maps/catalog.js";
+import { prepareSurvivor } from "../survivor.js";
 import { zombieModel } from "../creatures.js";
 import * as T from "three";
 import { prepareSurfaces, setSurfaceQuality } from "../surfaces.js";
@@ -31,6 +32,9 @@ export class RunLifecycle {
       pause,
       resume,
       respawn,
+      revive,
+      eliminate,
+      obstacleDistance,
       explosionEffects,
       end,
       throwGrenade,
@@ -55,6 +59,9 @@ export class RunLifecycle {
       pause,
       resume,
       respawn,
+      revive,
+      eliminate,
+      obstacleDistance,
       explosionEffects,
       end,
       throwGrenade,
@@ -64,6 +71,8 @@ export class RunLifecycle {
   }
   async load(map, difficulty, touch, session = null, checkpoint = () => {}) {
     await this.sound.init();
+    this.sound.score.startRun();
+    if (session) await prepareSurvivor();
     checkpoint();
     this.run.nextEnemyId = 1;
     this.run.nextPickupId = 1;
@@ -82,6 +91,8 @@ export class RunLifecycle {
     // The previous session, if any, is gone with cleanup(); install the new one.
     this.run.session = session;
     this.run.downed = false;
+    this.run.eliminated = false;
+    this.input.touchInteract = false;
     await Promise.all([
       prepareSurfaces(touch, mapDefinition(map).theme),
       // Creatures fall back to procedural skin when the scanned faces are
@@ -263,6 +274,9 @@ export class RunLifecycle {
         pause: (...args) => this.commands.pause(...args),
         resume: (...args) => this.commands.resume(...args),
         respawn: (...args) => this.commands.respawn(...args),
+        revive: (...args) => this.commands.revive(...args),
+        eliminate: (...args) => this.commands.eliminate(...args),
+        obstacleDistance: (...args) => this.commands.obstacleDistance(...args),
         explosionEffects: (...args) => this.commands.explosionEffects(...args),
         end: (...args) => this.commands.end(...args),
         throwGrenade: (...args) => this.commands.throwGrenade(...args),

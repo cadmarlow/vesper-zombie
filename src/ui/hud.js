@@ -22,12 +22,33 @@ export function createHUD() {
         ? `PROCHAINE DANS ${h.timer} S${h.touch || h.peer ? "" : " · [N]"}`
         : "SURVIVEZ À LA HORDE";
     $("#downed").classList.toggle("hidden", !h.downed);
+    if (h.downed) {
+      $("#downed .eyebrow").textContent = h.rescue?.dead
+        ? "ÉLIMINÉ"
+        : "À TERRE";
+      $("#downed-title").textContent = h.rescue?.dead
+        ? "Votre équipe continue le combat"
+        : h.rescue?.rescuer
+          ? `${h.rescue.rescuer} vous réanime`
+          : "Un coéquipier peut vous réanimer";
+      $("#downed-status").textContent = h.rescue?.dead
+        ? "Retour à la prochaine vague"
+        : `${Math.ceil(h.rescue?.remaining ?? 45)} s avant élimination · Retour possible à la prochaine vague`;
+    }
+    const rescuing = h.rescue?.progress > 0;
+    $("#rescue-progress").classList.toggle("hidden", !rescuing);
+    if (rescuing) {
+      $("#rescue-progress > span").textContent = h.rescue.helping
+        ? `Réanimation de ${h.rescue.helping}`
+        : "Réanimation en cours";
+      $("#rescue-progress b").style.width = `${h.rescue.progress * 100}%`;
+    }
     setHtml(
       "#team-list",
       (h.team || [])
         .map(
           (p) =>
-            `<div class="${p.down ? "down" : ""}"><span>${escapeHtml(p.name)}</span><i><b style="width:${Math.max(0, Math.min(100, (p.health / p.maxHealth) * 100))}%"></b></i><small>${p.down ? "À TERRE" : p.weapon}</small></div>`,
+            `<div class="${p.down ? "down" : ""}"><span>${escapeHtml(p.name)}</span><i><b style="width:${Math.max(0, Math.min(100, (p.health / p.maxHealth) * 100))}%"></b></i><small>${p.dead ? "ÉLIMINÉ · PROCHAINE VAGUE" : p.down ? `À TERRE · ${Math.ceil(p.rescue?.remaining ?? 45)} S · ${p.distance} M` : p.weapon}</small></div>`,
         )
         .join(""),
     );

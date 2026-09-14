@@ -154,6 +154,7 @@ export function createInputPort(run, input, actions) {
     "touchMove",
     "touchSprint",
     "touchRun",
+    "touchInteract",
   ])
     Object.defineProperty(port, name, {
       get: () => input[name],

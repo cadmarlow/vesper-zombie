@@ -83,6 +83,11 @@ try {
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing");
   await page.waitForTimeout(800);
+  // Slow shader compilation can outlive the initial click's browser activation.
+  // The game exposes a click-to-capture fallback; exercise that real path.
+  if (!(await evaluate(() => !!document.pointerLockElement)))
+    await page.locator("#game-canvas").click();
+  await page.waitForFunction(() => !!document.pointerLockElement);
   check(
     "Pointer lock acquired",
     await evaluate(() => !!document.pointerLockElement),

@@ -1,7 +1,16 @@
 // Shared wire contract. No DOM, Three.js or Node dependencies.
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const MAX_PLAYERS = 4;
 export const MAX_MESSAGE_BYTES = 128 * 1024;
+export const PLAYER_FLAGS = Object.freeze({
+  CROUCH: 1,
+  SPRINT: 2,
+  FIRING: 4,
+  DOWN: 8,
+  AIM: 16,
+  DEAD: 32,
+  REVIVING: 64,
+});
 export const HOST_EVENTS = new Set([
   "damage",
   "score",
@@ -15,6 +24,8 @@ export const HOST_EVENTS = new Set([
   "explode",
   "end",
   "pause",
+  "revived",
+  "eliminated",
 ]);
 export const PEER_EVENTS = new Set([
   "input",
@@ -52,7 +63,8 @@ export function validPlayer(m) {
     integer(m.l, 0, 3) &&
     finite(m.hp, 0, 180) &&
     finite(m.mhp, 1, 180) &&
-    integer(m.f, 0, 31) &&
+    integer(m.f, 0, 127) &&
+    (m.r === undefined || integer(m.r, 0)) &&
     integer(m.points, 0) &&
     integer(m.grenades, 0, 5)
   );
@@ -111,6 +123,8 @@ export function validEvent(m) {
     case "toast":
       return notice(m.a);
     case "wave":
+    case "revived":
+    case "eliminated":
       return true;
     case "explode":
       return [m.x, m.y, m.z].every((v) => finite(v));
@@ -130,6 +144,7 @@ export function validSnapshot(s) {
   return (
     isObject(s) &&
     integer(s.n) &&
+    (s.time === undefined || finite(s.time, 0, 1e9)) &&
     integer(s.wave) &&
     ["rest", "wave"].includes(s.phase) &&
     finite(s.timer) &&
@@ -137,6 +152,18 @@ export function validSnapshot(s) {
     integer(s.power, 0, 1) &&
     finite(s.extraction) &&
     typeof s.paused === "boolean" &&
+    (s.rescue === undefined ||
+      rows(
+        s.rescue,
+        MAX_PLAYERS,
+        5,
+        (r) =>
+          integer(r[0], 1) &&
+          finite(r[1], 0, 45) &&
+          finite(r[2], 0, 1) &&
+          integer(r[3], 0) &&
+          integer(r[4], 0, 1),
+      )) &&
     rows(
       s.doors,
       128,

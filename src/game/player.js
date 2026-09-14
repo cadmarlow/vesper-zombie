@@ -35,28 +35,31 @@ export class PlayerSystem {
     }
   }
   down() {
+    if (this.run.downed) return;
     this.run.downed = true;
+    this.run.eliminated = false;
+    this.input.keys.clear();
+    this.input.touchInteract = false;
     this.run.meleePending = this.run.meleeSwing = false;
     this.run.meleeTimer = 0;
     this.input.touchMove = { x: 0, y: 0 };
     this.input.touchSprint = this.input.touchRun = false;
     this.run.player.health = 0;
+    this.run.player.crouched = false;
     this.run.player.invulnerable = 1e9;
     this.input.mouse.fire = false;
     this.input.mouse.aim = false;
     this.run.reloadTime = 0;
-    this.emit("announce", {
-      eyebrow: "VOUS ÊTES À TERRE",
-      title: "TENEZ BON",
-      subtitle:
-        "Vos coéquipiers doivent finir la vague. Vous reviendrez à la suivante.",
-      duration: 4500,
+    this.emit("toast", {
+      title: "Vous êtes à terre",
+      text: "Votre équipe a 45 secondes pour vous réanimer.",
     });
     this.commands.updateHUD();
   }
   respawn() {
     if (!this.run.downed) return;
     this.run.downed = false;
+    this.run.eliminated = false;
     this.run.player.health = this.run.player.maxHealth;
     this.run.player.invulnerable = this.run.time + 3;
     this.run.player.position.copy(this.run.world.spawn);
@@ -65,6 +68,26 @@ export class PlayerSystem {
     this.emit("toast", {
       title: "Vous revenez dans la nuit",
       text: "Trois secondes d’invulnérabilité. Rejoignez vos coéquipiers.",
+    });
+    this.commands.updateHUD();
+  }
+  revive() {
+    if (!this.run.downed || this.run.eliminated) return;
+    this.run.downed = false;
+    this.run.player.health = Math.ceil(this.run.player.maxHealth * 0.5);
+    this.run.player.lastHurt = this.run.time;
+    this.run.player.invulnerable = this.run.time + 3;
+    this.run.player.vy = 0;
+    this.input.keys.clear();
+    this.input.touchInteract = false;
+    this.commands.updateHUD();
+  }
+  eliminate() {
+    if (!this.run.downed) return;
+    this.run.eliminated = true;
+    this.emit("toast", {
+      title: "Vous êtes éliminé",
+      text: "Vous reviendrez à la prochaine vague.",
     });
     this.commands.updateHUD();
   }
@@ -213,6 +236,13 @@ export class PlayerSystem {
     this.view.camera.position.copy(p.position);
     this.view.camera.position.y +=
       (this.run.settings.shake ? bob : 0) - p.crouchAmount * 0.65;
+    p.downAmount = T.MathUtils.damp(
+      p.downAmount || 0,
+      this.run.downed ? 1 : 0,
+      7,
+      dt,
+    );
+    this.view.camera.position.y -= p.downAmount * 1.12;
     this.view.camera.rotation.set(
       this.input.pitch +
         (this.run.settings.shake
@@ -246,13 +276,21 @@ export class PlayerSystem {
       dt * 10,
     );
     this.view.camera.updateProjectionMatrix();
+    const rescuing = !!this.run.session?.rescue?.intent();
+    p.rescueAmount = T.MathUtils.damp(
+      p.rescueAmount || 0,
+      rescuing ? 1 : 0,
+      9,
+      dt,
+    );
     const aim =
       this.input.mouse.aim &&
+      !rescuing &&
       !this.run.reloadTime &&
       !sprint &&
       !this.run.meleeTimer;
     this.view.gun.visible =
-      !this.run.meleeTimer && !(aim && definition.scopeFov);
+      !this.run.downed && !this.run.meleeTimer && !(aim && definition.scopeFov);
     const reloadProgress =
       this.run.reloadTime > 0
         ? Math.sin(
@@ -286,6 +324,8 @@ export class PlayerSystem {
       -reloadProgress * 0.52 + sprint * 0.27 + (aim ? 0 : -0.045),
     );
     this.view.gun.position.y += bob * 0.12;
+    this.view.gun.position.y -= p.rescueAmount * 0.24;
+    this.view.gun.rotation.x += p.rescueAmount * 0.55;
     animateWeapon(
       this.view.gun,
       dt,

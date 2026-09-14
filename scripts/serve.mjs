@@ -1,5 +1,6 @@
 import http from "node:http";
 import { readFile, stat } from "node:fs/promises";
+import { createReadStream } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
@@ -19,6 +20,8 @@ const mime = {
   ".json": "application/json",
   ".webmanifest": "application/manifest+json",
   ".txt": "text/plain; charset=utf-8",
+  ".mp3": "audio/mpeg",
+  ".glb": "model/gltf-binary",
 };
 export function createStaticServer() {
   return http.createServer(async (req, res) => {
@@ -36,13 +39,41 @@ export function createStaticServer() {
       }
       const info = await stat(file);
       if (!info.isFile()) throw Error("Not a file");
+      // Safari streams and seeks music with byte-range requests.
+      const range = req.headers.range?.match(/^bytes=(\d*)-(\d*)$/);
+      if (range) {
+        const start = range[1]
+          ? Number(range[1])
+          : Math.max(0, info.size - Number(range[2]));
+        const end =
+          range[1] && range[2]
+            ? Math.min(Number(range[2]), info.size - 1)
+            : info.size - 1;
+        if (start > end || start >= info.size) {
+          res.writeHead(416, { "Content-Range": `bytes */${info.size}` });
+          res.end();
+          return;
+        }
+        res.writeHead(206, {
+          "Content-Type":
+            mime[path.extname(file)] || "application/octet-stream",
+          "Accept-Ranges": "bytes",
+          "Content-Range": `bytes ${start}-${end}/${info.size}`,
+          "Content-Length": end - start + 1,
+        });
+        if (req.method === "HEAD") res.end();
+        else createReadStream(file, { start, end }).pipe(res);
+        return;
+      }
       const data = await readFile(file);
       res.writeHead(200, {
         "Content-Type": mime[path.extname(file)] || "application/octet-stream",
         "Cache-Control": "no-cache",
         "X-Content-Type-Options": "nosniff",
+        "Accept-Ranges": "bytes",
+        "Content-Length": info.size,
       });
-      res.end(data);
+      res.end(req.method === "HEAD" ? undefined : data);
     } catch {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Fichier introuvable. Lancez npm run build si nécessaire.");

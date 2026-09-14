@@ -148,6 +148,8 @@ export class EnemySystem {
         ENEMIES[e.type].speed *
         (1 + Math.min(this.run.wave, 20) * 0.022) *
         (e.stagger > 0 ? 0.2 : 1);
+      const beforeX = e.model.position.x,
+        beforeZ = e.model.position.z;
       if (d > 1.15 || blocked) {
         let sx = 0,
           sz = 0;
@@ -174,10 +176,15 @@ export class EnemySystem {
         prey.z - e.model.position.z,
       );
       e.attacking = d < 1.65;
+      const moved = Math.hypot(
+        e.model.position.x - beforeX,
+        e.model.position.z - beforeZ,
+      );
+      e.speed = T.MathUtils.damp(e.speed || 0, dt > 0 ? moved / dt : 0, 8, dt);
       animateZombie(
         e.model,
         this.run.time + e.seed,
-        speed / 1.65,
+        e.speed / 1.65,
         e.attacking,
         Math.min(0.16, e.stagger),
       );

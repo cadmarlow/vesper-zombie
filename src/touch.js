@@ -52,8 +52,10 @@ export class TouchControls {
         game.shoot();
       } else if (action === "aim") game.mouse.aim = !game.mouse.aim;
       else if (action === "reload") game.reload();
-      else if (action === "interact") game.interact();
-      else if (action === "grenade") game.grenade();
+      else if (action === "interact") {
+        game.touchInteract = true;
+        game.interact();
+      } else if (action === "grenade") game.grenade();
       else if (action === "melee") game.melee();
       else if (action === "switch") game.switchWeapon(1 - game.slot);
       else if (action === "jump") game.jump();
@@ -124,6 +126,7 @@ export class TouchControls {
       this.stick.classList.remove("active", "sprinting");
       this.stick.style.cssText = "";
     }
+    if (game && contact.action === "interact") game.touchInteract = false;
     if (
       game &&
       contact.action === "fire" &&
@@ -137,6 +140,7 @@ export class TouchControls {
     if (game) {
       game.touchMove = { x: 0, y: 0 };
       game.touchSprint = game.touchRun = false;
+      game.touchInteract = false;
       if (game.touch) game.mouse.fire = game.mouse.aim = false;
     }
   }

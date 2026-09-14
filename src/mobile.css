@@ -765,3 +765,39 @@
 .touch-mode .mobile-pause-help {
   width: 100%;
 }
+
+.touch-mode .team-list {
+  position: fixed;
+  top: calc(var(--safe-top) + 76px);
+  left: calc(var(--safe-left) + 18px);
+  width: 190px;
+  gap: 7px;
+  pointer-events: none;
+}
+.touch-mode .team-list > div {
+  grid-template-columns: 65px 1fr;
+  column-gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px #000;
+}
+.touch-mode .team-list small {
+  font-size: 9px;
+  letter-spacing: 0;
+}
+.touch-mode .downed {
+  top: 28%;
+  width: min(420px, 66vw);
+  padding: 10px;
+}
+.touch-mode .downed b {
+  font-size: 15px;
+}
+.touch-mode .downed p {
+  font-size: 12px;
+  margin-bottom: 0;
+}
+.touch-mode .rescue-progress {
+  top: 61%;
+  padding: 8px 12px;
+}

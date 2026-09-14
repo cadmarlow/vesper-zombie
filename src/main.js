@@ -1,3 +1,4 @@
+import { MUSIC_TRACKS } from "./content/music.js";
 import { DEFAULT_SETTINGS } from "./content/defaults.js";
 import { readSettings } from "./app/storage.js";
 import { createLauncher } from "./app/launch.js";
@@ -284,7 +285,7 @@ function openPanel(kind) {
   $("#panel").classList.remove("hidden");
   const content = $("#panel-content");
   if (kind === "settings") {
-    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${toggle("adaptiveQuality", "Fluidité adaptative desktop<span>Ajuste la résolution pour garder les commandes réactives.</span>", settings.adaptiveQuality)}${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-frameRate">Cadence maximale<span>30 images par seconde limite la chauffe et la batterie sur téléphone.</span></label><select id="setting-frameRate"><option value="60" ${settings.frameRate !== 30 ? "selected" : ""}>60 images / s</option><option value="30" ${settings.frameRate === 30 ? "selected" : ""}>30 images / s</option></select></div><div class="setting"><label for="setting-quality">Qualité graphique<span>Textures détaillées, ombres et atmosphère. Les effets s’adaptent au mobile.</span></label><select id="setting-quality">${[
+    content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}<div class="setting"><label for="setting-musicTrack">Bande originale<span>Un morceau différent à chaque partie, ou votre sélection en boucle.</span></label><select id="setting-musicTrack"><option value="random" ${settings.musicTrack === "random" ? "selected" : ""}>Aléatoire à chaque partie</option>${MUSIC_TRACKS.map((track) => `<option value="${track.id}" ${settings.musicTrack === track.id ? "selected" : ""}>${track.title}</option>`).join("")}</select><small id="music-now">${escapeHtml(sound.score?.error || (sound.score?.track ? "À l’écoute : " + sound.score.track.title : "La musique démarre avec votre partie."))}</small></div>${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${toggle("adaptiveQuality", "Fluidité adaptative desktop<span>Ajuste la résolution pour garder les commandes réactives.</span>", settings.adaptiveQuality)}${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-frameRate">Cadence maximale<span>30 images par seconde limite la chauffe et la batterie sur téléphone.</span></label><select id="setting-frameRate"><option value="60" ${settings.frameRate !== 30 ? "selected" : ""}>60 images / s</option><option value="30" ${settings.frameRate === 30 ? "selected" : ""}>30 images / s</option></select></div><div class="setting"><label for="setting-quality">Qualité graphique<span>Textures détaillées, ombres et atmosphère. Les effets s’adaptent au mobile.</span></label><select id="setting-quality">${[
       ["high", "Élevée"],
       ["medium", "Équilibrée"],
       ["low", "Performance"],
@@ -313,11 +314,18 @@ function openPanel(kind) {
               : settings[key].toFixed(1);
         persistSettings();
       };
-    for (const key of ["layout", "quality", "frameRate"])
+    for (const key of ["layout", "quality", "frameRate", "musicTrack"])
       $("#setting-" + key).onchange = (e) => {
         settings[key] =
           key === "frameRate" ? Number(e.target.value) : e.target.value;
         persistSettings();
+        if (key === "musicTrack") {
+          sound.setMusicTrack(settings.musicTrack);
+          sound.score?.unlock();
+          $("#music-now").textContent = sound.score?.track
+            ? "À l’écoute : " + sound.score.track.title
+            : "La musique démarre avec votre partie.";
+        }
       };
     for (const key of [
       "shake",
@@ -431,6 +439,12 @@ function renderLobby() {
       } catch {}
     };
     const connect = async () => {
+      // Unlock both audio outputs during the join/create gesture, before the
+      // host starts the run later through a WebSocket event (Safari/PWA).
+      sound.setVolume(settings.volume);
+      sound.setMusicVolume(settings.musicVolume);
+      sound.setMusicTrack(settings.musicTrack);
+      void sound.init().catch(() => {});
       lobbyStatus = "Connexion au relais…";
       $("#coop-status").textContent = lobbyStatus;
       try {

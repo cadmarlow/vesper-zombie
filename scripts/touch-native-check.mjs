@@ -456,7 +456,7 @@ try {
     const options = { ...devices[profile] };
     page = await browser.newPage(options);
     page.on("pageerror", (e) => report.errors.push(e.message));
-    await page.goto(process.env.VESPER_URL);
+    await openGameAudit(page);
     await page.locator('[data-map="abyss"]').tap();
     await page.locator("#play-button").tap();
     check(
@@ -469,6 +469,12 @@ try {
     });
     await page.locator("#touch-controls:not(.hidden)").waitFor();
     await page.locator('[data-action="fire"]').tap();
+    await page.waitForFunction(
+      () =>
+        window.__vesper?.sound.score.audio.currentTime > 0 &&
+        !window.__vesper.sound.score.audio.paused,
+    );
+    check(`${profile}: the original soundtrack plays in WebKit`, true);
     await page.waitForFunction(
       () => Number(document.querySelector("#ammo-value").textContent) < 12,
     );
