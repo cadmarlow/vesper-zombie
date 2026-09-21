@@ -2,6 +2,11 @@ import { weaponModel } from "../weapons.js";
 import * as T from "three";
 import { setSurfaceQuality } from "../surfaces.js";
 import { destroyZombieHead } from "../creatures.js";
+import {
+  updateEnemyHitVolumes,
+  enemyImpactPosition,
+} from "./enemy-hitboxes.js";
+import { enemyVariation } from "./enemy-actions.js";
 
 import { glowSprite, mat } from "../assets.js";
 import { WEAPONS, ENEMIES } from "../config.js";
@@ -10,7 +15,6 @@ const vec = new T.Vector3(),
   dir = new T.Vector3(),
   point = new T.Vector3(),
   ray = new T.Ray(),
-  sphere = new T.Sphere(),
   aabb = new T.Box3();
 const MELEE_DURATION = 0.78;
 
@@ -177,6 +181,8 @@ export class CombatSystem {
       (aimed ? 0.3 : 1) *
       (this.run.player.perks.includes("focus") ? 0.55 : 1);
     let shotHit = false;
+    for (const e of this.run.enemies)
+      if (!e.dead) updateEnemyHitVolumes(e.model);
     for (let pellet = 0; pellet < d.pellets; pellet++) {
       const direction = new T.Vector3(0, 0, -1).applyQuaternion(
         this.view.camera.quaternion,
@@ -199,19 +205,8 @@ export class CombatSystem {
       ray.set(origin, direction);
       for (const e of this.run.enemies) {
         if (e.dead) continue;
-        const s = ENEMIES[e.type].scale;
-        for (const part of [
-          { y: 1.8, r: 0.21, head: true },
-          { y: 1.27, r: 0.34, head: false },
-          { y: 0.65, r: 0.27, head: false },
-        ]) {
-          sphere.center.set(
-            e.model.position.x,
-            e.model.position.y + part.y * s,
-            e.model.position.z,
-          );
-          sphere.radius = part.r * s;
-          const hit = ray.intersectSphere(sphere, point);
+        for (const part of e.model.userData.hitVolumes) {
+          const hit = ray.intersectSphere(part.sphere, point);
           if (hit) {
             const dist = origin.distanceTo(hit);
             if (dist < distance) {
@@ -271,14 +266,24 @@ export class CombatSystem {
   }
   damageEnemy(enemy, damage, head, hit = null, by = null) {
     if (enemy.dead) return;
+    const reaction = (enemy.model.userData.hitReaction ||= { serial: 0 });
+    reaction.serial++;
+    reaction.head = head;
+    reaction.strength = clamp(damage / 65, 0.35, 1);
+    reaction.side = hit?.direction
+      ? clamp(
+          hit.direction.x * Math.cos(enemy.model.rotation.y) -
+            hit.direction.z * Math.sin(enemy.model.rotation.y),
+          -1,
+          1,
+        )
+      : (enemy.model.userData.variation || 0.5) * 2 - 1;
     if (this.run.session?.peer) {
       // The host owns enemy health: show the impact now, let it decide.
       enemy.stagger = 0.16;
       const position =
         hit?.position?.clone() ||
-        enemy.model.position
-          .clone()
-          .add(new T.Vector3(0, (head ? 1.8 : 1.27) * enemy.model.scale.y, 0));
+        enemyImpactPosition(enemy.model, head, new T.Vector3());
       const direction =
         hit?.direction ||
         position.clone().sub(this.view.camera.position).normalize();
@@ -295,9 +300,7 @@ export class CombatSystem {
     if (headKill || this.run.time >= (enemy.nextBloodFx || 0)) {
       const position =
         hit?.position?.clone() ||
-        enemy.model.position
-          .clone()
-          .add(new T.Vector3(0, (head ? 1.8 : 1.27) * enemy.model.scale.y, 0));
+        enemyImpactPosition(enemy.model, head, new T.Vector3());
       const direction =
         hit?.direction ||
         position.clone().sub(this.view.camera.position).normalize();
@@ -336,7 +339,7 @@ export class CombatSystem {
     if (enemy.health <= 0) {
       enemy.dead = true;
       enemy.deathTime = 2.4;
-      enemy.fallSide = Math.random() < 0.5 ? -1 : 1;
+      enemy.fallSide = enemyVariation(enemy.id) < 0.5 ? -1 : 1;
       const base = ENEMIES[enemy.type].score + (head ? 50 : 0);
       let points = base;
       if (by !== null && this.run.session) {

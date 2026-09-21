@@ -23,6 +23,7 @@ import { Navigation } from "./logic.js";
 import { disposeModel } from "./resources.js";
 
 const SNAPSHOT_INTERVAL = 1 / 20;
+const MAX_DAMAGE_PRESENTATION_DELAY = 0.4;
 
 export class Session {
   constructor(net, { hostId, players, runId = net.room?.run }) {
@@ -30,6 +31,7 @@ export class Session {
     this.runId = runId;
     this.nextRequest = 1;
     this.pendingPurchase = null;
+    this.pendingDamage = [];
     this.id = net.id;
     this.hostId = hostId;
     this.host = hostId === net.id;
@@ -68,7 +70,10 @@ export class Session {
     const on = (type, handler) =>
       this.unsubscribe.push(this.net.on(type, handler));
     on("state", (m) => this.peer && this.applySnapshot(m));
-    on("stop", () => this.context?.commands.sessionLost());
+    on("stop", () => {
+      this.pendingDamage.length = 0;
+      this.context?.commands.sessionLost();
+    });
     on("ev", (m) => this.onEvent(m));
     on("left", (m) => this.onLeft(m));
     on("close", () => this.onClose());
@@ -77,6 +82,7 @@ export class Session {
   }
   detach() {
     this.cancelReady?.();
+    this.pendingDamage.length = 0;
     for (const off of this.unsubscribe) off();
     this.unsubscribe = [];
     for (const p of this.players.values()) this.removePlayerModel(p);
@@ -250,8 +256,10 @@ export class Session {
         this.inputTimer = Math.max(0, this.inputTimer + SNAPSHOT_INTERVAL);
         this.toHost({ k: "input", ...this.myState() });
       }
+      // Grenades retain their immediate presentation and explosion events;
+      // acid follows the zombie's delayed release pose in WorldReplica.
       for (const p of this.remoteProjectiles.values())
-        p.mesh.position.lerp(p.target, Math.min(1, dt * 14));
+        if (p.target) p.mesh.position.lerp(p.target, Math.min(1, dt * 14));
       for (const p of this.remotePickups.values()) {
         p.mesh.rotation.y += dt * 1.5;
         p.mesh.position.y = 0.65 + Math.sin(g.run.time * 3) * 0.15;
@@ -398,11 +406,54 @@ export class Session {
   // Peer: move and animate the mirrored horde.
   updateRemoteEnemies(dt) {
     this.replica.updateRemoteEnemies(dt);
+    this.updatePendingDamage(dt);
+  }
+  queueDamage(message) {
+    const g = this.context;
+    if (
+      g.run.state === "playing" &&
+      (message.time === undefined || message.time <= this.replica?.renderTime)
+    ) {
+      g.commands.hurt(message.amount);
+      return;
+    }
+    this.pendingDamage.push({
+      amount: message.amount,
+      time: message.time,
+      run: this.runId,
+      waited: 0,
+    });
+  }
+  updatePendingDamage(dt) {
+    const g = this.context;
+    if (!g || this.ended || !["playing", "paused"].includes(g.run.state)) {
+      this.pendingDamage.length = 0;
+      return;
+    }
+    if (g.run.state === "paused") return;
+    // The impact flash/health change follows the same clock as the visible
+    // swing. Missing snapshots may delay presentation, never damage forever.
+    for (let i = 0; i < this.pendingDamage.length;) {
+      const event = this.pendingDamage[i];
+      if (event.run !== this.runId) {
+        this.pendingDamage.splice(i, 1);
+        continue;
+      }
+      event.waited += Math.max(0, dt);
+      if (
+        event.time === undefined ||
+        event.time <= this.replica?.renderTime ||
+        event.waited >= MAX_DAMAGE_PRESENTATION_DELAY
+      ) {
+        this.pendingDamage.splice(i, 1);
+        g.commands.hurt(event.amount);
+      } else i++;
+    }
   }
   // ---------- events ----------
   onEvent(m) {
     const g = this.context;
-    if (!g || !this.accepts(m) || !validEvent(m)) return;
+    if (!g || this.ended || !this.accepts(m) || !validEvent(m)) return;
     if (
       this.peer
         ? m.from !== this.hostId || !HOST_EVENTS.has(m.k)
@@ -428,7 +479,7 @@ export class Session {
         break;
       }
       case "damage":
-        if (this.peer) g.commands.hurt(m.amount);
+        if (this.peer) this.queueDamage(m);
         break;
       case "revived":
         if (this.peer) g.commands.revive();
@@ -480,6 +531,7 @@ export class Session {
       case "end":
         if (this.peer && !this.ended) {
           this.ended = true;
+          this.pendingDamage.length = 0;
           g.commands.end(!!m.victory, true);
         }
         break;
@@ -596,6 +648,7 @@ export class Session {
     }
     if (m.id === this.hostId && this.peer && !this.ended) {
       this.ended = true;
+      this.pendingDamage.length = 0;
       this.context?.emit("toast", {
         title: "L’hôte a quitté la partie",
         text: "Retour au menu.",
@@ -604,6 +657,7 @@ export class Session {
     }
   }
   onClose() {
+    this.pendingDamage.length = 0;
     if (this.ended) return;
     this.ended = true;
     this.context?.emit("toast", {

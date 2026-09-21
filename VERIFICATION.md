@@ -2,6 +2,36 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 3.2.0 — démarches et articulation des zombies
+
+Le squelette passe de 18 à 42 os, avec clavicules, orteils et deux articulations par doigt. Six profils de démarche originaux coordonnent bassin, colonne, épaules, bras et mains. Les pieds gardent un appui dans le monde grâce à une cinématique inverse analytique ; cadence et longueur de pas suivent le déplacement après collisions et la taille du personnage. Les arrêts terminent le pas engagé. Les volumes de tir suivent les os et les chutes partent de la dernière pose vivante. Aucun asset payant ni nouvelle dépendance.
+
+Les marqueurs d'attaque pilotent à la fois le geste, le contact unique et le départ des projectiles. La réplication présente positions, gestes, morts et acide sur la même horloge ; les dégâts reçus attendent cette présentation avec une limite de rattrapage en cas de perte d'instantanés. Les grenades conservent leur fonctionnement antérieur. **Client 3.2.0 et relais doivent être publiés ensemble, avec le protocole 4.**
+
+Vérification locale sous Node.js 25.5.0 : formatage valide, 67 modules sans import inutilisé ni cycle, **77 tests unitaires/réseau réussis**, build de production réussi. Les 77 tests et le build passent également sous **Node.js 24.20.0**, version majeure utilisée en production. Les nouveaux tests vérifient les vrais os et sommets déformés : appuis dès le premier pas, sortie du sol, arrêts/reprises, virages, vitesses élevées, variations individuelles, 30/60 Hz, sessions longues, changement de détail, attaques esquivées, tirs à la tête et corps au contact du sol.
+
+Les parcours de jeu passent : 41 contrôles de combat, 35 de sensations, 78 tactiles Chrome/WebKit, 21 de livraison, 22 de mise à jour et 391 combinaisons de dimensions du menu. Les 190 vagues des 19 scénarios se terminent sur les trois cartes sans apparition invalide ni blocage. La coopération à quatre, les achats concurrents, les relances et la déconnexion de l'hôte passent.
+
+La stabilité réseau passe 18 contrôles avec un invité Chrome puis 18 avec WebKit. Les paquets arrivent avec 40 à 130 ms de retard, l'invité est limité à 30 Hz et la simulation dépasse dix minutes. La continuité articulaire se mesure par seconde de simulation, et non par image affichée ; la transition initiale depuis la pose de construction est sous le sol. Maximum observé : 6,80 rad/s dans Chrome, 8,25 rad/s dans WebKit, pour une limite de 12 rad/s. L'erreur des chevilles plantées reste à la précision numérique. Rapports : `artifacts/stability-1790025559871/report.json` et `artifacts/stability-1790025578198/report.json`.
+
+Les contrôles graphiques passent : 29 vérifications de durée de vie des ressources, 22 de cadence et mise au repos, 41 sur Néréide. Trois cycles de hordes par profil ne laissent pas de textures supplémentaires. Les optimisations de matrices conservent exactement les pixels du rendu sur les trois cartes. La locomotion couvre les six types en pleine géométrie et en géométrie mobile : 42 os finis par modèle, semelles déformées mesurées sur 21 points, 12 tirs à la tête réussis sur 12. Les six cas passent également dans WebKit mobile. Rapports et galeries : `artifacts/locomotion-1790025722826/` et `artifacts/locomotion-1790026330770/`.
+
+Les 18 suites de `verify:full` ont été exécutées successivement, avec reprise des suites après les corrections de leurs mesures décrites ci-dessous. Les derniers rapports valident 28 contrôles de rendu, 60 de sang/impacts/cadavres et 267 de parcours Chrome/WebKit, sans erreur JavaScript, shader, texture ni ressource manquante. Rapports : `artifacts/remaster-1790025835651/report.json`, `artifacts/blood-1790025999678/report.json`, `artifacts/online-1790026056919/report.json` et `artifacts/upgrade-1790026193666.json`. Le refus de capture souris du WebKit automatisé sur ordinateur reste hors validation ; Chrome couvre la souris et WebKit couvre les équivalents tactiles.
+
+Comparaison isolée avant/après sur ce Mac, Chrome, 1440 × 900, DPR 1,5, qualité haute fixe, 28 ennemis et quatre secondes mesurées par scène :
+
+| Carte | Images/s avant → après | Calcul de simulation, ms/image avant → après | Rendu côté CPU, ms/image avant → après |
+| --- | --- | --- | --- |
+| Abbaye | 60,24 → 60,18 | 0,54 → 0,91 | 4,85 → 5,11 |
+| Boréal | 59,74 → 59,73 | 0,48 → 0,75 | 4,21 → 4,81 |
+| Néréide | 59,98 → 59,99 | 0,50 → 0,77 | 4,84 → 5,13 |
+
+La cadence reste donc stable dans ce scénario, avec un coût CPU supplémentaire mesuré ; aucun gain de performances global n'est revendiqué. Les appels de rendu restent du même ordre, autour de 1 000 à 1 120 par image. La pause et la fin de partie restent à zéro image 3D/s. Rapports : `artifacts/thermal-locomotion-before/report.json` et `artifacts/thermal-locomotion-after/report.json`. Ces échantillons courts ne mesurent ni température, ni consommation, ni comportement d'un téléphone physique.
+
+Les tests existants de combat et ressources ont été rendus moins dépendants de l'horloge murale et des particularités du navigateur : le Reliquaire attend son état offert dans un délai borné ; les annulations de flux musicaux `cancelled` de WebKit sont conservées dans le rapport, séparément des erreurs de chargement. Les réponses HTTP en erreur et les autres échecs réseau restent bloquants.
+
+Limites : les essais tactiles et WebKit utilisent des appareils émulés sur Mac, sans téléphone physique. Le contrôleur de contacts cible le sol horizontal des cartes actuelles, pas un terrain arbitraire. Les animations sont écrites et corrigées procéduralement, sans capture de mouvement. Aucun déploiement n'est effectué par ces vérifications.
+
 ## Version 3.1.0 — mise à jour de l'app installée
 
 Version affichée sur petit écran, dans la pause et dans les paramètres. Métadonnées de publication générées au build ; vérification au retour dans l'app et avant le lancement, sans rechargement d'une partie en cours. Les en-têtes HTTP empêchent la conservation d'un ancien document HTML ou fichier de version, sans purger les ressources ni les données du joueur.

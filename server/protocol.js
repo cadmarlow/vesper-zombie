@@ -1,5 +1,5 @@
 // Shared wire contract. No DOM, Three.js or Node dependencies.
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const MAX_PLAYERS = 4;
 export const MAX_MESSAGE_BYTES = 128 * 1024;
 export const PLAYER_FLAGS = Object.freeze({
@@ -97,7 +97,10 @@ export function validEvent(m) {
     case "pause":
       return typeof m.paused === "boolean";
     case "damage":
-      return finite(m.amount, 0, 10000);
+      return (
+        finite(m.amount, 0, 10000) &&
+        (m.time === undefined || finite(m.time, 0, 1e9))
+      );
     case "score":
       return (
         finite(m.points, 0, 10000000) &&
@@ -178,12 +181,17 @@ export function validSnapshot(s) {
     rows(
       s.e,
       128,
-      11,
+      16,
       (r) =>
         integer(r[0], 1) &&
         contentId(r[1]) &&
         r.slice(2).every((v) => finite(v, -1e9, 1e9)) &&
-        r.slice(6, 10).every((v) => integer(v, 0, 1)),
+        r.slice(6, 10).every((v) => integer(v, 0, 1)) &&
+        integer(r[11], 0, 2) &&
+        finite(r[12], 0, 1e9) &&
+        integer(r[13], 0, 1e9) &&
+        finite(r[14]) &&
+        finite(r[15], 0, 1e9),
     ) &&
     rows(
       s.p,

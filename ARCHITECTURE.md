@@ -12,6 +12,8 @@ La base reste une application JavaScript avec Three.js et un relais WebSocket. C
 | Déplacement, santé, état à terre              | `src/game/player.js`                                       |
 | Tirs, couteau, dégâts, grenades               | `src/game/combat.js`                                       |
 | Apparition, navigation, attaques ennemies     | `src/game/enemies.js`, `enemy-behaviors.js`                |
+| Démarches, appuis, mains et poses ennemies    | `src/creature-motion.js`, `creatures.js`                   |
+| Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`           |
 | Vagues, récompenses de transition, extraction | `src/game/survival.js`                                     |
 | Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`         |
 | Statistiques, réglages par défaut             | `src/content/`                                             |
@@ -58,6 +60,14 @@ Les attaques spéciales s’enregistrent dans `game/enemy-behaviors.js`. Le dép
 `spawn.wave` indique la première vague admissible et `spawn.below` un **seuil cumulatif**, dans l’intervalle `[0, 1]`. Les entrées admissibles sont triées par seuil ; le premier seuil supérieur au tirage gagne. Ce format conserve exactement la distribution historique. Adapter les seuils ensemble et vérifier leurs limites dans `tests/logic.test.js` ou `tests/runtime.test.js`. Les boss ont leur calendrier explicite dans `SurvivalMode`.
 
 Les ennemis utilisent leur identifiant texte sur le réseau. Ajouter une variante n’exige pas de maintenir un second tableau d’indices dans la coopération. Les propriétés visuelles communes des morts et des Rémanents sont partagées entre hôte et invité dans `enemy-presentation.js`.
+
+Les modèles de zombies ont 42 os, identiques aux trois niveaux de détail. `zombieModel(type, detail, seed)` reçoit l'identifiant réseau comme graine : proportions et variations restent identiques chez l'hôte et les invités. Les géométries et matériaux sont partagés ; les os, les poses et les contacts de pieds appartiennent à chaque instance. `setZombieDetail` conserve ce squelette et sa pose.
+
+`creature-motion.js` contient les profils de démarche et les courbes de poses originales. La phase avance avec la distance parcourue et la taille du personnage. Pendant l'appui, chaque cheville conserve son ancre dans le monde ; une cinématique inverse analytique à deux segments place le genou et le pied, avec correction de hauteur du bassin. Les pas interrompus terminent leur retour au sol. Les vitesses transmises à l'animateur sont celles mesurées après collisions ; la navigation conserve l'autorité sur les positions. Les cartes actuelles utilisent un sol de déplacement horizontal : ce contrôleur ne résout pas un terrain arbitraire ou des escaliers.
+
+`enemy-actions.js` définit l'horloge et le contact unique des attaques. L'animation, les dégâts et le départ du projectile utilisent le même marqueur. Les volumes touchables de tête, torse et bassin suivent leurs os ; ils sont actualisés une fois par tir, puis réutilisés entre les plombs. Un geste plus ample doit garder ce raccord au combat.
+
+`npm run test:locomotion` inspecte les modèles du build, les semelles réellement déformées, les appuis, les gestes d'attaque et les tirs à la tête. Il produit un rapport et une galerie dans `artifacts/`. `node scripts/locomotion-check.mjs --webkit` ajoute le profil mobile WebKit. Les tests unitaires couvrent les appuis en espace monde, les arrêts, les virages, les vitesses et la synchronisation des contacts.
 
 ## Ajouter une arme ou une interaction
 

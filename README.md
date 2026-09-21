@@ -53,7 +53,7 @@ npm run verify
 npm run verify:full
 ```
 
-`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, tactile Chrome/WebKit, coopération, relances et 190 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
+`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, tactile Chrome/WebKit, coopération, relances et 190 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies et locomotion, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
 
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 
@@ -75,7 +75,13 @@ Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La 
 
 La coopération nécessite un relais WebSocket distinct. `railway.json` et `nixpacks.toml` lancent `node server/index.js`, avec le port fourni par `PORT`. Le dossier `server/` peut également être déployé seul. La route HTTP `/` donne l’état du relais. Définir **`VITE_RELAY_URL=wss://adresse-du-relais` avant le build du client**. Sans cette variable, la coopération distante n’est pas configurée ; le solo reste disponible.
 
-Client et relais doivent utiliser la même version de protocole, actuellement **3**. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+Client et relais doivent utiliser la même version de protocole, actuellement **4**. La version 3.2.0 synchronise les gestes et contacts des zombies avec leur présentation chez les invités ; publier le client et le relais ensemble. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+
+## Zombies articulés — 3.2.0
+
+Les six types d'ennemis ont des démarches distinctes et des variations individuelles. Les pieds prennent appui dans le monde, les genoux et le bassin suivent ces contacts, les clavicules, poignets et doigts accompagnent les gestes. La cadence suit le déplacement réel et les arrêts terminent le pas engagé. Attaques, dégâts, tirs à la tête et chutes suivent la pose du personnage, également en coopération.
+
+Les animations sont originales et procédurales, sans asset payant ni nouvelle dépendance. Les niveaux de détail partagent géométries et matériaux ; les mains distantes gardent une pose simplifiée. `npm run test:locomotion` produit une galerie des six types sur ordinateur et mobile émulé. Le contrôleur utilise le sol horizontal des cartes actuelles ; un terrain en pente demanderait un solveur de contacts supplémentaire.
 
 ## Réanimation et bande-son
 

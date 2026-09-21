@@ -8,8 +8,106 @@ import {
   canRelay,
   PLAYER_FLAGS,
   validSnapshot,
+  validEvent,
   MAX_MESSAGE_BYTES,
 } from "../server/protocol.js";
+
+function damageSession() {
+  const damage = [];
+  const session = new Session(
+    { id: 2, room: { run: 4 } },
+    { hostId: 1, runId: 4, players: [{ id: 1 }, { id: 2 }] },
+  );
+  session.context = {
+    run: { state: "playing" },
+    emit() {},
+    commands: {
+      hurt: (amount) => damage.push(amount),
+      sessionLost() {},
+      end() {},
+    },
+  };
+  session.replica = { renderTime: 9.9 };
+  return {
+    session,
+    damage,
+    hit: { k: "damage", from: 1, run: 4, amount: 18, time: 10 },
+  };
+}
+
+test("peer melee damage is presented exactly once alongside the delayed swing", () => {
+  const { session, damage, hit } = damageSession();
+  session.onEvent(hit);
+  assert.equal(session.pendingDamage.length, 1);
+  assert.deepEqual(damage, []);
+  session.replica.renderTime = 9.98;
+  session.updatePendingDamage(0.05);
+  assert.deepEqual(damage, []);
+  session.replica.renderTime = 10;
+  session.updatePendingDamage(1 / 60);
+  session.updatePendingDamage(1 / 60);
+  assert.deepEqual(damage, [18]);
+  session.onEvent({ ...hit, amount: 13, time: undefined });
+  assert.deepEqual(
+    damage,
+    [18, 13],
+    "untimed projectile damage remains immediate",
+  );
+});
+
+test("a pause freezes pending damage without consuming its fallback delay", () => {
+  const { session, damage, hit } = damageSession();
+  session.context.run.state = "paused";
+  session.onEvent(hit);
+  session.replica.renderTime = 10;
+  session.updatePendingDamage(30);
+  assert.deepEqual(damage, []);
+  assert.equal(session.pendingDamage[0].waited, 0);
+  session.context.run.state = "playing";
+  session.updatePendingDamage(1 / 60);
+  assert.deepEqual(damage, [18]);
+});
+
+test("lost snapshots cannot defer confirmed damage indefinitely", () => {
+  const { session, damage, hit } = damageSession();
+  session.replica.renderTime = 7;
+  session.onEvent(hit);
+  session.updatePendingDamage(0.39);
+  assert.deepEqual(damage, []);
+  session.updatePendingDamage(0.02);
+  assert.deepEqual(damage, [18]);
+  assert.equal(session.pendingDamage.length, 0);
+});
+
+test("damage queues are cleared on disconnect, teardown and an ended run", () => {
+  for (const finish of [
+    (session) => session.detach(),
+    (session) => session.onClose(),
+    (session) => session.onLeft({ id: 1 }),
+    (session) => session.onEvent({ k: "end", from: 1, run: 4, victory: false }),
+  ]) {
+    const { session, damage, hit } = damageSession();
+    session.onEvent(hit);
+    finish(session);
+    assert.equal(session.pendingDamage.length, 0);
+    session.updatePendingDamage(1);
+    assert.deepEqual(damage, []);
+  }
+  const { session, damage, hit } = damageSession();
+  session.onEvent(hit);
+  session.runId = 5;
+  session.updatePendingDamage(1);
+  session.onEvent(hit);
+  assert.equal(session.pendingDamage.length, 0);
+  assert.deepEqual(damage, []);
+});
+
+test("optional damage timestamps reject malformed or negative times", () => {
+  assert.equal(validEvent({ k: "damage", amount: 18, time: 10 }), true);
+  assert.equal(validEvent({ k: "damage", amount: 18 }), true);
+  for (const time of [-1, NaN, Infinity, "10"])
+    assert.equal(validEvent({ k: "damage", amount: 18, time }), false);
+});
 
 const waitFor = (net, type, predicate = () => true) =>
   new Promise((resolve, reject) => {

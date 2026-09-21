@@ -4,6 +4,12 @@ import { zombieModel, animateZombie } from "../creatures.js";
 import * as T from "three";
 import { setSurfaceQuality } from "../surfaces.js";
 import { releaseZombie, setZombieDetail } from "../creatures.js";
+import {
+  enemyActionPresentation,
+  enemyVariation,
+  turnEnemyYaw,
+  updateEnemyAction,
+} from "./enemy-actions.js";
 
 import { ENEMIES } from "../config.js";
 import { moveSlide, enemyType } from "../logic.js";
@@ -44,20 +50,27 @@ export class EnemySystem {
       // authored anchor even when it overlapped a column or scenery collider.
       pos = new T.Vector3(candidate.x, 0, candidate.z);
     }
+    const id = this.run.nextEnemyId++;
+    const variation = enemyVariation(id);
     const model = zombieModel(
       type,
       this.run.touch || this.run.settings.quality === "low" ? "lite" : "full",
+      id,
     );
     setSurfaceQuality(model, this.run.settings.quality);
     model.position.copy(pos);
     model.position.y = -1.9;
+    model.rotation.y = Math.atan2(
+      this.run.player.position.x - pos.x,
+      this.run.player.position.z - pos.z,
+    );
     this.view.scene.add(model);
     const health =
       ENEMIES[type].health *
       (1 + (this.run.wave - 1) * 0.15) *
       this.run.difficulty.health;
     this.run.enemies.push({
-      id: this.run.nextEnemyId++,
+      id,
       model,
       type,
       health,
@@ -66,7 +79,10 @@ export class EnemySystem {
       attack: 1.5,
       stagger: 0,
       age: 0,
-      seed: Math.random() * 12,
+      seed: variation * 12,
+      targetYaw: model.rotation.y,
+      action: null,
+      staggerUntil: 0,
       dead: false,
       spit: 2 + Math.random() * 3,
     });
@@ -98,6 +114,7 @@ export class EnemySystem {
       e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
       if (e.model.position.y < -0.2) continue;
       e.stagger -= dt;
+      e.staggerUntil = Math.max(e.staggerUntil || 0, this.run.time + e.stagger);
       e.attack -= dt;
       e.spit -= dt;
       const dLocal = Math.hypot(
@@ -171,30 +188,73 @@ export class EnemySystem {
           ENEMIES[e.type].radius || 0.36,
         );
       }
-      e.model.rotation.y = Math.atan2(
+      e.targetYaw = Math.atan2(
         prey.x - e.model.position.x,
         prey.z - e.model.position.z,
       );
-      e.attacking = d < 1.65;
       const moved = Math.hypot(
         e.model.position.x - beforeX,
         e.model.position.z - beforeZ,
       );
       e.speed = T.MathUtils.damp(e.speed || 0, dt > 0 ? moved / dt : 0, 8, dt);
+      e.velocityX = dt > 0 ? (e.model.position.x - beforeX) / dt : 0;
+      e.velocityZ = dt > 0 ? (e.model.position.z - beforeZ) / dt : 0;
+      const previousYaw = e.model.rotation.y;
+      e.model.rotation.y = turnEnemyYaw(
+        previousYaw,
+        moved > 0.0001 ? Math.atan2(e.velocityX, e.velocityZ) : e.targetYaw,
+        dt,
+        e.type,
+      );
+      e.turnRate = dt > 0 ? (e.model.rotation.y - previousYaw) / dt : 0;
+      const inMeleeRange = d < 1.65 && !blocked;
+      const contact = updateEnemyAction(e, this.run.time, {
+        melee: inMeleeRange,
+        spit:
+          ENEMIES[e.type].behavior === "spitter" && d > 3 && d < 17 && !blocked,
+      });
+      const motion = enemyActionPresentation(
+        e.action,
+        this.run.time,
+        e.type,
+        e.id,
+        (e.motion ||= {}),
+      );
+      motion.dt = dt;
+      motion.velocityX = e.velocityX;
+      motion.velocityZ = e.velocityZ;
+      motion.targetYaw = e.targetYaw;
+      motion.turnRate = e.turnRate;
+      motion.clock = this.run.time;
+      motion.isGrounded = e.model.position.y >= -0.001;
+      e.attacking = motion.action !== "none";
       animateZombie(
         e.model,
         this.run.time + e.seed,
         e.speed / 1.65,
         e.attacking,
         Math.min(0.16, e.stagger),
+        motion,
       );
-      if (d < 1.65 && !blocked && e.attack <= 0) {
-        if (preyLocal) this.commands.hurt(ENEMIES[e.type].damage);
-        else
-          this.run.session.send(focus.id, {
-            k: "damage",
-            amount: ENEMIES[e.type].damage,
-          });
+      if (contact === "melee") {
+        // A committed swing may miss if its target moves away or behind cover.
+        const facing =
+          Math.abs(
+            Math.atan2(
+              Math.sin(e.targetYaw - e.model.rotation.y),
+              Math.cos(e.targetYaw - e.model.rotation.y),
+            ),
+          ) <=
+          (Math.PI * 4) / 9;
+        if (inMeleeRange && facing) {
+          if (preyLocal) this.commands.hurt(ENEMIES[e.type].damage);
+          else
+            this.run.session.send(focus.id, {
+              k: "damage",
+              amount: ENEMIES[e.type].damage,
+              time: +this.run.time.toFixed(3),
+            });
+        }
         e.attack = ENEMIES[e.type].attackInterval;
       }
       ENEMY_BEHAVIORS[ENEMIES[e.type].behavior]({
@@ -205,6 +265,7 @@ export class EnemySystem {
         local: preyLocal,
         run: this.run,
         view: this.view,
+        contact,
       });
       updateEnemyVisibility(e, this.run.time, dLocal);
     }

@@ -5,10 +5,16 @@ import { glow } from "../assets.js";
 export const ENEMY_BEHAVIORS = {
   melee() {},
   wraith() {},
-  spitter({ enemy, distance, blocked, target, local, run, view }) {
-    if (distance >= 17 || distance <= 3 || blocked || enemy.spit > 0) return;
+  spitter({ enemy, distance, blocked, target, local, run, view, contact }) {
+    if (contact !== "spit") return;
+    enemy.spit = 3.6;
+    if (distance >= 17 || distance <= 3 || blocked) return;
     const orb = new T.Mesh(new T.SphereGeometry(0.12, 8, 6), glow(0x9ae54f, 3));
-    orb.position.copy(enemy.model.position).add(new T.Vector3(0, 1.6, 0));
+    // The release marker follows the animated mouth, including the variant's scale.
+    enemy.model.updateWorldMatrix(true, true);
+    const mouth = enemy.model.userData.jaw || enemy.model.userData.head;
+    if (mouth) mouth.getWorldPosition(orb.position);
+    else orb.position.copy(enemy.model.position).add(new T.Vector3(0, 1.6, 0));
     view.scene.add(orb);
     const aim = local
       ? view.camera.position.clone()
@@ -21,6 +27,5 @@ export const ENEMY_BEHAVIORS = {
       life: 3,
       type: "acid",
     });
-    enemy.spit = 3.6;
   },
 };

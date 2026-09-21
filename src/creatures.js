@@ -8,13 +8,22 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { ENEMIES } from "./config.js";
 import { surface } from "./surfaces.js";
 import { rng } from "./logic.js";
-import {
-  buildCreatureHead,
-  jawOpening,
-  creatureSkinTexture,
-} from "./creature-head.js";
+import { buildCreatureHead, creatureSkinTexture } from "./creature-head.js";
 
 const templates = new Map();
+// These dimensions are shared by every geometric LOD. Keeping a single bind
+// skeleton lets a close-up hand keep its pose when its mesh changes detail.
+const RIG_DIMENSIONS = Object.freeze({
+  hipHeight: 0.88,
+  upperLeg: 0.42,
+  lowerLeg: 0.36,
+  ankleHeight: 0.1,
+  ankleForward: 0.025,
+  soleHeight: 0.024,
+  toePivotZ: 0.13,
+  hipWidth: 0.23,
+});
+const FINGER_LENGTHS = [0.091, 0.112, 0.106, 0.083];
 let skinTexture;
 let stumpGeometry, stumpMaterial;
 function fleshTexture() {
@@ -79,6 +88,8 @@ function build(type, detail = "full") {
     const b = new T.Bone();
     b.name = name;
     b.position.set(x, y, z);
+    b.userData.restPosition = [x, y, z];
+    b.userData.restQuaternion = [0, 0, 0, 1];
     parent.add(b);
     indices[name] = bones.length;
     bones.push(b);
@@ -91,12 +102,26 @@ function build(type, detail = "full") {
   const head = bone("head", neck, 0, 0.2);
   bone("jaw", head, 0, -0.039, -0.018);
   for (const [i, s] of [-1, 1].entries()) {
-    const a = bone(`arm${i}`, torso, s * 0.265, 0.11);
+    const shoulder = bone(`shoulder${i}`, torso, s * 0.12, 0.1);
+    const a = bone(`arm${i}`, shoulder, s * 0.145, 0.01);
     const e = bone(`elbow${i}`, a, s * 0.016, -0.305);
-    bone(`wrist${i}`, e, 0, -0.29);
+    const wrist = bone(`wrist${i}`, e, 0, -0.29);
+    for (let j = 0; j < 4; j++) {
+      const finger = bone(
+        `finger${i}_${j}`,
+        wrist,
+        s * (j - 1.5) * 0.025,
+        -0.067,
+        0.01,
+      );
+      bone(`fingerTip${i}_${j}`, finger, s * 0.001, -0.043, -0.006);
+    }
+    const thumb = bone(`thumb${i}`, wrist, -s * 0.047, -0.011, 0.008);
+    bone(`thumbTip${i}`, thumb, -s * 0.023, -0.038, -0.01);
     const thigh = bone(`leg${i}`, hips, s * 0.115, 0);
     const shin = bone(`shin${i}`, thigh, 0, -0.42);
-    bone(`foot${i}`, shin, 0, -0.36, 0.025);
+    const foot = bone(`foot${i}`, shin, 0, -0.36, 0.025);
+    bone(`toe${i}`, foot, 0, -0.033, 0.105);
   }
   g.updateMatrixWorld(true);
   const skeleton = new T.Skeleton(bones);
@@ -437,7 +462,10 @@ function build(type, detail = "full") {
   }
   for (const [i, s] of [-1, 1].entries()) {
     const x = s * 0.281,
-      armWeight = blend(`elbow${i}`, `arm${i}`, 1.1, 1.24);
+      armWeight = (y) =>
+        y < 1.4
+          ? blend(`elbow${i}`, `arm${i}`, 1.1, 1.24)(y)
+          : blend(`arm${i}`, `shoulder${i}`, 1.4, 1.49)(y);
     add(
       garment([
         [0.062, 1.145],
@@ -504,37 +532,57 @@ function build(type, detail = "full") {
       );
       block(leather, `wrist${i}`, x, 0.91, 0, 0.104, 0.028, 0.1);
     }
-    ball(skin, `wrist${i}`, x, 0.835, 0.006, 0.059, 0.089, 0.032);
+    ball(skin, `wrist${i}`, x, 0.837, 0.006, 0.059, 0.069, 0.032);
     for (let j = 0; j < 4; j++) {
-      const fx = x + (j - 1.5) * 0.025,
-        length = 0.09 + (j === 1 || j === 2 ? 0.022 : 0);
+      const fx = x + s * (j - 1.5) * 0.025,
+        length = FINGER_LENGTHS[j],
+        root = `finger${i}_${j}`,
+        tip = `fingerTip${i}_${j}`,
+        // Blend across each knuckle rather than hinging separate rigid tubes.
+        weights = (y) =>
+          y > 0.783
+            ? blend(root, `wrist${i}`, 0.783, 0.815)(y)
+            : blend(tip, root, 0.742, 0.769)(y);
       tube(
         skin,
-        `wrist${i}`,
+        weights,
         [
-          [fx, 0.8, 0.01],
-          [fx + s * 0.005, 0.75, 0.029],
-          [fx + s * 0.008, 0.8 - length, 0.055],
+          [fx, 0.807, 0.01],
+          [fx + s * 0.001, 0.755, 0.004],
+          [fx + s * 0.003, 0.798 - length, -0.016],
         ],
-        0.011,
+        0.0105,
+      );
+      // Close the distal tube with a low-cost rounded fingertip. This stays
+      // attached to the second joint when the hand closes near the camera.
+      add(
+        new T.SphereGeometry(1, far ? 6 : 8, 4),
+        skin,
+        tip,
+        fx + s * 0.003,
+        0.798 - length,
+        -0.016,
+        0.0105,
+        0.012,
+        0.0105,
       );
       // Nail beds and knuckles remain on the lightweight mobile hand too.
-      ball(skin, `wrist${i}`, fx, 0.794, 0.019, 0.012, 0.016, 0.013);
+      ball(skin, weights, fx, 0.798, 0.015, 0.012, 0.015, 0.013);
       block(
         tooth,
-        `wrist${i}`,
-        fx + s * 0.008,
-        0.81 - length,
-        0.06,
+        tip,
+        fx + s * 0.003,
+        0.811 - length,
+        -0.0035,
         0.009,
         look === "runner" ? 0.025 : 0.012,
         0.003,
-        new T.Euler(-0.3, 0, -s * 0.08),
+        new T.Euler(0.33, 0, -s * 0.04),
       );
       if (!lite)
         tube(
           skin,
-          `wrist${i}`,
+          weights,
           [
             [fx, 0.856, 0.035],
             [fx, 0.824, 0.039],
@@ -545,13 +593,27 @@ function build(type, detail = "full") {
     }
     tube(
       skin,
-      `wrist${i}`,
+      (y) =>
+        y > 0.844
+          ? blend(`thumb${i}`, `wrist${i}`, 0.844, 0.874)(y)
+          : blend(`thumbTip${i}`, `thumb${i}`, 0.8, 0.834)(y),
       [
         [x - s * 0.043, 0.87, 0.014],
-        [x - s * 0.078, 0.818, 0.024],
-        [x - s * 0.066, 0.787, 0.05],
+        [x - s * 0.07, 0.816, -0.002],
+        [x - s * 0.059, 0.79, -0.023],
       ],
       0.017,
+    );
+    add(
+      new T.SphereGeometry(1, far ? 6 : 8, 4),
+      skin,
+      `thumbTip${i}`,
+      x - s * 0.059,
+      0.79,
+      -0.023,
+      0.016,
+      0.018,
+      0.016,
     );
     const thighWeights = blend(`shin${i}`, `leg${i}`, 0.4, 0.55);
     add(
@@ -613,7 +675,14 @@ function build(type, detail = "full") {
       );
     }
     boot.computeVertexNormals();
-    add(boot, leather, `foot${i}`, s * 0.115, 0, 0);
+    const footWeights = (_y, _x, z) => {
+      const toe = T.MathUtils.smoothstep(z, 0.105, 0.155);
+      return [
+        [`foot${i}`, 1 - toe],
+        [`toe${i}`, toe],
+      ];
+    };
+    add(boot, leather, footWeights, s * 0.115, 0, 0);
     add(
       garment(
         [
@@ -649,11 +718,11 @@ function build(type, detail = "full") {
       steps: 1,
     });
     sole.rotateX(Math.PI / 2);
-    add(sole, leather, `foot${i}`, s * 0.115, 0.049, 0);
+    add(sole, leather, footWeights, s * 0.115, 0.049, 0);
     for (let j = 0; j < 4; j++)
       block(
         steel,
-        `foot${i}`,
+        footWeights,
         s * 0.115,
         0.146,
         0.115 - j * 0.026,
@@ -1000,12 +1069,27 @@ function build(type, detail = "full") {
 
 const normalizeDetail = (detail) =>
   detail === true ? "lite" : detail || "full";
-export function zombieModel(type, detail = "full") {
+// Network entity IDs can be numbers or strings. Explicit seeds always produce
+// the same proportions and movement identity on the host and every peer.
+function creatureSeed(seed) {
+  if (typeof seed === "number" && Number.isFinite(seed)) return seed | 0;
+  let hash = 2166136261;
+  for (const character of String(seed)) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+export function zombieModel(type, detail = "full", seed) {
   detail = normalizeDetail(detail);
   const key = `${type}-${detail}`;
   if (!templates.has(key)) templates.set(key, build(type, detail));
   const g = clone(templates.get(key));
-  const variation = Math.random();
+  const motionSeed =
+    seed === undefined
+      ? (Math.random() * 0x100000000) >>> 0
+      : creatureSeed(seed);
+  const variation = rng(motionSeed)();
   g.scale.x *= 0.94 + variation * 0.12;
   g.scale.y *= 0.97 + variation * 0.06;
   let sharedSkeleton;
@@ -1019,20 +1103,45 @@ export function zombieModel(type, detail = "full") {
     type,
     look: ENEMIES[type].look || type,
     variation,
+    motionSeed,
+    rig: RIG_DIMENSIONS,
     headDestroyed: false,
     detail,
     lite: detail !== "full",
     torso: g.getObjectByName("torso"),
+    spine: g.getObjectByName("spine"),
+    neck: g.getObjectByName("neck"),
     head: g.getObjectByName("head"),
     jaw: g.getObjectByName("jaw"),
     hips: g.getObjectByName("hips"),
+    shoulders: [0, 1].map((i) => g.getObjectByName(`shoulder${i}`)),
     arms: [0, 1].map((i) => g.getObjectByName(`arm${i}`)),
     elbows: [0, 1].map((i) => g.getObjectByName(`elbow${i}`)),
     wrists: [0, 1].map((i) => g.getObjectByName(`wrist${i}`)),
+    // Index/middle/ring/little/thumb, mirrored across the two hands. Positive
+    // local X rotation curls each joint toward the palm, including the thumb.
+    fingers: [-1, 1].map((side, i) => [
+      ...FINGER_LENGTHS.map((length, j) => ({
+        root: g.getObjectByName(`finger${i}_${j}`),
+        tip: g.getObjectByName(`fingerTip${i}_${j}`),
+        thumb: false,
+        length,
+        side,
+      })),
+      {
+        root: g.getObjectByName(`thumb${i}`),
+        tip: g.getObjectByName(`thumbTip${i}`),
+        thumb: true,
+        length: 0.072,
+        side,
+      },
+    ]),
     legs: [0, 1].map((i) => ({
       root: g.getObjectByName(`leg${i}`),
       shin: g.getObjectByName(`shin${i}`),
       foot: g.getObjectByName(`foot${i}`),
+      toe: g.getObjectByName(`toe${i}`),
+      lengths: { upper: 0.42, lower: Math.hypot(0.36, 0.025) },
     })),
   };
   return g;
@@ -1101,74 +1210,4 @@ export function releaseZombie(g) {
   skeletons.forEach((s) => s.dispose());
 }
 
-export function animateZombie(g, t, speed, attacking = false, stagger = 0) {
-  const {
-    torso,
-    head,
-    jaw,
-    hips,
-    arms,
-    elbows,
-    wrists,
-    legs,
-    type,
-    look = type,
-    variation = 0.5,
-  } = g.userData;
-  // Integrate cadence. Multiplying the entire run time by a changing speed
-  // made network corrections jump to unrelated poses, especially late in a run.
-  const dt = Math.max(0, Math.min(0.1, t - (g.userData.animationTime ?? t)));
-  g.userData.animationTime = t;
-  const movement = T.MathUtils.clamp(speed, 0, 1.5);
-  const phase = (g.userData.walkPhase =
-    ((g.userData.walkPhase ?? variation * Math.PI * 2) +
-      dt *
-        (look === "runner" ? 8.5 : 4.6) *
-        movement *
-        (0.92 + variation * 0.16)) %
-    (Math.PI * 4));
-  const stride = (attacking ? 0.12 : 0.43) * Math.min(1, movement);
-  hips.position.y = 0.865 + Math.abs(Math.sin(phase)) * 0.025;
-  hips.rotation.y = Math.sin(phase) * 0.09;
-  hips.rotation.z = Math.sin(phase) * 0.025;
-  torso.rotation.set(
-    (look === "runner" ? 0.3 : look === "brute" ? 0.17 : 0.23) -
-      Math.max(0, stagger) * 0.28,
-    Math.sin(phase) * -0.07,
-    Math.sin(phase * 0.5) * 0.055,
-  );
-  head.rotation.set(
-    -0.12 + Math.sin(t * 1.7) * 0.045,
-    Math.sin(t * 0.75) * 0.07,
-    (variation - 0.5) * 0.3 + Math.sin(phase * 0.5) * 0.06,
-  );
-  jaw.rotation.x = jawOpening(look, t, attacking);
-  jaw.rotation.z = Math.sin(t * 1.7) * (look === "runner" ? 0.025 : 0.008);
-  legs.forEach((leg, i) => {
-    const p = phase + i * Math.PI;
-    leg.root.rotation.x = Math.sin(p) * stride;
-    leg.shin.rotation.x =
-      Math.max(0, -Math.sin(p)) * 0.63 * Math.min(1, movement);
-    leg.foot.rotation.x =
-      -Math.max(0, Math.cos(p)) * 0.14 * Math.min(1, movement);
-  });
-  arms.forEach((arm, i) => {
-    arm.rotation.set(
-      attacking
-        ? -1.45 + Math.sin(t * 8 + i * 1.8) * 0.48
-        : look === "runner"
-          ? -0.45 + Math.sin(phase + i * Math.PI) * 0.52
-          : (i ? -0.24 : -0.67) + Math.sin(phase + i * Math.PI) * 0.24,
-      Math.sin(phase * 0.5 + i) * 0.07,
-      (i ? 1 : -1) * (0.08 + variation * 0.08),
-    );
-    elbows[i].rotation.x =
-      (look === "runner" ? -0.7 : -0.22) -
-      Math.max(0, Math.sin(phase + i)) * 0.32;
-    wrists[i].rotation.set(
-      attacking ? 0.42 : 0.28,
-      i ? -0.7 : 0.7,
-      i ? 0.08 : -0.08,
-    );
-  });
-}
+export { animateZombie } from "./creature-motion.js";

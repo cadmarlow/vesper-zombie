@@ -130,7 +130,11 @@ export class EffectsSystem {
               p.mesh.position.z - other.model.position.z,
             ) < 0.65
           ) {
-            this.run.session.send(other.id, { k: "damage", amount: 13 });
+            this.run.session.send(other.id, {
+              k: "damage",
+              amount: 13,
+              time: this.run.time,
+            });
             p.life = 0;
           }
         }

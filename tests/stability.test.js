@@ -196,8 +196,15 @@ test("zombie gait stays continuous late in a run and at cycle boundaries", async
   animateZombie(g, 600 + 1 / 60, 1);
   assert.ok(Math.abs(g.userData.arms[1].rotation.y - before) < 0.01);
   animateZombie(g, 601, 0);
+  const stoppedPhase = g.userData.walkPhase;
+  for (let i = 1; i <= 60; i++) animateZombie(g, 601 + i / 60, 0);
+  assert.equal(g.userData.walkPhase, stoppedPhase);
+  for (const foot of g.userData.motionState.feet) {
+    assert.ok(foot.planted, "an interrupted step must finish on the floor");
+    assert.ok(Math.abs(foot.position.y - 0.076) < 1e-9);
+  }
   for (const leg of g.userData.legs)
-    assert.equal(Math.abs(leg.shin.rotation.x), 0);
+    assert.ok(Number.isFinite(leg.shin.rotation.x));
 });
 
 test("snapshot interpolation never rewinds when the host slows or packets arrive in bursts", async () => {

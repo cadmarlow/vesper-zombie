@@ -12,6 +12,7 @@ const report = {
   checks: [],
   errors: [],
   failedRequests: [],
+  cancelledMedia: [],
   external: [],
   timings: [],
   audio: [],
@@ -37,7 +38,17 @@ function observe(p, label) {
       report.failedRequests.push({ label, url: r.url(), status: r.status() });
   });
   p.on("requestfailed", (r) => {
-    if (!r.failure()?.errorText.includes("ABORTED"))
+    const error = r.failure()?.errorText || "";
+    // WebKit names a stopped streaming request "cancelled" when the next
+    // run selects another song. Keep the evidence, but don't treat that
+    // expected media cancellation as a missing asset or connection failure.
+    if (
+      error === "cancelled" &&
+      new URL(r.url()).origin === origin &&
+      /^\/music\/[^/]+\.mp3$/.test(new URL(r.url()).pathname)
+    )
+      report.cancelledMedia.push({ label, url: r.url(), failure: r.failure() });
+    else if (!error.includes("ABORTED"))
       report.failedRequests.push({ label, url: r.url(), failure: r.failure() });
   });
   p.on("request", (r) => {

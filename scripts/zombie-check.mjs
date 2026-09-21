@@ -13,6 +13,12 @@ const browser = await chromium.launch({
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const report = { out, errors: [], models: [], checks: [] };
+async function capture(page, options) {
+  // Inspection poses are frozen deliberately. The production loop does not
+  // redraw an idle frame unless asked, so render the pose before photographing.
+  await page.evaluate(() => window.__vesper.composer.render());
+  await page.screenshot(options);
+}
 try {
   for (const mobile of [false, true]) {
     const profile = mobile ? "mobile" : "desktop";
@@ -92,6 +98,7 @@ try {
       rim.intensity = 4;
       g.scene.add(hemi, key, rim);
       g.ao.enabled = false;
+      g.viewPass.enabled = false;
       g.camera.fov = 38;
       g.camera.updateProjectionMatrix();
       g.enemies.forEach(({ model }) => {
@@ -135,7 +142,7 @@ try {
       }, type);
       report.models.push({ profile, ...model });
       await page.waitForTimeout(180);
-      await page.screenshot({ path: `${out}/${profile}-${type}-face.png` });
+      await capture(page, { path: `${out}/${profile}-${type}-face.png` });
       await page.evaluate((type) => {
         const g = window.__vesper;
         const e = g.enemies.find((e) => e.type === type);
@@ -143,7 +150,7 @@ try {
         e.model.userData.jaw.rotation.x = 0.38;
       }, type);
       await page.waitForTimeout(180);
-      await page.screenshot({ path: `${out}/${profile}-${type}-jaw.png` });
+      await capture(page, { path: `${out}/${profile}-${type}-jaw.png` });
       await page.evaluate((type) => {
         const g = window.__vesper,
           e = g.enemies.find((e) => e.type === type),
@@ -154,7 +161,7 @@ try {
         g.camera.lookAt(0, 1.05 * s, 0);
       }, type);
       await page.waitForTimeout(100);
-      await page.screenshot({ path: `${out}/${profile}-${type}-body.png` });
+      await capture(page, { path: `${out}/${profile}-${type}-body.png` });
       await page.evaluate(() => {
         const g = window.__vesper;
         g.camera.fov = 38;
@@ -187,7 +194,7 @@ try {
           e.stagger = 1e6;
         }, type);
         await page.waitForTimeout(250);
-        await page.screenshot({
+        await capture(page, {
           path: `${out}/${profile}-${map}-${type}-combat.png`,
         });
       }
@@ -215,11 +222,17 @@ try {
             const e = g.enemies.at(-1);
             e.model.position.y = 0;
             e.stagger = 1e6;
+            g.time += 0.016;
             g.updateEnemies(0.016);
             const idleJaw = e.model.userData.jaw.rotation.x;
             e.model.position.z = 18.8;
-            g.updateEnemies(0.016);
-            const attackJaw = e.model.userData.jaw.rotation.x;
+            e.attack = 0;
+            let attackJaw = idleJaw;
+            for (let frame = 0; frame < 40; frame++) {
+              g.time += 1 / 60;
+              g.updateEnemies(1 / 60);
+              attackJaw = Math.max(attackJaw, e.model.userData.jaw.rotation.x);
+            }
             const textures = [];
             e.model.traverse((o) => {
               const image = o.material?.map?.image;

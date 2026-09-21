@@ -172,7 +172,15 @@ try {
     "Mystery box charges exactly 950 essences",
     (await active()).points === 9050,
   );
-  await page.waitForTimeout(3500);
+  // The box takes 3.2 seconds of simulation. Cold weapon construction can
+  // consume wall time, so observe completion with a bounded timeout.
+  await page.waitForFunction(
+    () =>
+      !!window.__vesper.world.interactions.find((i) => i.kind === "box")
+        .offered,
+    null,
+    { timeout: 8000 },
+  );
   check(
     "Mystery box offers a weapon",
     await evaluate(

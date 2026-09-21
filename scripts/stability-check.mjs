@@ -343,14 +343,39 @@ try {
       new Promise((resolve) => {
         const g = window.__vesper;
         const rows = [];
+        const ankle = g.enemies[0].model.position.clone();
         const until = performance.now() + 1800;
         function sample() {
           const e = g.enemies[0];
+          e.model.updateMatrixWorld(true);
           rows.push({
+            at: performance.now(),
+            age: e.age,
             x: e.model.position.x,
+            y: e.model.position.y,
             z: e.model.position.z,
+            hipY:
+              e.model.position.y +
+              e.model.userData.hips.position.y * e.model.scale.y,
+            scale: e.model.scale.y,
             phase: e.model.userData.walkPhase,
             leg: e.model.userData.legs[0].root.rotation.x,
+            clock: e.motion?.clock,
+            dt: e.motion?.dt,
+            grounded: e.motion?.isGrounded,
+            cadence: e.model.userData.motionState?.cadence,
+            feet: e.model.userData.motionState?.feet.map((foot, i) => {
+              e.model.userData.legs[i].foot.getWorldPosition(ankle);
+              return {
+                planted: foot.planted,
+                progress: foot.progress,
+                contacts: foot.contactCount,
+                y: foot.position.y,
+                anchor: foot.anchor.toArray(),
+                actual: ankle.toArray(),
+                anchorError: ankle.distanceTo(foot.anchor),
+              };
+            }),
           });
           if (performance.now() < until) requestAnimationFrame(sample);
           else resolve(rows);
@@ -359,22 +384,75 @@ try {
       }),
   );
   let maxStep = 0,
-    maxLeg = 0;
+    maxLeg = 0,
+    maxLegIndex = 0,
+    maxVisibleLegSpeed = 0,
+    maxVisibleLegIndex = 0,
+    visiblePosePairs = 0,
+    maxPlantError = 0,
+    plantedSamples = 0;
   for (let i = 1; i < motion.length; i++) {
     maxStep = Math.max(
       maxStep,
       Math.hypot(motion[i].x - motion[i - 1].x, motion[i].z - motion[i - 1].z),
     );
-    maxLeg = Math.max(maxLeg, Math.abs(motion[i].leg - motion[i - 1].leg));
+    const legStep = Math.abs(motion[i].leg - motion[i - 1].leg);
+    if (legStep > maxLeg) {
+      maxLeg = legStep;
+      maxLegIndex = i;
+    }
+    // Sample the accepted animation clock: rAF still runs at 60 Hz when this
+    // peer presents at 30 Hz. A joint can naturally travel twice as far per
+    // accepted frame; the continuity budget remains 0.2 radians per 1/60 s.
+    // The initial bind -> IK pose happens with both thighs below the floor.
+    const poseDt = motion[i].age - motion[i - 1].age;
+    if (motion[i].hipY >= 0 && motion[i - 1].hipY >= 0 && poseDt > 0) {
+      visiblePosePairs++;
+      const angularSpeed = legStep / poseDt;
+      if (angularSpeed > maxVisibleLegSpeed) {
+        maxVisibleLegSpeed = angularSpeed;
+        maxVisibleLegIndex = i;
+      }
+    }
+    if (motion[i].grounded)
+      for (const foot of motion[i].feet || [])
+        if (foot.planted) {
+          plantedSamples++;
+          maxPlantError = Math.max(
+            maxPlantError,
+            foot.anchorError / motion[i].scale,
+          );
+        }
   }
-  report.motion = { samples: motion.length, maxStep, maxLeg };
+  report.motion = {
+    samples: motion.length,
+    maxStep,
+    maxLeg,
+    maxLegIndex,
+    maxLegPair: motion.slice(Math.max(0, maxLegIndex - 1), maxLegIndex + 1),
+    maxVisibleLegSpeed,
+    visibleLegSpeedLimit: 12,
+    visiblePosePairs,
+    maxVisibleLegPair: motion.slice(
+      Math.max(0, maxVisibleLegIndex - 1),
+      maxVisibleLegIndex + 1,
+    ),
+    maxPlantError,
+    plantedSamples,
+    rows: motion,
+  };
   check(
     "Late-run remote zombie movement and gait stay continuous under delayed snapshots",
     motion.length > 20 &&
       maxStep > 0.001 &&
       maxStep < 0.25 &&
-      maxLeg > 0.001 &&
-      maxLeg < 0.2,
+      visiblePosePairs > 20 &&
+      maxVisibleLegSpeed > 0.001 &&
+      maxVisibleLegSpeed < 12,
+  );
+  check(
+    "Remote planted ankles stay within 1.2 cm of their anchors under delayed snapshots",
+    plantedSamples > 20 && maxPlantError < 0.012,
   );
   await host.evaluate(() => {
     const e = window.__vesper.enemies[0];

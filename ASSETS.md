@@ -2,6 +2,10 @@
 
 Gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. Version 2.0 also uses the CC0 surface scans listed below. No Call of Duty asset, map, logo or audio sample is included.
 
+## Version 3.2 — articulated zombie movement
+
+The six zombie motion profiles, Hermite pose curves, world-space foot contacts, two-bone leg solver, finger poses, directional reactions and articulated death motion are original project code in `src/creature-motion.js` and `src/game/enemy-presentation.js`. The 42-bone rigs and their skin weights are authored in `src/creatures.js`, including clavicles, toes and two joints per finger/thumb. No paid asset, external animation recording, proprietary motion library, new texture or runtime dependency was added for this work. Three.js remains the existing MIT-licensed rendering dependency. These movements are authored animation and procedural corrections, not motion-capture recordings.
+
 ## Version 2.4 — blood impacts
 
 Blood mist and splatter masks are original 256px canvas textures drawn once per session in `src/blood-effects.js`. Droplets and head fragments reuse instanced geometry; the neck wound uses shared original geometry in `src/creatures.js`. The impact sounds are synthesized in `src/audio.js`. No new external image, model or audio recording is used.

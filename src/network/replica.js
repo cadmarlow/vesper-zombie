@@ -12,6 +12,11 @@ import {
 import { setSurfaceQuality } from "../surfaces.js";
 import { disposeModel } from "../resources.js";
 import { glow, glowSprite, mesh } from "../assets.js";
+import {
+  enemyActionFromSnapshot,
+  enemyActionPresentation,
+  enemyVariation,
+} from "../game/enemy-actions.js";
 const PICKUP_TYPES = ["health", "ammo", "double", "insta"];
 export class WorldReplica {
   constructor(
@@ -91,18 +96,25 @@ export class WorldReplica {
         yaw,
         hp,
         dead,
-        attacking,
+        ,
         headGone,
-        stagger,
+        ,
         maxHealth,
+        actionCode,
+        actionStart,
+        actionSequence,
+        targetYaw,
+        staggerUntil,
       ] = row;
       seen.add(id);
       let e = this.remoteEnemies.get(id);
       if (!e) {
         const type = typeIndex;
+        const variation = enemyVariation(id);
         const model = zombieModel(
           type,
           g.run.touch || g.run.settings.quality === "low" ? "lite" : "full",
+          id,
         );
         setSurfaceQuality(model, g.run.settings.quality);
         model.position.set(x, -1.9, z);
@@ -118,7 +130,7 @@ export class WorldReplica {
           deathTime: 2.4,
           stagger: 0,
           age: 0,
-          seed: Math.random() * 12,
+          seed: variation * 12,
           tx: x,
           tz: z,
           tyaw: yaw,
@@ -133,30 +145,28 @@ export class WorldReplica {
       e.tx = x;
       e.tz = z;
       e.tyaw = yaw;
-      e.samples.push({ time, x, z, yaw });
+      e.action = enemyActionFromSnapshot(
+        actionCode,
+        actionStart,
+        actionSequence,
+      );
+      e.samples.push({
+        time,
+        x,
+        z,
+        yaw,
+        targetYaw,
+        action: e.action,
+        staggerUntil,
+        dead: !!dead,
+        headGone: !!headGone,
+      });
       if (e.samples.length > 8) e.samples.shift();
       e.health = hp;
-      e.attacking = !!attacking;
-      if (stagger && e.stagger <= 0) e.stagger = 0.16;
-      if (headGone && !e.model.userData.headDestroyed) {
-        const at = new T.Vector3();
-        destroyZombieHead(e.model, at);
-        g.view.combatEffects.blood.hit(at, new T.Vector3(0, 1, 0), true);
-      }
-      if (dead && !e.dead) {
-        e.dead = true;
-        e.deathTime = 2.4;
-        e.fallSide = Math.random() < 0.5 ? -1 : 1;
-      }
+      e.removeAt = undefined;
     }
     for (const [id, e] of this.remoteEnemies)
-      if (!seen.has(id)) {
-        // Host already removed it (body faded): drop ours too.
-        g.view.scene.remove(e.model);
-        releaseZombie(e.model);
-        g.run.enemies = g.run.enemies.filter((x) => x !== e);
-        this.remoteEnemies.delete(id);
-      }
+      if (!seen.has(id)) e.removeAt ??= time;
     // pickups
     const pickupsSeen = new Set();
     for (const [id, typeIndex, x, z] of s.k) {
@@ -194,17 +204,29 @@ export class WorldReplica {
           kind === 0 ? glow(0x4c6257, 0.2) : glow(0x9ae54f, 3),
         );
         model.position.set(x, y, z);
+        model.visible = kind === 0;
         g.view.scene.add(model);
-        p = { mesh: model, target: new T.Vector3(x, y, z) };
+        p =
+          kind === 0
+            ? { mesh: model, target: new T.Vector3(x, y, z) }
+            : { mesh: model, bornAt: time, samples: [] };
         this.remoteProjectiles.set(id, p);
       }
-      p.target.set(x, y, z);
+      if (p.target) {
+        p.target.set(x, y, z);
+        continue;
+      }
+      p.samples.push({ time, x, y, z });
+      if (p.samples.length > 8) p.samples.shift();
+      p.removeAt = undefined;
     }
     for (const [id, p] of this.remoteProjectiles)
       if (!projSeen.has(id)) {
-        g.view.scene.remove(p.mesh);
-        disposeModel(p.mesh);
-        this.remoteProjectiles.delete(id);
+        if (p.target) {
+          g.view.scene.remove(p.mesh);
+          disposeModel(p.mesh);
+          this.remoteProjectiles.delete(id);
+        } else p.removeAt ??= time;
       }
   }
   updateRemoteEnemies(dt) {
@@ -216,11 +238,18 @@ export class WorldReplica {
       if (drift > 0.5) this.renderTime = this.latestTime - 0.1;
       else this.renderTime += dt * T.MathUtils.clamp(1 + drift * 8, 0, 1.5);
     }
+    const clock = this.renderTime ?? g.run.time;
+    const removed = [];
     for (const e of g.run.enemies) {
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
         if (e.deathTime <= 0) e.model.visible = false;
+        if (e.removeAt <= clock && e.deathTime <= 0) removed.push(e);
+        continue;
+      }
+      if (e.removeAt <= clock) {
+        removed.push(e);
         continue;
       }
       e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
@@ -243,15 +272,47 @@ export class WorldReplica {
           : 1;
       m.position.x = a ? T.MathUtils.lerp(a.x, b.x, mix) : e.tx;
       m.position.z = a ? T.MathUtils.lerp(a.z, b.z, mix) : e.tz;
-      const targetYaw = a
+      const bodyYaw = a
         ? a.yaw +
           Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * mix
         : e.tyaw;
-      let delta = targetYaw - m.rotation.y;
+      let delta = bodyYaw - m.rotation.y;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-      m.rotation.y += delta * Math.min(1, dt * 10);
+      // Host turns are already gradual. Interpolate once, without adding a
+      // second facing lag that makes the body crabwalk around a corner.
+      m.rotation.y += delta;
       const moved = Math.hypot(m.position.x - bx, m.position.z - bz);
       e.speed = T.MathUtils.damp(e.speed, dt > 0 ? moved / dt : 0, 8, dt);
+      e.velocityX = dt > 0 ? (m.position.x - bx) / dt : 0;
+      e.velocityZ = dt > 0 ? (m.position.z - bz) / dt : 0;
+      e.turnRate = dt > 0 ? delta / dt : 0;
+      const actionState =
+        b?.action && b.action.startTime <= clock ? b.action : a?.action;
+      const motion = enemyActionPresentation(
+        actionState,
+        clock,
+        e.type,
+        e.id,
+        (e.motion ||= {}),
+      );
+      e.attacking = motion.action !== "none";
+      const staggerUntil =
+        b?.staggerUntil && b.staggerUntil - 0.16 <= clock
+          ? b.staggerUntil
+          : a?.staggerUntil || 0;
+      e.stagger = Math.max(e.stagger, Math.min(0.16, staggerUntil - clock));
+      const lookA = a?.targetYaw ?? a?.yaw ?? bodyYaw;
+      const lookB = b?.targetYaw ?? b?.yaw ?? bodyYaw;
+      e.targetYaw =
+        lookA +
+        Math.atan2(Math.sin(lookB - lookA), Math.cos(lookB - lookA)) * mix;
+      motion.dt = dt;
+      motion.velocityX = e.velocityX;
+      motion.velocityZ = e.velocityZ;
+      motion.targetYaw = e.targetYaw;
+      motion.turnRate = e.turnRate;
+      motion.clock = clock;
+      motion.isGrounded = m.position.y >= -0.001;
       const d = Math.hypot(
         m.position.x - g.run.player.position.x,
         m.position.z - g.run.player.position.z,
@@ -262,14 +323,64 @@ export class WorldReplica {
       }
       animateZombie(
         m,
-        g.run.time + e.seed,
+        clock + e.seed,
         e.speed / 1.65,
         e.attacking,
         Math.min(0.16, e.stagger),
+        motion,
       );
-      updateEnemyVisibility(e, g.run.time, d);
+      updateEnemyVisibility(e, clock, d);
+      // Flags are observations, just like positions: a future snapshot must
+      // not interrupt a swing whose contact has not yet been presented.
+      const observation = b?.time <= clock ? b : a?.time <= clock ? a : null;
+      if (observation?.headGone && !m.userData.headDestroyed) {
+        const at = new T.Vector3();
+        destroyZombieHead(m, at);
+        g.view.combatEffects.blood.hit(at, new T.Vector3(0, 1, 0), true);
+      }
+      if (observation?.dead) {
+        e.dead = true;
+        e.attacking = false;
+        e.deathTime = 2.4;
+        e.fallSide = enemyVariation(e.id) < 0.5 ? -1 : 1;
+      }
     }
-    // The host removes corpses. Removing them locally first could recreate a
-    // falling body from the next delayed snapshot.
+    // Wait for both the host's removal observation and the complete local
+    // collapse. Packet quantization must not shorten the corpse's lifetime.
+    for (const e of removed) {
+      g.view.scene.remove(e.model);
+      releaseZombie(e.model);
+      this.remoteEnemies.delete(e.id);
+    }
+    if (removed.length)
+      g.run.enemies = g.run.enemies.filter((e) => !removed.includes(e));
+    this.updateRemoteProjectiles(clock);
+  }
+  updateRemoteProjectiles(clock = this.renderTime) {
+    if (!this.remoteProjectiles) return;
+    for (const [id, p] of this.remoteProjectiles) {
+      if (p.target) continue;
+      if (p.removeAt <= clock) {
+        this.context.view.scene.remove(p.mesh);
+        disposeModel(p.mesh);
+        this.remoteProjectiles.delete(id);
+        continue;
+      }
+      p.mesh.visible = clock >= p.bornAt;
+      if (!p.mesh.visible) continue;
+      while (p.samples.length > 2 && p.samples[1].time <= clock)
+        p.samples.shift();
+      const a = p.samples[0],
+        b = p.samples[1] || a;
+      const mix =
+        b.time > a.time
+          ? T.MathUtils.clamp((clock - a.time) / (b.time - a.time), 0, 1)
+          : 1;
+      p.mesh.position.set(
+        T.MathUtils.lerp(a.x, b.x, mix),
+        T.MathUtils.lerp(a.y, b.y, mix),
+        T.MathUtils.lerp(a.z, b.z, mix),
+      );
+    }
   }
 }

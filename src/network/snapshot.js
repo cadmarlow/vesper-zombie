@@ -1,3 +1,5 @@
+import { ENEMY_ACTIONS } from "../game/enemy-actions.js";
+
 const PICKUP_TYPES = ["health", "ammo", "double", "insta"];
 // Tuple ordering is part of the wire contract, independent from registry order.
 export function snapshot(context, players, id, tick, me) {
@@ -35,6 +37,11 @@ export function snapshot(context, players, id, tick, me) {
       e.model.userData.headDestroyed ? 1 : 0,
       e.stagger > 0 ? 1 : 0,
       e.maxHealth,
+      ENEMY_ACTIONS[e.action?.kind || "none"].code,
+      +(e.action?.startTime || 0).toFixed(3),
+      e.action?.sequence || 0,
+      +(e.targetYaw ?? e.model.rotation.y).toFixed(3),
+      +(e.staggerUntil || 0).toFixed(3),
     ]),
     p: [
       [
