@@ -502,3 +502,125 @@ test("peers show attack and hit reactions on the delayed position timeline", () 
     "an old packet cannot loop a finished swing",
   );
 });
+
+test("sprinters pounce from a few metres in later waves and land their claws", async () => {
+  const { hordeRandom, LEAP } = await import("../src/content/horde.js");
+  // An id whose first attack is a pounce.
+  let id = 1;
+  while (hordeRandom(id, 900) >= LEAP.chance) id++;
+  for (const wave of [1, LEAP.wave + 2]) {
+    const model = modelFixture();
+    model.userData.type = "runner";
+    const enemy = {
+      id,
+      model,
+      type: "runner",
+      attack: 0,
+      spit: 5,
+      stagger: 0,
+      seed: 0,
+      age: 1,
+      speedFactor: 0.0001,
+      nextDetailCheck: Infinity,
+    };
+    const run = {
+      time: 0,
+      wave,
+      enemies: [enemy],
+      player: { position: new T.Vector3(0, 0, 3.1) },
+      navigation: { direction: (_x, _z, target) => target },
+      world: { obstacles: [] },
+    };
+    const damage = [];
+    const system = new EnemySystem(
+      { run },
+      {
+        obstacleDistance: (_o, _d, distance) => distance,
+        hurt: (amount) => damage.push(amount),
+      },
+    );
+    let leapt = false,
+      closest = Infinity;
+    // One attack cycle: the pounce and its contact, before a follow-up swing.
+    for (let frame = 0; frame < 50; frame++) {
+      run.time = frame / 60;
+      system.updateEnemies(1 / 60);
+      leapt ||= !!enemy.action?.leap;
+      closest = Math.min(closest, 3.1 - model.position.z);
+    }
+    if (wave < LEAP.wave) {
+      assert.equal(leapt, false, "no pounce in early waves");
+      assert.equal(damage.length, 0, "out of reach");
+    } else {
+      assert.ok(leapt, "pounce");
+      assert.ok(
+        closest < LEAP.reach + 0.15,
+        `landed ${closest.toFixed(2)} m away`,
+      );
+      assert.equal(damage.length, 1, "the claws land once");
+    }
+  }
+});
+
+test("zombies near their prey climb over a pew instead of walking around", async () => {
+  const { vaultCrossing, vaultHeight, vaultPhase, markVaultable } =
+    await import("../src/game/vaulting.js");
+  const pew = { x: 0, z: 1.5, w: 3.2, d: 0.8, h: 1.1, active: true };
+  const wall = { x: 5, z: 0, w: 0.5, d: 6, h: 3, active: true };
+  markVaultable([pew, wall]);
+  assert.ok(pew.vaultable && !wall.vaultable);
+  const middle = vaultCrossing(0, 1.5, [pew, wall]);
+  assert.ok(Math.abs(middle.t - 0.5) < 1e-9);
+  assert.ok(vaultHeight(middle) > 0.95 && vaultHeight(middle) < 1.1);
+  const entering = vaultCrossing(0, 1.5 - 0.7, [pew]);
+  assert.ok(vaultPhase(entering, 0, 1) < 0.2, "entered from the -z side");
+  assert.ok(vaultPhase(entering, 0, -1) > 0.8, "the other way round");
+  assert.equal(vaultCrossing(3, -2, [pew]), null);
+
+  const model = modelFixture();
+  const enemy = {
+    id: 7,
+    model,
+    type: "walker",
+    attack: 0,
+    spit: 5,
+    stagger: 0,
+    seed: 0,
+    age: 1,
+    speedFactor: 1,
+    nextDetailCheck: Infinity,
+  };
+  const run = {
+    time: 0,
+    wave: 3,
+    enemies: [enemy],
+    player: { position: new T.Vector3(0, 0, 4) },
+    navigation: { direction: (_x, _z, target) => target },
+    world: { obstacles: [pew] },
+  };
+  // Rays at waist height stop at the pew's faces.
+  const obstacleDistance = (origin, direction, max) => {
+    const ray = new T.Ray(origin, direction);
+    const box = new T.Box3(
+      new T.Vector3(pew.x - pew.w / 2, 0, pew.z - pew.d / 2),
+      new T.Vector3(pew.x + pew.w / 2, pew.h, pew.z + pew.d / 2),
+    );
+    const hit = ray.intersectBox(box, new T.Vector3());
+    return hit ? Math.min(max, origin.distanceTo(hit)) : max;
+  };
+  const damage = [];
+  const system = new EnemySystem(
+    { run },
+    { obstacleDistance, hurt: (amount) => damage.push(amount) },
+  );
+  let highest = 0;
+  for (let frame = 0; frame < 60 * 8 && !damage.length; frame++) {
+    run.time = frame / 60;
+    system.updateEnemies(1 / 60);
+    highest = Math.max(highest, model.position.y);
+  }
+  assert.ok(highest > 0.9, `climbed over (${highest.toFixed(2)} m)`);
+  assert.ok(model.position.z > pew.z + pew.d / 2, "crossed to the far side");
+  assert.equal(model.position.y, 0, "back on the floor");
+  assert.equal(damage.length, 1, "then attacked");
+});

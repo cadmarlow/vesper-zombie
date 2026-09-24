@@ -6,6 +6,15 @@ const { version } = JSON.parse(
 const build = process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`;
 const release = JSON.stringify({ version, build });
 export default defineConfig({
+  // Local audit worktrees can contain different Three.js versions. Only scan
+  // this app and the horde labs, never archived HTML under artifacts/.
+  optimizeDeps: {
+    entries: [
+      "index.html",
+      "scripts/horde/lab.html",
+      "scripts/horde/live.html",
+    ],
+  },
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __BUILD_ID__: JSON.stringify(build),

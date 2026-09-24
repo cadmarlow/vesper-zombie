@@ -1,10 +1,41 @@
 # VESPER — Asset provenance
 
-Gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. Version 2.0 also uses the CC0 surface scans listed below. No Call of Duty asset, map, logo or audio sample is included.
+Apart from the third-party assets documented below (surface scans, horde characters, motion capture and sound recordings), gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. No Call of Duty asset, map, logo or audio sample is included.
+
+## Version 4.0.0 — the horde
+
+The zombies are rebuilt from open assets and offline tooling. Nothing is generated at runtime and the game calls no external service. The earlier generated-model attempt (unreleased 3.3–3.5 work) is not shipped; its files are archived outside the build in `art/zombies/`.
+
+**Bodies.** The 18 character packs in `public/models/horde/` are derived from [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) avatars, released by Microsoft under the MIT license (notice in `public/licenses/ROCKETBOX-MIT.txt`):
+
+| Pack         | Rocketbox avatar             | Pack           | Rocketbox avatar                 |
+| ------------ | ---------------------------- | -------------- | -------------------------------- |
+| civilian-08  | Adults/Male_Adult_08         | runner-10      | Adults/Male_Adult_10             |
+| civilian-05  | Adults/Male_Adult_05         | runner-sports  | Professions/Sports_Male_04       |
+| civilian-13  | Adults/Male_Adult_13         | runner-f12     | Adults/Female_Adult_12           |
+| civilian-12  | Adults/Male_Adult_12         | brute-swat     | Professions/Police_Male_02       |
+| worker-01    | Professions/Delivery_Male_01 | brute-fire     | Professions/Construction_Male_03 |
+| business-01  | Professions/Business_Male_01 | spitter-doctor | Professions/Medical_Male_01      |
+| civilian-f08 | Adults/Female_Adult_08       | spitter-nurse  | Professions/Medical_Female_01    |
+| civilian-f04 | Adults/Female_Adult_04       | wraith-hood    | Adults/Male_Adult_18             |
+| runner-04    | Adults/Male_Adult_04         | archon-soldier | Professions/Military_Male_03     |
+
+`scripts/horde/build-characters.mjs` converts each FBX with Blender (`blender-character.py`: 23-bone Biped kept, claw hand pose, face landmarks), merges body and head into one atlas and repaints it as a corpse from the 3D position of every texel (`zombify.mjs`: pallor, lividity, veins, rot, bruises, dried and fresh blood, torn cloth). It then writes three levels of detail with meshoptimizer and a desktop pack (full/lite/far, 2048×1024 JPEG colour, 1024×512 normal and surface maps) and a mobile pack (lite/far, half resolution). The surface map packs fresh-blood potential, roughness and the eye glow. These are modified versions of the Rocketbox avatars, not new characters.
+
+**Motion.** `public/models/horde/horde-anims.glb` holds 46 clips retargeted by `scripts/horde/build-animations.mjs` onto the shared skeleton:
+
+- [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/) trials 09_01, 104_13, 104_41, 111_03, 120_02, 120_22, 132_17, 133_01, 137_15, 137_16, 139_18, 140_01, 140_03, 35_17, 90_18, 91_05, 91_16, 91_17, 91_25, 91_26, 91_59 (BVH conversion mirrored by [una-dinosauria/cmu-mocap](https://github.com/una-dinosauria/cmu-mocap)). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217. CMU allows its use in commercial products; the raw data is not redistributed.
+- [Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html) 1 and 2, Standard (CC0 1.0): idles, flinches, a knock-back, a collapse and the zombie scratch.
+
+Loops are cut, made cyclic and speed-measured; mirrored variants, hunched postures, attacks, crawler moves and deaths are authored on top with keyframes and two-bone IK in `scripts/horde/compose.mjs`. At runtime `src/horde/animator.js` matches playback to the navigation speed, pins planted feet, grounds heels and toes, aligns attack contacts with gameplay and layers look-at, jaw and flinches.
+
+**Sound.** `public/audio/horde/` contains one-shots and ambience beds cut from 81 CC0 1.0 recordings on [Freesound](https://freesound.org) by 64 authors: mrh4hn, Breviceps, OwNathan, bigmonmulgrew, ChuckChuckGoof, indieground, ketamineface, Mr_Maple2678, kathol, maurolupo, haratman, adharca, tonsil5, nigelnix, OozerName, MrPokephile, lolamadeus, ToxicFilmzSRsounds, PaulMorek, soykevin, Wakerone, ArriGD, Thanra, mrsoundguy84859983975479387597, rockittt, LilMati, Sticks5611, VHBC, JollyGreenZ, spootyskater, mvVoiceActing, mazlyn, Huminaatio, derjuli, giddster, LucasDuff, princessemilu, quadraslayer, NicknameLarry, AugustSandberg, SmallQuadruped, arnaump, Anko6, DeezSoundzTho, florianreichelt, Fission9, RutgerMuller, Topschool, moxobna, leonelmail, jmdh, SlykMrByches, gprosser, Kreastricon62, clif_creates, danielrutterfilms, carlito62, adamgryu, SpliceSound, qubodup, denao270, GaryQ, harrisonlace, perrybassin. Every file, title and URL is listed in `public/audio/horde/CREDITS.md` and `manifest.json`. `scripts/horde/build-sounds.mjs` cuts, cleans, loudness-matches and encodes them (ffmpeg).
+
+**Tools.** Blender 4.5 LTS, glTF Transform, meshoptimizer, Sharp and ffmpeg-static are development tools only; none ships with the game. `scripts/horde/fetch-sources.mjs` downloads the motion sources; the character and sound builds fetch their own sources into `.cache/`.
 
 ## Version 3.2 — articulated zombie movement
 
-The six zombie motion profiles, Hermite pose curves, world-space foot contacts, two-bone leg solver, finger poses, directional reactions and articulated death motion are original project code in `src/creature-motion.js` and `src/game/enemy-presentation.js`. The 42-bone rigs and their skin weights are authored in `src/creatures.js`, including clavicles, toes and two joints per finger/thumb. No paid asset, external animation recording, proprietary motion library, new texture or runtime dependency was added for this work. Three.js remains the existing MIT-licensed rendering dependency. These movements are authored animation and procedural corrections, not motion-capture recordings.
+Since 4.0.0 this procedural rig is the fallback used when a horde pack cannot load. The six zombie motion profiles, Hermite pose curves, world-space foot contacts, two-bone leg solver, finger poses, directional reactions and articulated death motion are original project code in `src/creature-motion.js` and `src/game/enemy-presentation.js`. The 42-bone rigs and their skin weights are authored in `src/creatures.js`, including clavicles, toes and two joints per finger/thumb. No paid asset, external animation recording, proprietary motion library, new texture or runtime dependency was added for this work. Three.js remains the existing MIT-licensed rendering dependency. These movements are authored animation and procedural corrections, not motion-capture recordings.
 
 ## Version 2.4 — blood impacts
 
@@ -16,12 +47,12 @@ The abbey's vaults, clerestory, lancets, masonry joints and pew details, the sta
 
 Four additional [Poly Haven CC0](https://polyhaven.com/license) scans are shipped locally:
 
-| Local prefix | Original scan | Use |
-| --- | --- | --- |
-| `ashlar` | [Large Sandstone Blocks](https://polyhaven.com/a/large_sandstone_blocks) | Abbey blockwork |
-| `plaster` | [Grey Plaster](https://polyhaven.com/a/grey_plaster) | Carved stone, vaults and cornices |
-| `steel` | [Rusty Painted Metal](https://polyhaven.com/a/rusty_painted_metal) | Industrial metal and pressure fittings |
-| `concrete` | [Concrete Floor Worn 02](https://polyhaven.com/a/concrete_floor_worn_02) | Boréal floor and foundations |
+| Local prefix | Original scan                                                            | Use                                    |
+| ------------ | ------------------------------------------------------------------------ | -------------------------------------- |
+| `ashlar`     | [Large Sandstone Blocks](https://polyhaven.com/a/large_sandstone_blocks) | Abbey blockwork                        |
+| `plaster`    | [Grey Plaster](https://polyhaven.com/a/grey_plaster)                     | Carved stone, vaults and cornices      |
+| `steel`      | [Rusty Painted Metal](https://polyhaven.com/a/rusty_painted_metal)       | Industrial metal and pressure fittings |
+| `concrete`   | [Concrete Floor Worn 02](https://polyhaven.com/a/concrete_floor_worn_02) | Boréal floor and foundations           |
 
 Source channels are the 2K JPEG Diffuse, OpenGL normal and packed AO/roughness/metalness maps. They are resampled with Lanczos into 512px and 1024px WebP files (quality 88 for color, 91 for data). Original download URLs and hashes are recorded in `artwork/architecture/sources.json`. Only the sets needed by the selected map are requested. Together with both stained-glass resolutions, the new runtime assets occupy about 4 MiB; a session loads one resolution and a subset of these files.
 

@@ -102,12 +102,20 @@ try {
             g.updateEnemies(1 / 60);
             e.model.updateMatrixWorld(true);
             for (let footIndex = 0; footIndex < 2; footIndex++) {
-              const foot = e.model.userData.motionState.feet[footIndex];
-              if (foot.planted) {
-                e.model.userData.legs[footIndex].foot.getWorldPosition(p);
+              // Motion-captured bodies: the IK lock pins the ball of the foot.
+              const horde = e.model.userData.horde;
+              const foot = horde
+                ? horde.anim?.feet?.[footIndex]
+                : e.model.userData.motionState.feet[footIndex];
+              const planted = horde ? foot?.locked : foot.planted;
+              if (planted) {
+                const leg = e.model.userData.legs[footIndex];
+                (horde ? leg.toe : leg.foot).getWorldPosition(p);
                 audit.maxPlantError = Math.max(
                   audit.maxPlantError,
-                  p.distanceTo(foot.anchor),
+                  horde
+                    ? Math.hypot(p.x - foot.anchor.x, p.z - foot.anchor.z)
+                    : p.distanceTo(foot.anchor),
                 );
               }
             }
@@ -161,7 +169,7 @@ try {
         };
       });
       assert(
-        check.finite && check.bones >= 40,
+        check.finite && check.bones >= 20,
         `${profile}/${type}: articulated finite rig`,
       );
       assert(
@@ -210,9 +218,15 @@ try {
         e.model.position.set(0, 0, 17.5);
         e.model.updateMatrixWorld(true);
         g.camera.position.copy(g.player.position);
-        g.camera.lookAt(
-          e.model.userData.head.getWorldPosition(g.player.position.clone()),
+        const aim = e.model.userData.head.getWorldPosition(
+          g.player.position.clone(),
         );
+        const headPart = e.model.userData.hitParts?.find((p) => p.head);
+        if (headPart)
+          aim
+            .copy(headPart.offset)
+            .applyMatrix4(e.model.userData.head.matrixWorld);
+        g.camera.lookAt(aim);
         g.camera.updateMatrixWorld(true);
         g.state = "playing";
         g.shotTimer = g.reloadTime = g.meleeTimer = 0;

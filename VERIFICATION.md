@@ -2,6 +2,52 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 4.1.0 — corps à corps et démembrement
+
+Ajouts : encerclement à bout de bras et horde solide (on ne la traverse plus, les bustes restent hors de la caméra) ; bras arrachés au coude ou à l'épaule, mâchoire emportée, bas des jambes arraché, avec membres projetés (gibs) et moignons ; sang projeté sur l'écran lors des mises à mort proches ; blessures propres à chaque zombie ; recul des survivants d'une explosion ; bond des coureurs dès la vague 4 ; enjambement des bancs et caisses (≤ 1,3 m) près de la proie ; traînées lumineuses des yeux rapides (ordinateur) ; bras rejeté en arrière à l'impact. Les invités reçoivent bras, mâchoire et bonds par des champs facultatifs (`x`, `lp`) ; le protocole reste en version 4. L'enjambement se déduit des positions et n'ajoute aucune donnée.
+
+Vérification locale sous Node.js 25.5.0 : **95 tests unitaires/réseau réussis** (dont bond d'un coureur de 3 m à 1,1 m avec un seul coup, franchissement d'un banc de 1,1 m puis attaque, bras, mâchoire, masques réseau, traînées des yeux), formatage et architecture valides. **Les 19 suites de `verify:full` passent** sur le build final, y compris les 190 vagues simulées avec l'enjambement, la coopération (rampants répliqués chez l'invité) et l'audit de démembrement (grenade → rampants et gibs, avant-bras arraché par deux vraies balles puis intouchable, sang à l'écran sur un tir à la tête proche), sur ordinateur et mobile émulé. Rapport : `artifacts/upgrade-1790249164466.json`.
+
+Pendant l'encerclement par six zombies, le buste le plus proche reste à 0,91 m de la caméra et les corps à 1,04 m du joueur.
+
+Chargement d'une première partie sur mobile émulé (844 × 390, cache désactivé) : 12,5 s en 4G simulée (12 Mb/s, 70 ms), 32,7 s en 3G+ simulée (4 Mb/s, 150 ms), environ 22 Mo pour tout le jeu dont environ 9 Mo pour la horde ; le menu s'affiche en 0,9 s et 2,4 s. Les parties suivantes utilisent le cache du navigateur.
+
+La mesure de cadence de cette version n'est pas comparable : le Mac était sur batterie en mode économie d'énergie, qui plafonne Chrome à 30 images/s même sur une page vide. Elle reste à refaire sur secteur. Aucune vérification sur téléphone physique n'a été faite ; un test sur iPhone via le réseau local est proposé à l'utilisateur.
+
+## Version 4.0.0 — la horde
+
+Les zombies procéduraux et la tentative de modèles générés (3.3–3.5, non publiée) sont remplacés par 18 corps Microsoft Rocketbox repeints en cadavres, une bibliothèque de 46 clips issus de la capture de mouvement CMU et des bibliothèques Quaternius, et une banque de sons tirée de 81 enregistrements CC0. Le corps, la démarche et les gestes de chaque zombie dépendent de son identifiant réseau : hôte et invités voient le même zombie. Nouveautés de jeu : volumes touchables des jambes, rampants (grenade proche ou dégâts cumulés aux jambes), trébuchement sur balle lourde à la jambe, terre projetée à la sortie du sol, flaques sous les cadavres, moignons de cou et de jambes. **Le protocole reste en version 4** : les nouveaux champs (`c` des instantanés, `src` des dégâts) sont facultatifs et ignorés par les anciens clients.
+
+Vérification locale sous Node.js 25.5.0 : formatage valide, 75 modules sans import inutilisé ni cycle, **90 tests unitaires/réseau réussis**, build de production réussi. Les tests de la horde contrôlent les 36 packs réels (squelette de 23 os, niveaux de détail, budgets de triangles, matières, repères du visage), chaque clip de chaque réserve et ses métadonnées, la vitesse de marche adaptée à la navigation pour chaque type et chaque vague, la banque de sons et ses licences, l'injection dans le shader standard de Three.js, les règles des rampants et la validation du champ `c`.
+
+`npm run verify` passe sur ce build : 391 combinaisons de dimensions du menu, 22 contrôles de mise à jour (y compris l'affichage de la version 4.0.0), 41 de combat, 78 tactiles Chrome/WebKit, 16 de coopération (dont les rampants créés par l'hôte qui rampent chez l'invité et l'attaque d'un zombie de l'hôte qui blesse l'invité), 34 de fondation, 18 de stabilité réseau, 8 de rampants, 22 de cadence et mise au repos, et les 190 vagues simulées sur les trois cartes avec les cinq types et l'Archonte. Sous paquets retardés, la vitesse articulaire maximale des zombies répliqués est de 6,3 rad/s (limite 12) et les chevilles plantées restent à 0,1 mm de leur ancrage. Rapports : `artifacts/stability-1790203265359/report.json`, `artifacts/waves-regression-1790203410043.json`.
+
+Les 19 suites de `verify:full` passent ensuite d'un seul tenant sur le build final, sans erreur JavaScript, shader ni ressource manquante : elles ajoutent notamment 35 contrôles de sensations, 21 de livraison et 267 parcours Chrome/WebKit. Rapport : `artifacts/upgrade-1790204488057.json`.
+
+Audits de la horde (build de production, Chrome desktop et mobile émulé, WebKit mobile pour le sang) :
+
+- **Zombies** : 22 contrôles ; les cinq types en studio, gueule ouverte et en combat sur l'Abbaye et Boréal, qualités haute et basse ; tirs à la tête visés au centre du crâne réussis sur tous les types. Pleine géométrie de 6 400 à 8 300 triangles par zombie (contre 32 000 à 42 000 pour l'ancien modèle procédural). Rapport : `artifacts/zombies-1790202907744/`.
+- **Locomotion** : six types, deux profils ; semelles réellement déformées entre −0,6 et +0,6 cm du sol, pied verrouillé à moins de 1 mm de son ancrage, 12 tirs à la tête sur 12. Rapport : `artifacts/locomotion-1790202329526/`.
+- **Sang** : 60 contrôles (impacts, projections au sol et au mur, tête détruite sans toucher le voisin, moignon du cou, absence de double récompense). Rapport : `artifacts/blood-1790202696405/`.
+- **Rampants** : 8 contrôles ; grenade → quatre rampants, chute terminée, reptation à 0,44 m/s vers le joueur, attaques au sol, morts à plat, estropiés par tirs dans les jambes. Rapport : `artifacts/crawlers-1790202836531/`. La coopération vérifie que les rampants créés par l'hôte rampent chez l'invité.
+- **Rendu et mémoire** : 28 contrôles de rendu, 41 sur Néréide, 29 de durée de vie des ressources, 2 de rendu visuel, sans erreur JavaScript, shader ou ressource manquante.
+
+Comparaison avec la 3.2.0 sur ce Mac (Chrome, 1440 × 900, DPR 1,5, qualité haute, 28 ennemis, quatre secondes par scène, `npm run profile:thermal`) :
+
+| Carte   | Images/s 3.2.0 → 4.0.0 | Simulation ennemis, ms/image | Rendu du monde côté CPU, ms/image | Appels de rendu | Triangles       | Processus GPU   |
+| ------- | ---------------------- | ---------------------------- | --------------------------------- | --------------- | --------------- | --------------- |
+| Abbaye  | 60,18 → 60,25          | 0,66 → 1,38                  | 3,12 → 2,41                       | 590 → 353       | 1,55 M → 0,49 M | 36,8 % → 30,8 % |
+| Boréal  | 59,73 → 59,99          | 0,49 → 1,16                  | 3,24 → 2,36                       | 606 → 370       | 1,47 M → 0,40 M | 35,8 % → 30,1 % |
+| Néréide | 59,99 → 59,97          | 0,56 → 1,07                  | 3,42 → 2,18                       | 659 → 421       | 1,60 M → 0,54 M | 36,3 % → 29,4 % |
+
+Les mélangeurs d'animation et la cinématique inverse ajoutent 0,5 à 0,7 ms de calcul ; le rendu en économise autant, avec trois fois moins de triangles et 40 % d'appels de rendu en moins. Un corps complet compte 6 400 à 8 300 triangles, contre 32 000 à 42 000 pour l'ancien modèle procédural. Les textures des 18 corps sont envoyées au GPU pendant le chargement (180 textures en partie contre 116). Rapport : `artifacts/thermal-horde-4/report.json`.
+
+Comparaison A/B sur le même build, 24 zombies à l'écran, horde contre repli procédural (packs bloqués) : sur mobile émulé (844 × 390, DPR 3, processeur ralenti ×4), 60,0 contre 57,5 images/s, 3,6 contre 2,2 ms de simulation et 9,0 contre 11,0 ms de rendu CPU ; sur ordinateur, 57,9 contre 45,8 images/s. Sur mobile, chaque type charge ses packs allégés (6,8 Mo pour les 18 corps) et 90 des 186 sons (1,4 Mo à télécharger, 28 Mo décodés au lieu de 51 Mo) ; sur ordinateur, les packs pèsent 16 Mo et la banque complète 2,6 Mo. Ces fichiers passent par le cache HTTP normal après la première partie.
+
+Corrections apportées pendant la vérification : la texture de surface stockait la lueur des yeux dans un alpha presque transparent, que l'encodeur WebP effaçait avec la rugosité et le sang (aspect plastique, reflets parasites) ; l'alpha est maintenant opaque hors des yeux. Le relais réécrit `from` sur chaque message : l'identifiant du zombie attaquant voyage dans `src`. Les pieds en course ne s'enfoncent plus lors des fondus entre démarches (pivot du talon, compensation du bassin, flexion des orteils).
+
+Limites : essais tactiles et WebKit sur appareils émulés, sans téléphone physique ; les mesures courtes ne mesurent ni température ni consommation. Les corps restent des avatars Rocketbox modifiés (visages humains repeints, pas de sculpture de chair arrachée) ; les rampants utilisent une capture de reptation à quatre pattes accélérée, pas une capture dédiée. Aucun déploiement n'est effectué par ces vérifications.
+
 ## Version 3.2.0 — démarches et articulation des zombies
 
 Le squelette passe de 18 à 42 os, avec clavicules, orteils et deux articulations par doigt. Six profils de démarche originaux coordonnent bassin, colonne, épaules, bras et mains. Les pieds gardent un appui dans le monde grâce à une cinématique inverse analytique ; cadence et longueur de pas suivent le déplacement après collisions et la taille du personnage. Les arrêts terminent le pas engagé. Les volumes de tir suivent les os et les chutes partent de la dernière pose vivante. Aucun asset payant ni nouvelle dépendance.
@@ -20,11 +66,11 @@ Les 18 suites de `verify:full` ont été exécutées successivement, avec repris
 
 Comparaison isolée avant/après sur ce Mac, Chrome, 1440 × 900, DPR 1,5, qualité haute fixe, 28 ennemis et quatre secondes mesurées par scène :
 
-| Carte | Images/s avant → après | Calcul de simulation, ms/image avant → après | Rendu côté CPU, ms/image avant → après |
-| --- | --- | --- | --- |
-| Abbaye | 60,24 → 60,18 | 0,54 → 0,91 | 4,85 → 5,11 |
-| Boréal | 59,74 → 59,73 | 0,48 → 0,75 | 4,21 → 4,81 |
-| Néréide | 59,98 → 59,99 | 0,50 → 0,77 | 4,84 → 5,13 |
+| Carte   | Images/s avant → après | Calcul de simulation, ms/image avant → après | Rendu côté CPU, ms/image avant → après |
+| ------- | ---------------------- | -------------------------------------------- | -------------------------------------- |
+| Abbaye  | 60,24 → 60,18          | 0,54 → 0,91                                  | 4,85 → 5,11                            |
+| Boréal  | 59,74 → 59,73          | 0,48 → 0,75                                  | 4,21 → 4,81                            |
+| Néréide | 59,98 → 59,99          | 0,50 → 0,77                                  | 4,84 → 5,13                            |
 
 La cadence reste donc stable dans ce scénario, avec un coût CPU supplémentaire mesuré ; aucun gain de performances global n'est revendiqué. Les appels de rendu restent du même ordre, autour de 1 000 à 1 120 par image. La pause et la fin de partie restent à zéro image 3D/s. Rapports : `artifacts/thermal-locomotion-before/report.json` et `artifacts/thermal-locomotion-after/report.json`. Ces échantillons courts ne mesurent ni température, ni consommation, ni comportement d'un téléphone physique.
 
@@ -56,11 +102,11 @@ Les sections suivantes conservent les résultats historiques des versions préc�
 
 Comparaison du build avant/après, Chrome isolé sur Apple M1 Pro, 1440 × 900, DPR 1,5, qualité élevée et adaptation désactivée. Chaque scénario mesure quatre secondes après préchauffage. Rapports : `artifacts/thermal-baseline/report.json` et `artifacts/thermal-optimized/report.json`.
 
-| Situation | Images 3D/s avant → après | CPU du processus de rendu avant → après |
-| --- | --- | --- |
-| Pause | 51,7 → 0 | 28,1 % → 6,2 % |
-| Fin de partie | 60 → 0 | 40,6 % → 6,4 % |
-| Partie, 28 ennemis, trois cartes | environ 60 → 60 | pas de baisse générale établie |
+| Situation                        | Images 3D/s avant → après | CPU du processus de rendu avant → après |
+| -------------------------------- | ------------------------- | --------------------------------------- |
+| Pause                            | 51,7 → 0                  | 28,1 % → 6,2 %                          |
+| Fin de partie                    | 60 → 0                    | 40,6 % → 6,4 %                          |
+| Partie, 28 ennemis, trois cartes | environ 60 → 60           | pas de baisse générale établie          |
 
 Les pourcentages CPU utilisent un cœur comme 100 %. Le rendu s'arrête au repos, les rappels audio passent à 10 Hz et le plafond 30/60 images/s est maintenant respecté sur les écrans rapides. La passe d'occlusion évite un second recalcul des matrices. Aucune réduction de résolution, d'effet ou de niveau graphique par défaut. Les mesures en partie fluctuent de quelques pourcents : aucun gain global de FPS ou de CPU en partie à 60 Hz n'est revendiqué.
 

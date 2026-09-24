@@ -25,6 +25,16 @@ export function snapshot(context, players, id, tick, me) {
         ]
       : null,
     extraction: g.run.extraction ? Math.ceil(g.run.extractionTimer) : -1,
+    // Crawlers (legs lost). Optional: older peers ignore it.
+    c: g.run.enemies.filter((e) => e.crawler).map((e) => e.id),
+    // Torn limbs (bit mask, see horde/dismember.js). Optional as well.
+    x: g.run.enemies
+      .filter((e) => e.model.userData.cuts)
+      .map((e) => [e.id, e.model.userData.cuts]),
+    // Attacks that are pounces (enemy id, action sequence). Optional.
+    lp: g.run.enemies
+      .filter((e) => e.action?.leap)
+      .map((e) => [e.id, e.action.sequence]),
     e: g.run.enemies.map((e) => [
       e.id,
       e.type,

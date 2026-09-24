@@ -61,6 +61,7 @@ try {
           "coop-check",
           "foundation-check",
           "stability-check",
+          "crawler-check",
           "thermal-check",
           "waves-check",
         ];

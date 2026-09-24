@@ -2,11 +2,16 @@ import { weaponModel } from "../weapons.js";
 import * as T from "three";
 import { setSurfaceQuality } from "../surfaces.js";
 import { destroyZombieHead } from "../creatures.js";
+import { toBindSpace } from "../horde/library.js";
+import { addWound } from "../horde/material.js";
+import { hordeEvent } from "../horde/voice.js";
 import {
   updateEnemyHitVolumes,
   enemyImpactPosition,
 } from "./enemy-hitboxes.js";
 import { enemyVariation } from "./enemy-actions.js";
+import { deathDuration } from "./enemy-presentation.js";
+import { maimAfterHit } from "./crawlers.js";
 
 import { glowSprite, mat } from "../assets.js";
 import { WEAPONS, ENEMIES } from "../config.js";
@@ -194,7 +199,8 @@ export class CombatSystem {
       const impact = {};
       let distance = this.obstacleDistance(origin, direction, 90, impact),
         target = null,
-        head = false;
+        head = false,
+        part = null;
       if (direction.y < -0.001) {
         const ground = -origin.y / direction.y;
         if (ground < distance) {
@@ -205,16 +211,29 @@ export class CombatSystem {
       ray.set(origin, direction);
       for (const e of this.run.enemies) {
         if (e.dead) continue;
+        // Nearest volume of this body; where the head and the torso overlap
+        // (neck, hunched shoulders) a ray that reaches the head counts as a
+        // headshot.
+        let near = Infinity,
+          nearest = null,
+          headDistance = Infinity;
         for (const part of e.model.userData.hitVolumes) {
           const hit = ray.intersectSphere(part.sphere, point);
-          if (hit) {
-            const dist = origin.distanceTo(hit);
-            if (dist < distance) {
-              distance = dist;
-              target = e;
-              head = part.head;
-            }
+          if (!hit) continue;
+          const dist = origin.distanceTo(hit);
+          if (dist < near) {
+            near = dist;
+            nearest = part;
           }
+          if (part.head) headDistance = dist;
+        }
+        const headFirst = headDistance < near + 0.22;
+        const dist = headFirst ? headDistance : near;
+        if (dist < distance) {
+          distance = dist;
+          target = e;
+          head = headFirst;
+          part = headFirst ? null : nearest?.part;
         }
       }
       const end = origin.clone().addScaledVector(direction, distance);
@@ -224,7 +243,13 @@ export class CombatSystem {
           damageMultiplier(w.level) *
           (head ? (this.run.player.perks.includes("focus") ? 3.2 : 2.35) : 1) *
           (this.run.powerups.insta > this.run.time ? 100 : 1);
-        this.damageEnemy(target, damage, head, { position: end, direction });
+        this.damageEnemy(target, damage, head, {
+          position: end,
+          direction,
+          leg: !!part?.leg,
+          arm: part?.arm,
+          lower: !!part?.lower,
+        });
         shotHit = true;
         this.emit("hit", { head });
         this.sound.hit(head);
@@ -270,6 +295,28 @@ export class CombatSystem {
     reaction.serial++;
     reaction.head = head;
     reaction.strength = clamp(damage / 65, 0.35, 1);
+    // Heavy blows (shotgun, knife, explosions) break the stride.
+    const blast = !hit || !!hit.explosive;
+    // A teammate's round only carries its impact point: find the limb.
+    if (hit?.position && hit.leg === undefined) {
+      const part = this.struckPart(enemy, hit.position);
+      hit.leg = !!part?.leg;
+      hit.arm = part?.arm;
+      hit.lower = !!part?.lower;
+    }
+    // The struck limb jerks on its own (see horde/animator.js).
+    reaction.arm = hit?.arm || null;
+    // A heavy round in a leg makes the body stumble.
+    reaction.heavy =
+      damage >= 95 || (blast && damage >= 60) || (!!hit?.leg && damage >= 55);
+    // Positive when the blow comes from the front: the body falls backward.
+    reaction.push = hit?.direction
+      ? -(
+          hit.direction.x * Math.sin(enemy.model.rotation.y) +
+          hit.direction.z * Math.cos(enemy.model.rotation.y)
+        )
+      : 1;
+    if (hit?.position) this.markWound(enemy, hit.position, head, hit.direction);
     reaction.side = hit?.direction
       ? clamp(
           hit.direction.x * Math.cos(enemy.model.rotation.y) -
@@ -304,7 +351,11 @@ export class CombatSystem {
       const direction =
         hit?.direction ||
         position.clone().sub(this.view.camera.position).normalize();
-      if (headKill) destroyZombieHead(enemy.model, position);
+      if (headKill) {
+        destroyZombieHead(enemy.model, position);
+        hordeEvent(enemy.model, "headshot", { position });
+        this.goreNear(position, 1);
+      } else hordeEvent(enemy.model, "flesh", { position });
       this.view.combatEffects.blood.hit(position, direction, headKill);
       this.projectBlood(position, direction, headKill);
       // Impacts sit where the creature stands relative to the view.
@@ -336,9 +387,17 @@ export class CombatSystem {
       this.run.world.obstacles,
       ENEMIES[enemy.type].radius || 0.36,
     );
+    if (
+      enemy.health > 0 &&
+      maimAfterHit(enemy, damage, hit, this.view, this.run.time, head)
+    )
+      this.goreNear(
+        hit?.position || enemyImpactPosition(enemy.model, false, point),
+        0.85,
+      );
     if (enemy.health <= 0) {
       enemy.dead = true;
-      enemy.deathTime = 2.4;
+      enemy.deathTime = deathDuration(enemy);
       enemy.fallSide = enemyVariation(enemy.id) < 0.5 ? -1 : 1;
       const base = ENEMIES[enemy.type].score + (head ? 50 : 0);
       let points = base;
@@ -381,6 +440,59 @@ export class CombatSystem {
         });
       }
     }
+  }
+  /** Blood on the view when a head bursts or a limb tears off up close. */
+  goreNear(position, strength = 1) {
+    const d = position.distanceTo(this.view.camera.position);
+    if (d < 3.2)
+      this.emit("gore", {
+        strength: clamp(strength * (1.25 - d / 3.2), 0.2, 1),
+      });
+  }
+  /** The body part whose volume surface lies nearest an impact point. */
+  struckPart(enemy, position) {
+    const volumes = updateEnemyHitVolumes(enemy.model);
+    let best = null,
+      bestGap = Infinity;
+    for (const v of volumes) {
+      if (!v.sphere.radius) continue;
+      const gap = v.sphere.center.distanceTo(position) - v.sphere.radius;
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = v;
+      }
+    }
+    return best?.part || null;
+  }
+  /** Bullet wound painted on the body where the round landed. */
+  markWound(enemy, position, head, direction) {
+    const model = enemy.model;
+    if (!model.userData.horde) return;
+    const volumes = model.userData.hitVolumes;
+    if (!volumes) return;
+    let best = null,
+      bestDistance = Infinity;
+    for (const v of volumes) {
+      if (!v.bone || (head && !v.head)) continue;
+      const d = v.sphere.center.distanceToSquared(position);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = v;
+      }
+    }
+    if (!best) return;
+    const bindDirection = (direction || dir.set(0, 0, -1)).clone();
+    const bind = toBindSpace(
+      model,
+      position,
+      best.bone.name,
+      vec,
+      bindDirection,
+    );
+    if (!bind) return;
+    const radius = (head ? 0.016 : 0.02) + Math.random() * 0.014;
+    for (const mesh of model.userData.horde.body)
+      addWound(mesh.material, bind, bindDirection, radius);
   }
   creditKill(base, head, type) {
     const points = base * (this.run.powerups.double > this.run.time ? 2 : 1);
@@ -565,8 +677,25 @@ export class CombatSystem {
           .add(new T.Vector3(0, 1, 0))
           .sub(position);
         const len = vec.length();
-        if (this.obstacleDistance(position, vec.normalize(), len) >= len - 0.2)
-          this.damageEnemy(e, 540 * (1 - d / 7), false, null, owner);
+        if (
+          this.obstacleDistance(position, vec.normalize(), len) >=
+          len - 0.2
+        ) {
+          this.damageEnemy(
+            e,
+            540 * (1 - d / 7),
+            false,
+            { explosive: true, distance: d, origin: position },
+            owner,
+          );
+          // Survivors are thrown back by the blast (see EnemySystem).
+          const flat = Math.hypot(vec.x, vec.z) || 1;
+          if (!e.dead)
+            e.knock = {
+              x: (vec.x / flat) * 4.2 * (1 - d / 6),
+              z: (vec.z / flat) * 4.2 * (1 - d / 6),
+            };
+        }
       }
     }
     const d = this.run.player.position.distanceTo(position);

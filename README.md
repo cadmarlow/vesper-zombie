@@ -75,13 +75,42 @@ Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La 
 
 La coopération nécessite un relais WebSocket distinct. `railway.json` et `nixpacks.toml` lancent `node server/index.js`, avec le port fourni par `PORT`. Le dossier `server/` peut également être déployé seul. La route HTTP `/` donne l’état du relais. Définir **`VITE_RELAY_URL=wss://adresse-du-relais` avant le build du client**. Sans cette variable, la coopération distante n’est pas configurée ; le solo reste disponible.
 
-Client et relais doivent utiliser la même version de protocole, actuellement **4**. La version 3.2.0 synchronise les gestes et contacts des zombies avec leur présentation chez les invités ; publier le client et le relais ensemble. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+Client et relais doivent utiliser la même version de protocole, actuellement **4**. La version 3.2.0 synchronise les gestes et contacts des zombies avec leur présentation chez les invités ; publier le client et le relais ensemble. La version 4.0.0 conserve le protocole 4 : les nouveaux champs (rampants, zombie à l’origine d’un coup) sont facultatifs et ignorés par les anciens clients. Publier le client suffit ; republier le relais ajoute seulement leur validation. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
 
-## Zombies articulés — 3.2.0
+## La horde — 4.0.0
 
-Les six types d'ennemis ont des démarches distinctes et des variations individuelles. Les pieds prennent appui dans le monde, les genoux et le bassin suivent ces contacts, les clavicules, poignets et doigts accompagnent les gestes. La cadence suit le déplacement réel et les arrêts terminent le pas engagé. Attaques, dégâts, tirs à la tête et chutes suivent la pose du personnage, également en coopération.
+Les zombies sont entièrement refaits : 18 corps réalistes, animés par capture de mouvement, avec voix et bruitages enregistrés.
 
-Les animations sont originales et procédurales, sans asset payant ni nouvelle dépendance. Les niveaux de détail partagent géométries et matériaux ; les mains distantes gardent une pose simplifiée. `npm run test:locomotion` produit une galerie des six types sur ordinateur et mobile émulé. Le contrôleur utilise le sol horizontal des cartes actuelles ; un terrain en pente demanderait un solveur de contacts supplémentaire.
+- **Corps.** Avatars Microsoft Rocketbox (licence MIT) repeints hors ligne en cadavres : peau livide, veines, pourriture, ecchymoses, sang séché et frais, vêtements déchirés. Huit civils pour les marcheurs, quatre coureurs, deux brutes (policier d’intervention, ouvrier), deux cracheurs (médecin, infirmière), le Rémanent encapuchonné et le soldat de l’Archonte. Le corps de chaque zombie est choisi à partir de son identifiant réseau : hôte et invités voient le même.
+- **Mouvements.** Démarches, courses, attentes, sorties de terre, réactions et morts issues de la base de capture CMU et des bibliothèques Quaternius, adaptées au squelette commun. La vitesse d’animation suit le déplacement réel ; les pieds en appui restent plantés, talons et orteils épousent le sol. Les premières vagues traînent les pieds, les suivantes accélèrent.
+- **Attaques.** Coups de griffes, saisies et frappes lourdes des brutes, calés sur l’instant exact des dégâts, y compris chez les invités. Côté joueur : griffures à l’écran, arc indiquant la direction du coup, recul de caméra.
+- **Blessures.** Chaque balle laisse un impact sanglant sur le trajet du projectile ; un tir à la tête fait exploser le crâne. Les tirs dans les jambes s’additionnent.
+- **Rampants.** Une grenade proche ou assez de dégâts dans les jambes arrachent le bas des jambes des marcheurs, coureurs et cracheurs : le zombie s’effondre, puis rampe sur ses moignons et griffe les jambes (portée et dégâts réduits). En coopération, l’état rampant est transmis aux invités.
+- **Présence.** Yeux lumineux propres à chaque type, visibles de loin dans le noir. Râles, grognements, cris d’attaque, douleur, chutes, pas et respirations enregistrés (81 enregistrements CC0), spatialisés en 3D (HRTF sur ordinateur) avec une rumeur de horde qui monte avec le nombre de zombies.
+
+Sur mobile, les packs sont deux fois plus légers (deux niveaux de détail, textures 1024 px), la moitié des variantes de sons est chargée et la spatialisation est moins coûteuse. Premier chargement : environ 9 Mo sur mobile, 20 Mo sur ordinateur, puis cache du navigateur. Un pack qui ne se charge pas laisse la place au zombie procédural d’origine, sans bloquer la partie.
+
+Reconstruire les ressources (facultatif, les fichiers générés sont dans `public/`) :
+
+```sh
+node scripts/horde/fetch-sources.mjs   # captures CMU et bibliothèques Quaternius
+npm run horde:characters               # 18 corps, Blender 4.5 requis (variable BLENDER)
+npm run horde:animations               # bibliothèque d’animations
+npm run horde:sounds                   # banque de sons
+```
+
+`npm run test:horde` vérifie les packs, les clips et la banque de sons ; `npm run test:zombies`, `npm run test:locomotion` et `npm run test:crawlers` inspectent le jeu compilé dans le navigateur. Provenance et licences : [ASSETS.md](ASSETS.md).
+
+## Corps à corps et démembrement — 4.1.0
+
+- **Encerclement.** Les zombies s'arrêtent à bout de bras et se répartissent autour de vous au lieu de s'empiler ; la horde est solide, on ne la traverse plus. Pendant leurs attaques, leurs mains balaient l'écran sans que le buste ne traverse la caméra.
+- **Démembrement.** Assez de dégâts dans un bras l'arrachent au coude ou à l'épaule : le zombie continue avec l'autre. Un tir à la tête puissant mais non mortel peut emporter la mâchoire. Grenades et dégâts aux jambes arrachent le bas des jambes. Chaque membre perdu est projeté, rebondit et reste au sol quelques secondes ; les moignons montrent chair et os.
+- **Obstacles bas.** Près de leur proie, les zombies enjambent bancs et caisses (jusqu'à 1,3 m) au lieu de les contourner : mains posées sur le dessus, genoux repliés, réception lourde. Les brutes, l'Archonte et les rampants contournent toujours.
+- **Coureurs qui bondissent.** Dès la vague 4, un coureur à quelques mètres peut vous sauter dessus, griffes en avant, puis se réceptionner accroupi.
+- **Impacts.** Un bras touché est rejeté en arrière ; une explosion projette en arrière les zombies qui y survivent. Tuer ou démembrer de près projette du sang sur l'écran. Chaque zombie arrive avec ses propres blessures.
+- **Dans le noir.** Les yeux des zombies rapides laissent une traînée lumineuse (sur ordinateur).
+
+L'état des membres est transmis aux invités en coopération (champ facultatif, protocole 4 inchangé).
 
 ## Réanimation et bande-son
 

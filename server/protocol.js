@@ -99,7 +99,8 @@ export function validEvent(m) {
     case "damage":
       return (
         finite(m.amount, 0, 10000) &&
-        (m.time === undefined || finite(m.time, 0, 1e9))
+        (m.time === undefined || finite(m.time, 0, 1e9)) &&
+        (m.src === undefined || integer(m.src, 1))
       );
     case "score":
       return (
@@ -155,6 +156,14 @@ export function validSnapshot(s) {
     integer(s.power, 0, 1) &&
     finite(s.extraction) &&
     typeof s.paused === "boolean" &&
+    (s.c === undefined ||
+      (Array.isArray(s.c) &&
+        s.c.length <= 128 &&
+        s.c.every((v) => integer(v, 1)))) &&
+    (s.lp === undefined ||
+      rows(s.lp, 128, 2, (r) => integer(r[0], 1) && integer(r[1], 0, 1e9))) &&
+    (s.x === undefined ||
+      rows(s.x, 128, 2, (r) => integer(r[0], 1) && integer(r[1], 0, 63))) &&
     (s.rescue === undefined ||
       rows(
         s.rescue,

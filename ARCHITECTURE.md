@@ -4,24 +4,27 @@ La base reste une application JavaScript avec Three.js et un relais WebSocket. C
 
 ## Où intervenir
 
-| Besoin                                        | Modules                                                    |
-| --------------------------------------------- | ---------------------------------------------------------- |
-| Écrans, paramètres, salons, lancement         | `src/main.js`, `src/app/`, `src/ui/`                       |
-| Ordre d’une image, commandes publiques        | `src/game.js`                                              |
-| Chargement, relance, libération d’une partie  | `src/game/lifecycle.js`                                    |
-| Déplacement, santé, état à terre              | `src/game/player.js`                                       |
-| Tirs, couteau, dégâts, grenades               | `src/game/combat.js`                                       |
-| Apparition, navigation, attaques ennemies     | `src/game/enemies.js`, `enemy-behaviors.js`                |
-| Démarches, appuis, mains et poses ennemies    | `src/creature-motion.js`, `creatures.js`                   |
-| Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`           |
-| Vagues, récompenses de transition, extraction | `src/game/survival.js`                                     |
-| Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`         |
-| Statistiques, réglages par défaut             | `src/content/`                                             |
-| Métadonnées et géométrie d’une carte          | `src/maps/<carte>/`                                        |
-| Monde commun, matériaux, modèles procéduraux  | `src/world.js`, `assets.js`, `creatures.js`, `weapons.js`  |
-| Rendu, post-traitement, effets                | `src/game/presentation.js`, `rendering.js`, `*-effects.js` |
-| Session coopérative                           | `src/multiplayer.js`, `src/network/`                       |
-| Connexion et protocole                        | `src/net.js`, `server/protocol.js`, `server/index.js`      |
+| Besoin                                        | Modules                                                     |
+| --------------------------------------------- | ----------------------------------------------------------- |
+| Écrans, paramètres, salons, lancement         | `src/main.js`, `src/app/`, `src/ui/`                        |
+| Ordre d’une image, commandes publiques        | `src/game.js`                                               |
+| Chargement, relance, libération d’une partie  | `src/game/lifecycle.js`                                     |
+| Déplacement, santé, état à terre              | `src/game/player.js`                                        |
+| Tirs, couteau, dégâts, grenades               | `src/game/combat.js`                                        |
+| Apparition, navigation, attaques ennemies     | `src/game/enemies.js`, `enemy-behaviors.js`                 |
+| Corps, animations, voix et yeux des zombies   | `src/horde/`, `src/content/horde.js`                        |
+| Rampants et démembrement                      | `src/game/crawlers.js`, `src/horde/dismember.js`, `gibs.js` |
+| Zombie procédural de repli                    | `src/creature-motion.js`, `creatures.js`                    |
+| Construction des ressources de la horde       | `scripts/horde/`                                            |
+| Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`            |
+| Vagues, récompenses de transition, extraction | `src/game/survival.js`                                      |
+| Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`          |
+| Statistiques, réglages par défaut             | `src/content/`                                              |
+| Métadonnées et géométrie d’une carte          | `src/maps/<carte>/`                                         |
+| Monde commun, matériaux, modèles procéduraux  | `src/world.js`, `assets.js`, `creatures.js`, `weapons.js`   |
+| Rendu, post-traitement, effets                | `src/game/presentation.js`, `rendering.js`, `*-effects.js`  |
+| Session coopérative                           | `src/multiplayer.js`, `src/network/`                        |
+| Connexion et protocole                        | `src/net.js`, `server/protocol.js`, `server/index.js`       |
 
 Les longs fichiers de géométrie décrivent des décors et modèles. Une extraction supplémentaire se justifie par un élément réutilisable ou une responsabilité distincte, pas par un nombre arbitraire de lignes.
 
@@ -61,13 +64,17 @@ Les attaques spéciales s’enregistrent dans `game/enemy-behaviors.js`. Le dép
 
 Les ennemis utilisent leur identifiant texte sur le réseau. Ajouter une variante n’exige pas de maintenir un second tableau d’indices dans la coopération. Les propriétés visuelles communes des morts et des Rémanents sont partagées entre hôte et invité dans `enemy-presentation.js`.
 
-Les modèles de zombies ont 42 os, identiques aux trois niveaux de détail. `zombieModel(type, detail, seed)` reçoit l'identifiant réseau comme graine : proportions et variations restent identiques chez l'hôte et les invités. Les géométries et matériaux sont partagés ; les os, les poses et les contacts de pieds appartiennent à chaque instance. `setZombieDetail` conserve ce squelette et sa pose.
+Les zombies sont des corps Rocketbox (`public/models/horde/`) animés par une bibliothèque de clips partagée. `content/horde.js` associe à chaque type ses corps (`HORDE_CAST`), ses réserves de clips (`HORDE_MOTION`), la couleur de ses yeux et les constantes de sortie de terre, de cadavre et de rampants. Un nouveau type réutilise un `look` existant ou déclare ses packs et réserves ; un nouveau corps s'ajoute dans `scripts/horde/roster.mjs` puis `npm run horde:characters`.
 
-`creature-motion.js` contient les profils de démarche et les courbes de poses originales. La phase avance avec la distance parcourue et la taille du personnage. Pendant l'appui, chaque cheville conserve son ancre dans le monde ; une cinématique inverse analytique à deux segments place le genou et le pied, avec correction de hauteur du bassin. Les pas interrompus terminent leur retour au sol. Les vitesses transmises à l'animateur sont celles mesurées après collisions ; la navigation conserve l'autorité sur les positions. Les cartes actuelles utilisent un sol de déplacement horizontal : ce contrôleur ne résout pas un terrain arbitraire ou des escaliers.
+`horde/library.js` charge clips et packs derrière l'écran de chargement, prépare un modèle par corps et niveau de détail, et clone des instances légères : géométries, textures et clips sont partagés ; os, poses, mélangeur et uniformes de matière appartiennent à chaque zombie. `zombieModel(type, detail, seed)` reçoit l'identifiant réseau : le corps, les variations, la démarche et les gestes restent identiques chez l'hôte et les invités. `setZombieDetail` change seulement la géométrie (tête détruite et jambes perdues comprises). Les volumes touchables (tête, torse, bassin, cuisses, mollets) sont mesurés une fois par corps.
 
-`enemy-actions.js` définit l'horloge et le contact unique des attaques. L'animation, les dégâts et le départ du projectile utilisent le même marqueur. Les volumes touchables de tête, torse et bassin suivent leurs os ; ils sont actualisés une fois par tir, puis réutilisés entre les plombs. Un geste plus ample doit garder ce raccord au combat.
+`horde/animator.js` pilote un `AnimationMixer` par zombie : boucle d'attente et de marche dont la vitesse de lecture suit la navigation, calque unique pour sortie de terre, attaque, déséquilibre ou chute, réactions additives, puis couche procédurale (regard, mâchoire, crachat). Les attaques sont lues à l'instant du contact défini par `enemy-actions.js`. Au sol, les talons pivotent au lieu de s'enfoncer, le bassin compense le reste, les pieds en appui sont verrouillés par une cinématique inverse à deux segments et les orteils se plient au contact. `horde/material.js` injecte dans la matière standard le sang frais, les impacts de balle en espace de liaison et la lueur des yeux ; `horde/eyes.js` dessine tous les yeux en un appel ; `horde/voice.js` spatialise voix, pas, impacts et rumeur de la horde.
 
-`npm run test:locomotion` inspecte les modèles du build, les semelles réellement déformées, les appuis, les gestes d'attaque et les tirs à la tête. Il produit un rapport et une galerie dans `artifacts/`. `node scripts/locomotion-check.mjs --webkit` ajoute le profil mobile WebKit. Les tests unitaires couvrent les appuis en espace monde, les arrêts, les virages, les vitesses et la synchronisation des contacts.
+`horde/dismember.js` décrit les membres détachables (jambes, avant-bras, bras, mâchoire) et fabrique, avec un cache par géométrie source et par masque, les maillages découpés et la position des moignons ; `horde/gibs.js` cuit les triangles perdus dans leur dernière pose et les projette. `game/crawlers.js` décide des mutilations chez l'hôte (bras, mâchoire, jambes) ; les invités reçoivent le masque facultatif `x` des instantanés et rejouent les mêmes coupes. `game/vaulting.js` marque les obstacles bas (hauteur ≤ 1,3 m, épaisseur ≤ 1,1 m) : à moins de 7 m de sa proie, un zombie dont la ligne droite n'est barrée que par eux les franchit. Hauteur du corps et phase de l'animation `vault_over` se déduisent de la position au-dessus de l'obstacle, chez l'hôte comme chez les invités, sans donnée réseau. Les bonds des coureurs (`LEAP` dans `content/horde.js`) sont décidés par l'hôte, qui porte le corps vers sa proie entre l'élan et le contact ; la liste facultative `lp` des instantanés indique aux invités quelles attaques sont des bonds. `game/crawlers.js` décide des rampants chez l'hôte (explosion proche, dégâts cumulés aux jambes) ; les invités reçoivent la liste facultative `c` des instantanés et rejouent la même transformation. Le repli procédural de `creatures.js` et `creature-motion.js` (42 os, démarches originales) sert seulement si un pack ne peut pas être chargé.
+
+`enemy-actions.js` définit l'horloge et le contact unique des attaques. L'animation, les dégâts et le départ du projectile utilisent le même marqueur. Les volumes touchables suivent leurs os ; ils sont actualisés une fois par tir, puis réutilisés entre les plombs. Un geste plus ample doit garder ce raccord au combat.
+
+`npm run test:locomotion` inspecte les modèles du build, les semelles réellement déformées, les appuis, les gestes d'attaque et les tirs à la tête ; `npm run test:crawlers` suit un rampant de la grenade à sa mort. Il produit un rapport et une galerie dans `artifacts/`. `node scripts/locomotion-check.mjs --webkit` ajoute le profil mobile WebKit. Les tests unitaires couvrent les appuis en espace monde, les arrêts, les virages, les vitesses et la synchronisation des contacts.
 
 ## Ajouter une arme ou une interaction
 

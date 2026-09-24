@@ -1,6 +1,6 @@
 import * as T from "three";
 import { animateWeapon } from "../weapons.js";
-import { WEAPONS } from "../config.js";
+import { ENEMIES, WEAPONS } from "../config.js";
 import { clamp, moveSlide } from "../logic.js";
 const dir = new T.Vector3();
 
@@ -13,13 +13,31 @@ export class PlayerSystem {
     Object.assign(this, { run, view, input, sound, emit });
     this.commands = { end, updateHUD, obstacleDistance, updateKnife, shoot };
   }
-  hurt(amount) {
+  /** source: world position of the attacker, when known (claws, bites). */
+  hurt(amount, source = null) {
     if (
       this.run.time < this.run.player.invulnerable ||
       this.run.state !== "playing" ||
       this.run.downed
     )
       return;
+    let angle = null;
+    if (source) {
+      // Bearing of the attacker relative to where the camera looks.
+      const dx = source.x - this.run.player.position.x,
+        dz = source.z - this.run.player.position.z,
+        yaw = this.input.yaw;
+      angle = Math.atan2(
+        dx * Math.cos(yaw) - dz * Math.sin(yaw),
+        -dx * Math.sin(yaw) - dz * Math.cos(yaw),
+      );
+      this.run.hurtKick = {
+        age: 0,
+        side: Math.sin(angle),
+        front: Math.cos(angle),
+        strength: Math.min(1, 0.45 + amount / 40),
+      };
+    }
     this.run.player.health = Math.max(
       0,
       this.run.player.health - amount * this.run.difficulty.damage,
@@ -28,7 +46,7 @@ export class PlayerSystem {
     this.run.player.invulnerable = this.run.time + 0.37;
     this.run.lastHurtEffect = 1;
     this.sound.hurt();
-    this.emit("damage");
+    this.emit("damage", { angle, strength: Math.min(1, amount / 35) });
     if (this.run.player.health <= 0) {
       if (this.run.session) this.down();
       else this.commands.end(false);
@@ -124,10 +142,13 @@ export class PlayerSystem {
     const forward = this.view.camera.getWorldDirection(new T.Vector3());
     for (const enemy of this.run.enemies) {
       if (enemy.dead || enemy.model.position.y < -0.1) continue;
-      const toward = enemy.model.position
-        .clone()
-        .add(new T.Vector3(0, 1.35, 0))
-        .sub(this.view.camera.position);
+      // The chest, wherever it is: standing, hunched or crawling.
+      const chest = enemy.model.userData.torso;
+      const toward = (
+        chest
+          ? chest.getWorldPosition(new T.Vector3())
+          : enemy.model.position.clone().add(new T.Vector3(0, 1.35, 0))
+      ).sub(this.view.camera.position);
       const distance = toward.length();
       if (distance < 2 || distance > 25) continue;
       toward.normalize();
@@ -143,6 +164,26 @@ export class PlayerSystem {
         return 0.68;
     }
     return 1;
+  }
+  /** The horde is solid: a survivor cannot walk through standing bodies. */
+  blockByHorde(p) {
+    if (this.run.downed) return;
+    for (const e of this.run.enemies) {
+      if (e.dead || e.model.position.y < -0.3) continue;
+      const reach = (e.crawler ? 0.24 : ENEMIES[e.type].radius || 0.36) + 0.34;
+      const dx = p.position.x - e.model.position.x,
+        dz = p.position.z - e.model.position.z,
+        d2 = dx * dx + dz * dz;
+      if (d2 >= reach * reach || d2 < 1e-8) continue;
+      const d = Math.sqrt(d2),
+        push = reach - d;
+      moveSlide(
+        p.position,
+        (dx / d) * push,
+        (dz / d) * push,
+        this.run.world.obstacles,
+      );
+    }
   }
   updatePlayer(dt) {
     const p = this.run.player;
@@ -204,6 +245,7 @@ export class PlayerSystem {
         this.run.stepTimer = p.crouched ? 0.64 : sprint ? 0.27 : 0.47;
       }
     }
+    this.blockByHorde(p);
     p.stamina = clamp(
       p.stamina + (sprint ? -(p.perks.includes("speed") ? 14 : 21) : 23) * dt,
       0,
@@ -243,15 +285,35 @@ export class PlayerSystem {
       dt,
     );
     this.view.camera.position.y -= p.downAmount * 1.12;
+    // A blow snaps the head away from the attacker, then springs back.
+    let kickPitch = 0,
+      kickYaw = 0,
+      kickRoll = 0;
+    const kick = this.run.hurtKick;
+    if (kick && this.run.settings.shake) {
+      kick.age += dt;
+      const t = kick.age;
+      const envelope =
+        t < 0.05
+          ? t / 0.05
+          : Math.exp(-(t - 0.05) * 9) * Math.cos((t - 0.05) * 18);
+      const k = envelope * kick.strength;
+      kickPitch = k * 0.09 * Math.max(0.3, kick.front);
+      kickYaw = -k * 0.05 * kick.side;
+      kickRoll = -k * 0.11 * kick.side;
+      if (t > 0.8) this.run.hurtKick = null;
+    }
     this.view.camera.rotation.set(
       this.input.pitch +
+        kickPitch +
         (this.run.settings.shake
           ? this.run.recoil * 0.22 - this.run.knifeImpactTime * 0.12
           : 0),
-      this.input.yaw,
-      this.run.settings.shake && sprint
-        ? Math.sin(this.run.time * 8.5) * 0.008
-        : 0,
+      this.input.yaw + kickYaw,
+      kickRoll +
+        (this.run.settings.shake && sprint
+          ? Math.sin(this.run.time * 8.5) * 0.008
+          : 0),
       "YXZ",
     );
     const baseFov = this.run.touch

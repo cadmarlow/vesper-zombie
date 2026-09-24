@@ -1,18 +1,43 @@
 import { ENEMY_BEHAVIORS } from "./enemy-behaviors.js";
-import { animateDeath, updateEnemyVisibility } from "./enemy-presentation.js";
+import {
+  animateDeath,
+  corpseBlood,
+  emergenceDirt,
+  updateEnemyVisibility,
+} from "./enemy-presentation.js";
 import { zombieModel, animateZombie } from "../creatures.js";
 import * as T from "three";
 import { setSurfaceQuality } from "../surfaces.js";
 import { releaseZombie, setZombieDetail } from "../creatures.js";
 import {
+  EMERGE_DEPTH,
+  enemyActionDuration,
   enemyActionPresentation,
+  enemySpeed,
   enemyVariation,
+  riseRate,
   turnEnemyYaw,
   updateEnemyAction,
 } from "./enemy-actions.js";
 
 import { ENEMIES } from "../config.js";
 import { moveSlide, enemyType } from "../logic.js";
+import {
+  LEAP,
+  hordeCanLeap,
+  hordeGait,
+  hordeRandom,
+} from "../content/horde.js";
+import { CRAWL_REACH, crawlSpeed } from "./crawlers.js";
+import {
+  VAULT,
+  canVault,
+  shortcutOver,
+  vaultCrossing,
+  vaultHeight,
+  vaultPhase,
+  vaultWorld,
+} from "./vaulting.js";
 const vec = new T.Vector3(),
   dir = new T.Vector3(),
   point = new T.Vector3();
@@ -59,7 +84,8 @@ export class EnemySystem {
     );
     setSurfaceQuality(model, this.run.settings.quality);
     model.position.copy(pos);
-    model.position.y = -1.9;
+    model.position.y = model.userData.horde ? -EMERGE_DEPTH : -1.9;
+    const gait = hordeGait(type, id, this.run.wave);
     model.rotation.y = Math.atan2(
       this.run.player.position.x - pos.x,
       this.run.player.position.z - pos.z,
@@ -85,6 +111,8 @@ export class EnemySystem {
       staggerUntil: 0,
       dead: false,
       spit: 2 + Math.random() * 3,
+      speedFactor: gait.factor,
+      gait: gait.gait,
     });
     return true;
   }
@@ -109,10 +137,30 @@ export class EnemySystem {
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
+        corpseBlood(e, this.view);
         continue;
       }
-      e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
-      if (e.model.position.y < -0.2) continue;
+      e.model.position.y = Math.min(
+        0,
+        e.model.position.y + dt * riseRate(e.model),
+      );
+      emergenceDirt(e, this.view);
+      if (e.model.position.y < -0.2) {
+        // Bodies climbing out of the ground animate while rising.
+        if (e.model.userData.horde)
+          animateZombie(e.model, this.run.time + e.seed, 0, false, 0, {
+            ...(e.motion ||= {}),
+            dt,
+            velocityX: 0,
+            velocityZ: 0,
+            action: "none",
+            clock: this.run.time,
+            isGrounded: false,
+            targetYaw: e.model.rotation.y,
+            expectedSpeed: enemySpeed(e, this.run.wave),
+          });
+        continue;
+      }
       e.stagger -= dt;
       e.staggerUntil = Math.max(e.staggerUntil || 0, this.run.time + e.stagger);
       e.attack -= dt;
@@ -154,40 +202,137 @@ export class EnemySystem {
         e.model.position.z,
         prey,
       );
+      // Near the prey, low obstacles in the way are climbed over.
+      const radius = ENEMIES[e.type].radius || 0.36;
+      const solid = vaultWorld(this.run.world);
+      const vaulter = canVault(e);
+      const crossing = vaulter
+        ? vaultCrossing(
+            e.model.position.x,
+            e.model.position.z,
+            this.run.world.obstacles,
+          )
+        : null;
+      // Straight on for a moment after landing: the flow field still sees
+      // the body at the obstacle's edge.
+      const landed = this.run.time < (e.vaultedUntil || 0);
+      const overLow =
+        !!crossing ||
+        landed ||
+        (vaulter &&
+          blocked &&
+          shortcutOver(
+            e.model.position,
+            prey,
+            this.run.world.obstacles,
+            solid,
+            radius,
+          ));
+      const goal = overLow ? prey : target;
       const delta = dir.set(
-        target.x - e.model.position.x,
+        goal.x - e.model.position.x,
         0,
-        target.z - e.model.position.z,
+        goal.z - e.model.position.z,
       );
       const length = delta.length();
       if (length > 0.001) delta.divideScalar(length);
+      const falling = this.run.time < (e.crawlFall || 0);
       const speed =
-        ENEMIES[e.type].speed *
-        (1 + Math.min(this.run.wave, 20) * 0.022) *
-        (e.stagger > 0 ? 0.2 : 1);
+        (e.crawler
+          ? crawlSpeed(e, this.run.wave, this.run.time)
+          : enemySpeed(e, this.run.wave)) * (e.stagger > 0 ? 0.2 : 1);
       const beforeX = e.model.position.x,
         beforeZ = e.model.position.z;
-      if (d > 1.15 || blocked) {
-        let sx = 0,
-          sz = 0;
-        for (const other of this.run.enemies) {
-          if (other === e || other.dead) continue;
-          const dx = e.model.position.x - other.model.position.x,
-            dz = e.model.position.z - other.model.position.z,
-            ds = dx * dx + dz * dz;
-          if (ds < 0.7 && ds > 0.001) {
-            sx += (dx / ds) * 0.22;
-            sz += (dz / ds) * 0.22;
-          }
+      // Arm's length from the prey: bodies stop there and spread around it
+      // instead of stacking into the survivor (and through the camera).
+      const stop = e.crawler ? 0.45 + radius : 0.8 + radius;
+      let sx = 0,
+        sz = 0;
+      for (const other of this.run.enemies) {
+        if (other === e || other.dead) continue;
+        const dx = e.model.position.x - other.model.position.x,
+          dz = e.model.position.z - other.model.position.z,
+          ds = dx * dx + dz * dz;
+        if (ds < 0.7 && ds > 0.001) {
+          sx += (dx / ds) * 0.22;
+          sz += (dz / ds) * 0.22;
         }
+      }
+      // A pounce carries the body at the prey between its coil and contact.
+      const leapAction =
+        e.action?.leap &&
+        this.run.time <
+          e.action.startTime + enemyActionDuration("melee", e.type)
+          ? e.action
+          : null;
+      if (leapAction) {
+        const duration = enemyActionDuration("melee", e.type);
+        const phase = (this.run.time - leapAction.startTime) / duration;
+        const gap = d - LEAP.reach;
+        if (phase > LEAP.from && phase < LEAP.to && gap > 0) {
+          const left = Math.max(dt, (LEAP.to - phase) * duration);
+          const step = Math.min(gap, (gap * dt) / left);
+          const ax = prey.x - e.model.position.x,
+            az = prey.z - e.model.position.z,
+            al = Math.hypot(ax, az) || 1;
+          moveSlide(
+            e.model.position,
+            (ax / al) * step,
+            (az / al) * step,
+            this.run.world.obstacles,
+            radius,
+          );
+        }
+      }
+      const approach =
+        !leapAction && (d > stop || blocked || crossing)
+          ? Math.min(speed * dt, length)
+          : 0;
+      if (approach > 0 || sx || sz)
         moveSlide(
           e.model.position,
-          delta.x * Math.min(speed * dt, length) + sx * dt,
-          delta.z * Math.min(speed * dt, length) + sz * dt,
-          this.run.world.obstacles,
-          ENEMIES[e.type].radius || 0.36,
+          delta.x * approach + sx * dt,
+          delta.z * approach + sz * dt,
+          overLow ? solid : this.run.world.obstacles,
+          radius,
         );
+      // A blast throws the body back; the push dies out within a second.
+      if (e.knock) {
+        moveSlide(
+          e.model.position,
+          e.knock.x * dt,
+          e.knock.z * dt,
+          this.run.world.obstacles,
+          radius,
+        );
+        const decay = Math.exp(-5 * dt);
+        e.knock.x *= decay;
+        e.knock.z *= decay;
+        if (Math.hypot(e.knock.x, e.knock.z) < 0.05) e.knock = null;
       }
+      // The crowd never shoves a body inside the prey's reach circle.
+      const gx = e.model.position.x - prey.x,
+        gz = e.model.position.z - prey.z,
+        gap = Math.hypot(gx, gz),
+        minimum = stop - 0.12;
+      if (!blocked && gap < minimum && gap > 1e-4)
+        moveSlide(
+          e.model.position,
+          (gx / gap) * (minimum - gap),
+          (gz / gap) * (minimum - gap),
+          this.run.world.obstacles,
+          radius,
+        );
+      // Over a low obstacle the body rises and falls with the crossing.
+      const over = vaulter
+        ? vaultCrossing(
+            e.model.position.x,
+            e.model.position.z,
+            this.run.world.obstacles,
+          )
+        : null;
+      e.model.position.y = vaultHeight(over);
+      if (over) e.vaultedUntil = this.run.time + VAULT.settle;
       e.targetYaw = Math.atan2(
         prey.x - e.model.position.x,
         prey.z - e.model.position.z,
@@ -207,9 +352,28 @@ export class EnemySystem {
         e.type,
       );
       e.turnRate = dt > 0 ? (e.model.rotation.y - previousYaw) / dt : 0;
-      const inMeleeRange = d < 1.65 && !blocked;
+      const inMeleeRange =
+        d < (e.crawler ? CRAWL_REACH : 1.65) && !blocked && !falling && !over;
+      // Sprinters facing their prey a few metres away may pounce instead.
+      const facingPrey =
+        Math.abs(
+          Math.atan2(
+            Math.sin(e.targetYaw - e.model.rotation.y),
+            Math.cos(e.targetYaw - e.model.rotation.y),
+          ),
+        ) < 0.6;
+      const leapReady =
+        !inMeleeRange &&
+        !blocked &&
+        !e.crawler &&
+        facingPrey &&
+        d >= LEAP.near &&
+        d <= LEAP.far &&
+        hordeCanLeap(e.type, this.run.wave) &&
+        hordeRandom(e.id, 900 + (e.action?.sequence || 0)) < LEAP.chance;
       const contact = updateEnemyAction(e, this.run.time, {
-        melee: inMeleeRange,
+        melee: inMeleeRange || leapReady,
+        leap: leapReady,
         spit:
           ENEMIES[e.type].behavior === "spitter" && d > 3 && d < 17 && !blocked,
       });
@@ -227,6 +391,9 @@ export class EnemySystem {
       motion.turnRate = e.turnRate;
       motion.clock = this.run.time;
       motion.isGrounded = e.model.position.y >= -0.001;
+      motion.expectedSpeed = enemySpeed(e, this.run.wave);
+      motion.viewer = this.view?.camera?.position;
+      motion.vault = vaultPhase(over, e.velocityX, e.velocityZ);
       e.attacking = motion.action !== "none";
       animateZombie(
         e.model,
@@ -246,13 +413,29 @@ export class EnemySystem {
             ),
           ) <=
           (Math.PI * 4) / 9;
-        if (inMeleeRange && facing) {
-          if (preyLocal) this.commands.hurt(ENEMIES[e.type].damage);
+        // Range at contact: a pounce has just closed the gap.
+        const reach = Math.hypot(
+          e.model.position.x - prey.x,
+          e.model.position.z - prey.z,
+        );
+        if (
+          reach < (e.crawler ? CRAWL_REACH : 1.65) &&
+          !blocked &&
+          !falling &&
+          facing
+        ) {
+          // Crawlers claw at the legs: less reach, less damage.
+          const damage = Math.round(
+            ENEMIES[e.type].damage * (e.crawler ? 0.7 : 1),
+          );
+          if (preyLocal) this.commands.hurt(damage, e.model.position);
           else
             this.run.session.send(focus.id, {
               k: "damage",
-              amount: ENEMIES[e.type].damage,
+              amount: damage,
               time: +this.run.time.toFixed(3),
+              // The relay stamps `from` with the sender: the zombie travels apart.
+              src: e.id,
             });
         }
         e.attack = ENEMIES[e.type].attackInterval;

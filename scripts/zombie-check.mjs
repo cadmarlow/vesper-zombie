@@ -57,22 +57,41 @@ try {
       }
     });
     await page.waitForTimeout(150);
+    // Every body is animated: the pose of each skeleton changes over time.
     const animation = await page.evaluate(async () => {
       const g = window.__vesper;
-      const first = g.enemies.map((e) => e.model.userData.jaw?.rotation.x);
+      const pose = () =>
+        g.enemies.map((e) => {
+          e.model.updateMatrixWorld(true);
+          const hand = e.model.userData.wrists?.[0] || e.model.userData.head;
+          return hand.getWorldPosition(e.model.position.clone()).toArray();
+        });
+      const first = pose();
       await new Promise((r) => setTimeout(r, 350));
-      const second = g.enemies.map((e) => e.model.userData.jaw?.rotation.x);
-      return { first, second };
+      const second = pose();
+      return {
+        first,
+        second,
+        horde: g.enemies.map((e) => !!e.model.userData.horde),
+        jaws: g.enemies.map((e) => !!e.model.userData.jaw),
+      };
     });
     assert(
-      animation.first.every(Number.isFinite),
-      `${profile}: all five jaws exist`,
+      animation.jaws.every(Boolean),
+      `${profile}: all five bodies have a jaw`,
     );
     assert(
-      animation.second.every((x, i) => x !== animation.first[i]),
-      `${profile}: all five jaws animate`,
+      animation.horde.every(Boolean),
+      `${profile}: all five types use motion-captured bodies`,
     );
-    report.checks.push(`${profile}: five independent animated jaws`);
+    assert(
+      animation.second.every(
+        (p, i) =>
+          Math.hypot(...p.map((v, k) => v - animation.first[i][k])) > 0.002,
+      ),
+      `${profile}: all five bodies animate`,
+    );
+    report.checks.push(`${profile}: five independent animated bodies`);
     // Studio inspection uses the actual compiled game models and render chain.
     // It supplements, rather than replaces, the in-map combat captures below.
     await page.evaluate(() => {
@@ -104,10 +123,8 @@ try {
       g.enemies.forEach(({ model }) => {
         model.position.set(0, 0, 0);
         model.rotation.set(0, 0, 0);
-        model.traverse((o) => {
-          if (o.isBone) o.rotation.set(0, 0, 0);
-        });
-        model.userData.jaw.rotation.x = 0.14;
+        // Bind pose: motion-captured bodies are frozen by the audit state.
+        model.userData.horde?.skeleton.pose();
       });
     });
     for (const type of ["walker", "runner", "brute", "spitter", "wraith"]) {
@@ -147,7 +164,7 @@ try {
         const g = window.__vesper;
         const e = g.enemies.find((e) => e.type === type);
         e.model.rotation.y = -0.65;
-        e.model.userData.jaw.rotation.x = 0.38;
+        e.model.userData.jaw.rotateZ(-0.35);
       }, type);
       await page.waitForTimeout(180);
       await capture(page, { path: `${out}/${profile}-${type}-jaw.png` });
@@ -224,27 +241,42 @@ try {
             e.stagger = 1e6;
             g.time += 0.016;
             g.updateEnemies(0.016);
-            const idleJaw = e.model.userData.jaw.rotation.x;
+            const idleJaw = e.model.userData.jaw.quaternion.clone();
             e.model.position.z = 18.8;
             e.attack = 0;
-            let attackJaw = idleJaw;
+            let attackJaw = 0;
             for (let frame = 0; frame < 40; frame++) {
               g.time += 1 / 60;
               g.updateEnemies(1 / 60);
-              attackJaw = Math.max(attackJaw, e.model.userData.jaw.rotation.x);
+              attackJaw = Math.max(
+                attackJaw,
+                e.model.userData.jaw.quaternion.angleTo(idleJaw),
+              );
             }
             const textures = [];
             e.model.traverse((o) => {
+              if (o.name !== "horde-body") return;
               const image = o.material?.map?.image;
-              if (image?.src?.includes("/creatures/"))
-                textures.push({ src: image.src, width: image.width });
+              const normal = o.material?.normalMap?.image;
+              textures.push({
+                width: image?.width,
+                normal: normal?.width,
+                mask: !!o.material?.roughnessMap,
+              });
             });
             e.model.position.z = 17.5;
             e.model.updateMatrixWorld(true);
             e.health = 1;
+            // Aim at the centre of the head volume (the Biped head joint sits
+            // at the base of the skull).
             const target = e.model.userData.head.getWorldPosition(
               e.model.position.clone(),
             );
+            const headPart = e.model.userData.hitParts?.find((p) => p.head);
+            if (headPart)
+              target
+                .copy(headPart.offset)
+                .applyMatrix4(e.model.userData.head.matrixWorld);
             g.camera.position.copy(g.player.position);
             g.camera.lookAt(target);
             g.camera.updateMatrixWorld(true);
@@ -257,12 +289,19 @@ try {
             results.push({
               type,
               quality,
-              attacking: attackJaw > idleJaw + 0.1,
+              attacking: attackJaw > 0.1,
               headshot: e.dead && g.player.headshots === headshots + 1,
               textures:
-                textures.some((t) => t.src.includes("face-")) &&
-                textures.some((t) => t.src.includes("skin-")) &&
-                textures.every((t) => t.width === (mobile ? 512 : 1024)),
+                textures.length > 0 &&
+                textures.every(
+                  (t) =>
+                    t.width === (mobile ? 1024 : 2048) &&
+                    // Low quality drops normal maps from every surface.
+                    (quality === "low"
+                      ? !t.normal
+                      : t.normal === t.width / 2) &&
+                    t.mask,
+                ),
             });
           }
           g.mouse.aim = false;
@@ -281,7 +320,7 @@ try {
         );
         assert(
           check.textures,
-          `${profile} ${quality} ${check.type}: face and skin maps have correct resolution`,
+          `${profile} ${quality} ${check.type}: colour, normal and surface maps have the profile resolution`,
         );
         report.checks.push({ profile, ...check });
       }

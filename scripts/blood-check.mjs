@@ -44,7 +44,9 @@ try {
       const capture = async (name) => {
         // WebKit screenshots can otherwise retain the previous composited
         // frame after a synchronous diagnostic change to the paused scene.
+        // The paused game does not redraw by itself: draw the audited pose.
         await page.evaluate(async () => {
+          window.__vesper.composer.render();
           for (let i = 0; i < 3; i++) await new Promise(requestAnimationFrame);
         });
         await page.screenshot({ path: `${out}/${profile}-${name}.png` });
@@ -139,7 +141,37 @@ try {
           g.state = "paused";
           advance(0.06);
         };
+        // Motion-captured bodies: vertical extent of the rendered vertices
+        // mostly driven by the head and jaw bones (none once decapitated).
+        const hordeSpan = (e) => {
+          const mesh = e.model.userData.horde.body[0];
+          const g2 = mesh.geometry,
+            si = g2.attributes.skinIndex,
+            sw = g2.attributes.skinWeight;
+          const head = new Set(
+            mesh.skeleton.bones.flatMap((b, i) =>
+              /_Head$|_MJaw$/.test(b.name) ? [i] : [],
+            ),
+          );
+          const used = new Set();
+          for (let i = 0; i < g2.index.count; i++) used.add(g2.index.getX(i));
+          e.model.updateWorldMatrix(true, true);
+          let lo = Infinity,
+            hi = -Infinity;
+          const p = e.model.position.clone();
+          for (const v of used) {
+            let w = 0;
+            for (let k = 0; k < 4; k++)
+              if (head.has(si.getComponent(v, k))) w += sw.getComponent(v, k);
+            if (w < 0.6) continue;
+            mesh.getVertexPosition(v, p).applyMatrix4(mesh.matrixWorld);
+            lo = Math.min(lo, p.y);
+            hi = Math.max(hi, p.y);
+          }
+          return hi > lo ? hi - lo : 0;
+        };
         const span = (e) => {
+          if (e.model.userData.horde) return hordeSpan(e);
           let face;
           e.model.traverse((o) => {
             if (

@@ -1,4 +1,5 @@
 import * as T from "three";
+import { LIMBS } from "../horde/dismember.js";
 
 const scale = new T.Vector3();
 const parts = [
@@ -11,6 +12,7 @@ const parts = [
 // interpolated pose. Update once per shot, not once per shotgun pellet.
 export function updateEnemyHitVolumes(model) {
   const data = model.userData;
+  if (data.hitParts) return updateBodyVolumes(model);
   const volumes = (data.hitVolumes ||= parts.map((part) => ({
     sphere: new T.Sphere(),
     head: part.head,
@@ -32,4 +34,41 @@ export function updateEnemyHitVolumes(model) {
 
 export function enemyImpactPosition(model, head, target) {
   return target.copy(updateEnemyHitVolumes(model)[head ? 0 : 1].sphere.center);
+}
+
+// Motion-captured bodies: volumes centred on the vertices each bone drives,
+// measured once per character pack (see horde/library.js).
+function updateBodyVolumes(model) {
+  const data = model.userData;
+  const volumes = (data.hitVolumes ||= data.hitParts.map((part) => ({
+    sphere: new T.Sphere(),
+    head: part.head,
+    part,
+    bone: model.getObjectByName(part.bone),
+  })));
+  model.updateWorldMatrix(true, true);
+  model.getWorldScale(scale);
+  const radiusScale = Math.max(scale.x, scale.y, scale.z);
+  for (const volume of volumes) {
+    if (!volume.bone) continue;
+    volume.sphere.center
+      .copy(volume.part.offset)
+      .applyMatrix4(volume.bone.matrixWorld);
+    volume.sphere.radius = volume.part.radius * radiusScale;
+  }
+  // A destroyed head or a lost lower leg can no longer be hit.
+  if (data.headDestroyed) volumes[0].sphere.radius = 0;
+  const cuts = data.cuts || 0;
+  if (cuts)
+    for (const volume of volumes) {
+      const part = volume.part;
+      if (
+        (part.leg && part.lower && cuts & LIMBS.legs.bit) ||
+        (part.arm &&
+          (cuts & LIMBS[`arm${part.arm}`].bit ||
+            (part.lower && cuts & LIMBS[`forearm${part.arm}`].bit)))
+      )
+        volume.sphere.radius = 0;
+    }
+  return volumes;
 }

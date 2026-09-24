@@ -1,5 +1,23 @@
 import { ENEMIES } from "../content/enemies.js";
+import { CORPSE_TIME } from "../content/horde.js";
+import { animateHordeDeath } from "../horde/animator.js";
 import * as T from "three";
+
+/** Corpse lifetime: motion-captured bodies lie longer than procedural ones. */
+export const deathDuration = (enemy) =>
+  enemy.model.userData.horde ? CORPSE_TIME : 2.4;
+
+function animateBodyDeath(enemy, dt) {
+  enemy.deathTime -= dt;
+  enemy.deathAge = (enemy.deathAge || 0) + dt;
+  const model = enemy.model;
+  enemy.deathBaseY ??= model.position.y;
+  animateHordeDeath(enemy, dt);
+  // The last moments sink the corpse through the floor.
+  model.position.y =
+    enemy.deathBaseY -
+    T.MathUtils.smoothstep(0.9 - enemy.deathTime, 0, 0.9) * 0.9 * model.scale.y;
+}
 
 const deathRotation = new T.Euler(),
   deathTarget = new T.Quaternion(),
@@ -23,6 +41,7 @@ function deathPose(enemy) {
 
 /** Both host simulation and peer interpolation share the same death animation. */
 export function animateDeath(enemy, dt) {
+  if (enemy.model.userData.horde) return animateBodyDeath(enemy, dt);
   enemy.deathTime -= dt;
   const data = enemy.model.userData,
     pose = (enemy.deathPose ||= deathPose(enemy)),
@@ -52,7 +71,7 @@ export function animateDeath(enemy, dt) {
       x = -0.07 * fall;
       y = side * 0.22 * fall;
       z = side * 0.1 * fall;
-    } else if (name === "jaw") x = 0.25;
+    } else if (name === "jaw") x = Math.min(0.25, data.jawLimit ?? Infinity);
     else if (name.startsWith("leg")) {
       x = -0.45 * buckle - 0.12 * fall;
       z = (name.endsWith("0") ? -1 : 1) * 0.09 * fall;
@@ -103,6 +122,58 @@ export function animateDeath(enemy, dt) {
     pose.baseY -
     smooth(0, 0.65, 0.65 - enemy.deathTime) * 0.72 * enemy.model.scale.y;
 }
+const UP = new T.Vector3(0, 1, 0),
+  soil = new T.Vector3();
+/**
+ * Dirt thrown up while a body claws its way out of the ground: a cracked
+ * patch of floor, clods and dust at three depths of the climb. Host and
+ * peers call it from their own rise; a body already standing shows none.
+ */
+export function emergenceDirt(enemy, view) {
+  const model = enemy.model;
+  const fx = view?.combatEffects;
+  if (!model.userData.horde || !fx || (enemy.dirtStage ?? 0) >= 3) return;
+  const depth = -model.position.y;
+  if (enemy.dirtStage === undefined && depth < 0.3) {
+    enemy.dirtStage = 3;
+    return;
+  }
+  const stage = depth > 0.95 ? 0 : depth > 0.55 ? 1 : depth > 0.12 ? 2 : 3;
+  let done = enemy.dirtStage ?? -1;
+  const scale = model.scale.y;
+  while (done < stage) {
+    done++;
+    soil.set(model.position.x, 0.05, model.position.z);
+    if (done === 0) {
+      fx.impact(soil.setY(0), UP, 1.05 * scale);
+      soil.setY(0.05);
+      fx.burst(soil, 0x3a2f25, 18, 0.55 * scale);
+      fx.puff(soil);
+      fx.puff(soil);
+    } else if (done === 1) fx.burst(soil, 0x453829, 12, 0.45 * scale);
+    else if (done === 2) {
+      fx.burst(soil, 0x3a2f25, 8, 0.32 * scale);
+      fx.puff(soil);
+    }
+  }
+  enemy.dirtStage = done;
+}
+
+/** Blood spreading under a fallen body: two overlapping pools. */
+export function corpseBlood(enemy, view) {
+  const blood = view?.combatEffects?.blood;
+  const model = enemy.model;
+  const count = enemy.pools ?? 0;
+  if (!blood || !model.userData.horde || count >= 2) return;
+  if ((enemy.deathAge ?? 0) < (count ? 2.2 : 1.1)) return;
+  const chest = model.userData.torso;
+  if (!chest) return;
+  chest.getWorldPosition(soil);
+  soil.y = 0;
+  blood.stain(soil, UP, (count ? 1.05 : 0.65) * model.scale.y);
+  enemy.pools = count + 1;
+}
+
 export function updateEnemyVisibility(enemy, time, distance) {
   if (ENEMIES[enemy.type].behavior === "wraith")
     enemy.model.visible =

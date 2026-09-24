@@ -332,7 +332,11 @@ export class Game {
   }
   updateAmbience(dt) {
     this.run.growlTimer -= dt;
-    if (this.run.growlTimer <= 0 && this.run.enemies.length) {
+    // Recorded horde voices replace the synthetic growl once they are loaded.
+    if (this.sound.horde?.ready) {
+      this.sound.horde.update(this.run.enemies, dt);
+      this.run.growlTimer = Math.max(this.run.growlTimer, 1);
+    } else if (this.run.growlTimer <= 0 && this.run.enemies.length) {
       const e =
           this.run.enemies[Math.floor(Math.random() * this.run.enemies.length)],
         d = e.model.position.distanceTo(this.run.player.position);
@@ -513,6 +517,12 @@ export class Game {
       );
       this.update(delta);
       this.view.contactShadows?.update(this.run.enemies);
+      this.view.hordeEyes?.update(
+        this.run.enemies,
+        this.view.camera,
+        this.run.time,
+      );
+      this.view.hordeGibs?.update(delta);
       if (
         (this.run.touch
           ? this.run.settings.touchAdaptiveQuality

@@ -25,9 +25,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.122,
     sway: 0.027,
     lean: 0.2,
-    arm: -0.43,
-    swing: 0.27,
-    elbow: 0.38,
+    arm: -0.18,
+    swing: 0.34,
+    elbow: 0.18,
+    armDrift: 0.085,
+    armResponse: 13,
+    armLag: 0.065,
+    handRate: 1.65,
+    handFlex: 0.085,
     limp: 0.1,
     speed: 1.35,
     breath: 1.8,
@@ -40,9 +45,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.115,
     sway: 0.014,
     lean: 0.34,
-    arm: -0.32,
+    arm: -0.14,
     swing: 0.72,
-    elbow: 0.96,
+    elbow: 0.32,
+    armDrift: 0.055,
+    armResponse: 18,
+    armLag: 0.035,
+    handRate: 2.8,
+    handFlex: 0.065,
     limp: 0.025,
     speed: 3.15,
     breath: 4.1,
@@ -55,9 +65,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.167,
     sway: 0.055,
     lean: 0.14,
-    arm: -0.22,
-    swing: 0.19,
-    elbow: 0.34,
+    arm: -0.11,
+    swing: 0.25,
+    elbow: 0.16,
+    armDrift: 0.06,
+    armResponse: 10,
+    armLag: 0.09,
+    handRate: 1.25,
+    handFlex: 0.07,
     limp: 0.06,
     speed: 1.1,
     breath: 1.6,
@@ -70,9 +85,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.14,
     sway: 0.029,
     lean: 0.28,
-    arm: -0.63,
-    swing: 0.2,
-    elbow: 0.69,
+    arm: -0.21,
+    swing: 0.27,
+    elbow: 0.27,
+    armDrift: 0.075,
+    armResponse: 12,
+    armLag: 0.075,
+    handRate: 1.9,
+    handFlex: 0.095,
     limp: 0.08,
     speed: 1.45,
     breath: 2.0,
@@ -85,9 +105,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.1,
     sway: 0.022,
     lean: 0.17,
-    arm: -0.49,
-    swing: 0.32,
-    elbow: 0.47,
+    arm: -0.17,
+    swing: 0.39,
+    elbow: 0.2,
+    armDrift: 0.11,
+    armResponse: 12,
+    armLag: 0.115,
+    handRate: 1.4,
+    handFlex: 0.11,
     limp: 0.14,
     speed: 2.55,
     breath: 1.5,
@@ -100,9 +125,14 @@ export const ZOMBIE_MOTION_PROFILES = Object.freeze({
     width: 0.174,
     sway: 0.041,
     lean: 0.09,
-    arm: -0.29,
-    swing: 0.15,
-    elbow: 0.41,
+    arm: -0.12,
+    swing: 0.22,
+    elbow: 0.17,
+    armDrift: 0.055,
+    armResponse: 9,
+    armLag: 0.1,
+    handRate: 1.1,
+    handFlex: 0.075,
     limp: 0.025,
     speed: 1,
     breath: 1.2,
@@ -182,7 +212,12 @@ function makeState(g, profile) {
     reactionHead: false,
     reactionSerial: undefined,
     lastStagger: 0,
-    fingersInitialized: false,
+    hands: (d.fingers || []).map((fingers) => ({
+      nextSample: 0,
+      detail: null,
+      // Root curl, root spread and distal curl, reused for the whole life.
+      targets: new Float64Array(fingers.length * 3),
+    })),
     wasGrounded: false,
     profile,
     phase: 0,
@@ -716,93 +751,146 @@ export function animateZombie(
     const open = jawOpening(look || "walker", state.time, false);
     pose(
       d.jaw,
-      open +
-        preparation * 0.16 +
-        spitLoad * 0.28 +
-        spitRelease * 0.32 +
-        reaction * 0.1,
+      Math.min(
+        d.jawLimit ?? Infinity,
+        open +
+          preparation * 0.16 +
+          spitLoad * 0.28 +
+          spitRelease * 0.32 +
+          reaction * 0.1,
+      ),
       0,
       breath * 0.006,
       poseAlpha,
     );
   }
+  // Shoulders lead the free arm; the elbow and wrist follow at different
+  // phases and response rates. A small breath-driven drift survives a stop,
+  // without advancing the distance-driven gait or disturbing planted feet.
+  // Authored attacks/hit reactions retain the original response speed.
+  const free = 1 - Math.max(preparation * 0.85, reaction * 0.6);
+  const urgent = action !== "none" || reaction > 0.025;
+  const armAlpha =
+    urgent || dt === 0 ? poseAlpha : 1 - Math.exp(-dt * profile.armResponse);
+  const elbowAlpha =
+    urgent || dt === 0
+      ? poseAlpha
+      : 1 - Math.exp(-dt * profile.armResponse * 0.88);
+  const wristAlpha =
+    urgent || dt === 0
+      ? poseAlpha
+      : 1 - Math.exp(-dt * profile.armResponse * 0.75);
+  const fingerAlpha = dt > 0 ? 1 - Math.exp(-dt * (urgent ? 19 : 10)) : 1;
+  const handInterval =
+    d.detail === "far" ? 0.14 : d.detail === "lite" ? 0.08 : 0;
   for (let i = 0; i < (d.arms?.length || 0); i++) {
     const s = i ? 1 : -1;
     const p = (state.phase + i * 0.5 + 0.045 + individuality * 0.02) % 1;
     const swing = curve(ARM, p) * state.move;
-    const lag = curve(ARM, (p + 0.085) % 1) * state.move;
+    const lag = curve(ARM, (p + 1 - profile.armLag) % 1) * state.move;
+    const wristLag =
+      curve(ARM, (p + 1 - profile.armLag * 1.6) % 1) * state.move;
+    const driftPhase =
+      state.time * profile.breath * 0.62 + variation * TAU + i * 1.7;
+    const drift =
+      Math.sin(driftPhase) * 0.7 + Math.sin(driftPhase * 0.47 + i * 0.9) * 0.3;
+    const handDrift = Math.sin(driftPhase - 0.6);
     const active = s === side ? 1 : 0.3;
     const asymmetry = (i ? 0.11 : -0.12) * (d.type === "runner" ? 0.2 : 1);
+    const swingGain = 1 + s * (0.1 + individuality * 0.035);
     const shoulderLift = -strike * active * 0.07;
     pose(
       d.shoulders?.[i],
-      -swing * 0.045 - preparation * 0.06,
+      -swing * 0.045 + drift * 0.018 * free - preparation * 0.06,
       -swing * s * 0.035 + twist * 0.19,
-      s * (shoulderLift + breath * 0.004),
+      s * (shoulderLift + breath * 0.004 + drift * 0.014 * free),
       poseAlpha,
     );
     pose(
       d.arms[i],
       profile.arm +
         asymmetry +
-        swing * profile.swing +
+        swing * profile.swing * swingGain +
+        drift * profile.armDrift * free +
         strike * active -
         spitLoad * 0.18 -
         reaction * (s === state.reactionSide ? 0.2 : -0.06),
-      twist * 0.32 + s * (0.035 + swing * 0.04),
+      twist * 0.32 + s * (0.035 + swing * 0.055) + drift * 0.025 * free,
       s *
         (0.055 +
           (d.type === "brute" || d.type === "archon" ? 0.08 : 0) +
-          preparation * active * 0.09),
-      poseAlpha,
+          preparation * active * 0.09 +
+          handDrift * 0.022 * free),
+      armAlpha,
     );
     pose(
       d.elbows?.[i],
       -profile.elbow -
         Math.max(0, -lag) * (d.type === "runner" ? 0.25 : 0.15) +
+        handDrift * 0.045 * free +
         curve(STRIKE_ELBOW, strikePhase) * melee * active -
         spitLoad * 0.15,
       s * 0.025,
       0,
-      poseAlpha,
+      elbowAlpha,
     );
     pose(
       d.wrists?.[i],
-      0.17 + lag * 0.1 - preparation * active * 0.18,
-      -s * (0.19 + individuality * 0.1),
-      s * (0.07 + lag * 0.04),
-      poseAlpha,
+      0.06 +
+        wristLag * 0.16 +
+        handDrift * 0.065 * free -
+        preparation * active * 0.18,
+      -s * (0.08 + individuality * 0.04) + drift * 0.045 * free,
+      s * (0.025 + wristLag * 0.04 + handDrift * 0.025 * free),
+      wristAlpha,
     );
     const fingers = d.fingers?.[i];
-    // At the far geometry level fingers occupy less than a pixel. Keep a
-    // settled hand shape there; resume normal blending as soon as the same
-    // skeleton switches back to full/lite. Locomotion never changes with LOD.
-    if (fingers && (d.detail !== "far" || !state.fingersInitialized)) {
-      const fingerAlpha = d.detail === "far" ? 1 : poseAlpha;
+    const hand = state.hands[i];
+    if (fingers && hand) {
+      // LOD reduces target sampling, never freezes the pose. Interpolate every
+      // frame so distant fingers flex smoothly; actions and LOD transitions
+      // refresh immediately. Time/variation, not world position, drive flex.
+      if (urgent || state.time >= hand.nextSample || hand.detail !== d.detail) {
+        hand.nextSample = state.time + handInterval;
+        hand.detail = d.detail;
+        for (let j = 0; j < fingers.length; j++) {
+          const finger = fingers[j];
+          const flexPhase =
+            state.time * profile.handRate +
+            variation * TAU +
+            i * 1.9 +
+            j * 0.68;
+          const flex = Math.sin(flexPhase) * profile.handFlex * free;
+          const curl = clamp(
+            0.2 +
+              j * 0.033 +
+              flex +
+              wristLag * 0.045 +
+              preparation * (0.19 + j * 0.017) +
+              reaction * 0.09,
+            0.09,
+            0.65,
+          );
+          hand.targets[j * 3] = finger.thumb ? curl * 0.42 : curl;
+          hand.targets[j * 3 + 1] = finger.thumb
+            ? -s * (0.11 + flex * 0.2)
+            : s * ((j - 1.5) * 0.015 + flex * 0.12);
+          hand.targets[j * 3 + 2] = finger.thumb
+            ? curl * 0.35
+            : curl * 0.85 + 0.065;
+        }
+      }
       for (let j = 0; j < fingers.length; j++) {
         const finger = fingers[j];
-        const curl =
-          0.18 +
-          j * 0.038 +
-          (d.detail === "far"
-            ? 0
-            : lag * 0.025 + preparation * (0.19 + j * 0.017) + reaction * 0.09);
         pose(
           finger.root,
-          finger.thumb ? curl * 0.42 : curl,
+          hand.targets[j * 3],
           0,
-          finger.thumb ? -s * 0.11 : s * (j - 1.5) * 0.015,
+          hand.targets[j * 3 + 1],
           fingerAlpha,
         );
-        pose(
-          finger.tip,
-          finger.thumb ? curl * 0.35 : curl * 0.85 + 0.08,
-          0,
-          0,
-          fingerAlpha,
-        );
+        pose(finger.tip, hand.targets[j * 3 + 2], 0, 0, fingerAlpha);
       }
     }
   }
-  state.fingersInitialized = true;
 }

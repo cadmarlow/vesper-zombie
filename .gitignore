@@ -5,6 +5,10 @@ dist/
 .vite/
 .cache/
 
+# Abandoned 3.3-3.5 zombie attempt (generated models, renders, legacy code):
+# kept locally for reference, not needed to build or run the game.
+art/
+
 # Local verification output and release archives
 artifacts/
 coverage/

@@ -1,3 +1,4 @@
+import { splashScreen } from "./ui/screen-blood.js";
 import { MUSIC_TRACKS } from "./content/music.js";
 import { DEFAULT_SETTINGS } from "./content/defaults.js";
 import { readSettings } from "./app/storage.js";
@@ -73,6 +74,33 @@ menuArt.style.backgroundImage = "url(/art/abbey.webp)";
 const formatTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 let toastTimer, announceTimer, hitTimer, damageTimer, panelReturnFocus;
+
+// A red arc points at the attacker; claw blows leave fading scratches.
+function showDamageDirection(payload) {
+  if (!payload || payload.angle === null || payload.angle === undefined) return;
+  const layer = $("#damage-arcs");
+  if (!layer) return;
+  const arc = document.createElement("div");
+  arc.className = "damage-arc";
+  arc.style.setProperty("--angle", `${payload.angle}rad`);
+  arc.style.setProperty("--strength", String(0.55 + payload.strength * 0.45));
+  layer.append(arc);
+  setTimeout(() => arc.remove(), 1300);
+  while (layer.querySelectorAll(".damage-arc").length > 4)
+    layer.querySelector(".damage-arc").remove();
+  const claws = document.createElement("div");
+  claws.className = "claw-marks";
+  claws.style.setProperty(
+    "--tilt",
+    `${(Math.sin(payload.angle) < 0 ? -1 : 1) * (18 + Math.random() * 16)}deg`,
+  );
+  claws.style.setProperty("--x", `${40 + Math.sin(payload.angle) * 22}%`);
+  claws.style.setProperty("--y", `${38 + Math.random() * 20}%`);
+  layer.append(claws);
+  setTimeout(() => claws.remove(), 1700);
+  while (layer.querySelectorAll(".claw-marks").length > 2)
+    layer.querySelector(".claw-marks").remove();
+}
 function toast({ title, text, duration = 4300 }) {
   const root = $("#toast-container");
   root.innerHTML = `<div class="toast"><div class="toast-icon">${icon("eclipse")}</div><div><strong></strong><p></p></div></div>`;
@@ -153,6 +181,9 @@ function onEvent(type, payload) {
         110,
       );
       break;
+    case "gore":
+      splashScreen($("#damage-arcs"), payload?.strength ?? 1);
+      break;
     case "damage":
       $("#damage-overlay").classList.add("visible");
       clearTimeout(damageTimer);
@@ -160,6 +191,7 @@ function onEvent(type, payload) {
         () => $("#damage-overlay").classList.remove("visible"),
         400,
       );
+      showDamageDirection(payload);
       break;
     case "score": {
       const row = document.createElement("div");

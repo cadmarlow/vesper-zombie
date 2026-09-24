@@ -408,17 +408,26 @@ export class Session {
     this.replica.updateRemoteEnemies(dt);
     this.updatePendingDamage(dt);
   }
+  /** Where the zombie that landed a blow stands in this peer's replica. */
+  attackerPosition(id) {
+    if (id === undefined) return null;
+    return (
+      this.context.run?.enemies?.find((e) => e.id === id)?.model.position ||
+      null
+    );
+  }
   queueDamage(message) {
     const g = this.context;
     if (
       g.run.state === "playing" &&
       (message.time === undefined || message.time <= this.replica?.renderTime)
     ) {
-      g.commands.hurt(message.amount);
+      g.commands.hurt(message.amount, this.attackerPosition(message.src));
       return;
     }
     this.pendingDamage.push({
       amount: message.amount,
+      src: message.src,
       time: message.time,
       run: this.runId,
       waited: 0,
@@ -446,7 +455,7 @@ export class Session {
         event.waited >= MAX_DAMAGE_PRESENTATION_DELAY
       ) {
         this.pendingDamage.splice(i, 1);
-        g.commands.hurt(event.amount);
+        g.commands.hurt(event.amount, this.attackerPosition(event.src));
       } else i++;
     }
   }

@@ -111,7 +111,22 @@ try {
     const g = window.__vesper;
     g.spawnEnemy("walker", g.player.position.clone().set(0, 0, 15));
     g.enemies.at(-1).model.position.y = 0;
-    g.pitch = Math.atan2(0.1, 5);
+  });
+  // Hunched bodies carry their head low: aim at the animated head itself.
+  await page.waitForTimeout(120);
+  await evaluate(() => {
+    const g = window.__vesper;
+    const e = g.enemies.at(-1);
+    e.model.updateWorldMatrix(true, true);
+    const head = e.model.userData.head.getWorldPosition(
+      g.camera.position.clone(),
+    );
+    head.y += 0.06;
+    const dx = head.x - g.camera.position.x,
+      dz = head.z - g.camera.position.z;
+    g.yaw = Math.atan2(-dx, -dz);
+    g.pitch = Math.atan2(head.y - g.camera.position.y, Math.hypot(dx, dz));
+    e.stagger = 1e6;
   });
   await page.waitForTimeout(50);
   await page.mouse.click(720, 450);

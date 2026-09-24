@@ -226,6 +226,51 @@ check(
   peerHealth < 100,
   String(peerHealth),
 );
+// A grenade tears the legs off tough walkers: the peer sees crawlers too.
+// Away from the four mirrored enemies (z = 8): the blast reaches 6 m.
+const crawlerIds = await host.evaluate(() => {
+  const g = window.__vesper;
+  const ids = [];
+  for (const x of [-1, 1]) {
+    g.spawnEnemy("walker", g.player.position.clone().set(x, 0, 17));
+    const e = g.enemies.at(-1);
+    e.model.position.y = 0;
+    e.health = e.maxHealth = 5000;
+    ids.push(e.id);
+  }
+  const random = Math.random;
+  Math.random = () => 0.2;
+  try {
+    g.explode(g.player.position.clone().set(0, 0.3, 17), null);
+  } finally {
+    Math.random = random;
+  }
+  return ids;
+});
+await peer.waitForTimeout(1500);
+const crawlers = await peer.evaluate(
+  (ids) =>
+    ids.map((id) => {
+      const e = window.__vesper.enemies.find((e) => e.id === id);
+      return {
+        crawler: !!e?.crawler,
+        legs: !!e?.model.userData.legsLost,
+        crawling: !!e?.model.userData.horde?.anim?.crawling,
+      };
+    }),
+  crawlerIds,
+);
+console.log(JSON.stringify(crawlers));
+check(
+  "Crawlers made by the host crawl on the peer",
+  crawlers.length === 2 &&
+    crawlers.every((c) => c.crawler && c.legs && c.crawling),
+);
+await host.evaluate((ids) => {
+  const g = window.__vesper;
+  for (const e of g.enemies)
+    if (ids.includes(e.id)) g.damageEnemy(e, 1e6, false);
+}, crawlerIds);
 // Peer goes down, then respawns when the host calls a wave
 await peer.evaluate(() => {
   const g = window.__vesper;

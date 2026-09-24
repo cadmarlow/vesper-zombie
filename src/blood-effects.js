@@ -190,9 +190,14 @@ export class BloodEffects {
     this.splats.renderOrder = 1;
     this.root.add(this.drops, this.spray, this.splats);
   }
-  hit(position, direction, headKill = false) {
+  /**
+   * `headKill` counts a head burst; `gore` (default: the same) sizes the
+   * spray, so torn limbs spray like a head without counting as one.
+   */
+  hit(position, direction, headKill = false, gore = headKill) {
     this.bursts++;
     if (headKill) this.headBursts++;
+    headKill = gore;
     this.direction.copy(direction).normalize();
     if (this.direction.lengthSq() < 0.5) this.direction.set(0, 0, -1);
     const count = headKill ? (this.mobile ? 26 : 44) : this.mobile ? 7 : 12,

@@ -338,6 +338,23 @@ try {
     g.spawnEnemy("walker", g.player.position.clone().set(0, 0, 28));
   });
   await peer.waitForFunction(() => window.__vesper.enemies.length > 0);
+  // Motion-captured bodies climb out of the ground first: sample the walk.
+  await peer.waitForFunction(
+    () =>
+      !window.__vesper.enemies[0].model.userData.horde ||
+      (window.__vesper.enemies[0].model.position.y >= 0 &&
+        !window.__vesper.enemies[0].model.userData.horde.anim?.overlay),
+    null,
+    { timeout: 8000 },
+  );
+  // Feet are pinned at full detail only (near bodies): observe that level.
+  await peer.evaluate(() => {
+    const g = window.__vesper;
+    const e = g.enemies[0];
+    if (!e.model.userData.horde) return;
+    g.applyDetail(e, 2);
+    e.nextDetailCheck = Infinity;
+  });
   const motion = await peer.evaluate(
     () =>
       new Promise((resolve) => {
@@ -345,6 +362,24 @@ try {
         const rows = [];
         const ankle = g.enemies[0].model.position.clone();
         const until = performance.now() + 1800;
+        // Motion-captured bodies pin the ball of a landed foot with IK: a
+        // planted foot is a locked one; its error is the distance between
+        // the rendered toe and the lock anchor.
+        const bodyFeet = (e) =>
+          e.model.userData.legs.map((leg, i) => {
+            const toe = leg.toe.getWorldPosition(ankle.clone());
+            const lock = e.model.userData.horde.anim?.feet?.[i];
+            const planted = !!lock?.locked;
+            return {
+              planted,
+              y: toe.y,
+              anchor: lock?.anchor.toArray(),
+              actual: toe.toArray(),
+              anchorError: planted
+                ? Math.hypot(toe.x - lock.anchor.x, toe.z - lock.anchor.z)
+                : 0,
+            };
+          });
         function sample() {
           const e = g.enemies[0];
           e.model.updateMatrixWorld(true);
@@ -360,22 +395,25 @@ try {
             scale: e.model.scale.y,
             phase: e.model.userData.walkPhase,
             leg: e.model.userData.legs[0].root.rotation.x,
+            legQ: e.model.userData.legs[0].root.quaternion.toArray(),
             clock: e.motion?.clock,
             dt: e.motion?.dt,
             grounded: e.motion?.isGrounded,
             cadence: e.model.userData.motionState?.cadence,
-            feet: e.model.userData.motionState?.feet.map((foot, i) => {
-              e.model.userData.legs[i].foot.getWorldPosition(ankle);
-              return {
-                planted: foot.planted,
-                progress: foot.progress,
-                contacts: foot.contactCount,
-                y: foot.position.y,
-                anchor: foot.anchor.toArray(),
-                actual: ankle.toArray(),
-                anchorError: ankle.distanceTo(foot.anchor),
-              };
-            }),
+            feet: e.model.userData.horde
+              ? bodyFeet(e)
+              : e.model.userData.motionState?.feet.map((foot, i) => {
+                  e.model.userData.legs[i].foot.getWorldPosition(ankle);
+                  return {
+                    planted: foot.planted,
+                    progress: foot.progress,
+                    contacts: foot.contactCount,
+                    y: foot.position.y,
+                    anchor: foot.anchor.toArray(),
+                    actual: ankle.toArray(),
+                    anchorError: ankle.distanceTo(foot.anchor),
+                  };
+                }),
           });
           if (performance.now() < until) requestAnimationFrame(sample);
           else resolve(rows);
@@ -396,7 +434,13 @@ try {
       maxStep,
       Math.hypot(motion[i].x - motion[i - 1].x, motion[i].z - motion[i - 1].z),
     );
-    const legStep = Math.abs(motion[i].leg - motion[i - 1].leg);
+    // True rotation between samples: Euler angles of the Biped thigh sit
+    // near ±π and wrap without any visible motion.
+    const [ax, ay, az, aw] = motion[i - 1].legQ,
+      [bx, by, bz, bw] = motion[i].legQ;
+    const legStep =
+      2 *
+      Math.acos(Math.min(1, Math.abs(ax * bx + ay * by + az * bz + aw * bw)));
     if (legStep > maxLeg) {
       maxLeg = legStep;
       maxLegIndex = i;

@@ -113,6 +113,13 @@ async function observe(page) {
             len = dir.length();
           const visible =
             g.obstacleDistance(origin, dir.normalize(), len) >= len - 0.3;
+          // The head as drawn: horde bodies stoop and lurch, so a player
+          // aims at what is on screen, not at a fixed height.
+          const part = e.model.userData.hitParts?.find((p) => p.head);
+          const bone = part && e.model.getObjectByName(part.bone);
+          const head = bone
+            ? part.offset.clone().applyMatrix4(bone.matrixWorld)
+            : null;
           return {
             x: e.model.position.x,
             z: e.model.position.z,
@@ -120,6 +127,7 @@ async function observe(page) {
             scale: e.model.scale.y,
             id: e.id,
             visible,
+            head: head && [head.x, head.y, head.z],
           };
         }),
       enemyCount: g.enemies.filter((e) => !e.dead).length,
@@ -338,9 +346,16 @@ class Bot {
       return;
     }
     if (target && best < 40) {
-      const headY = 1.8 * target.scale - 0.15;
-      const dyaw = wrap(yawTo(s.pos, target) - s.yaw);
-      const dpitch = Math.atan2(headY - s.camY, best) - s.pitch;
+      const aim = target.head
+        ? { x: target.head[0], z: target.head[2] }
+        : target;
+      const headY = target.head ? target.head[1] : 1.8 * target.scale - 0.15;
+      const dyaw = wrap(yawTo(s.pos, aim) - s.yaw);
+      const dpitch =
+        Math.atan2(
+          headY - s.camY,
+          Math.hypot(aim.x - s.pos[0], aim.z - s.pos[2]),
+        ) - s.pitch;
       await look(page, dyaw, dpitch, s.sensitivity);
       const automatic = ["spectre", "marauder", "eclipse"].includes(s.weaponId);
       const aimed = Math.abs(dyaw) < 0.05 && Math.abs(dpitch) < 0.06;

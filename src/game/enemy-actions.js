@@ -1,4 +1,18 @@
 import { ENEMIES } from "../content/enemies.js";
+import { EMERGE_DEPTH, EMERGE_TIME } from "../content/horde.js";
+
+export { EMERGE_DEPTH };
+/** Rise speed out of the ground: slower climb for motion-captured bodies. */
+export const riseRate = (model) =>
+  model.userData.horde ? EMERGE_DEPTH / (EMERGE_TIME * 0.85) : 2.5;
+/** Navigation speed of an enemy at a wave, including its individual gait. */
+export function enemySpeed(e, wave) {
+  return (
+    ENEMIES[e.type].speed *
+    (1 + Math.min(wave, 20) * 0.022) *
+    (e.speedFactor ?? 1)
+  );
+}
 
 // These markers drive both the visual pose and the authoritative contact.
 // Locomotion never moves an entity through an animation's root translation.
@@ -22,8 +36,9 @@ export function enemyActionDuration(kind, type) {
     : ENEMY_ACTIONS[kind]?.duration || 0;
 }
 
-export function enemyActionFromSnapshot(code, startTime, sequence) {
-  return { kind: ACTION_NAMES[code] || "none", startTime, sequence };
+export function enemyActionFromSnapshot(code, startTime, sequence, leap) {
+  const kind = ACTION_NAMES[code] || "none";
+  return { kind, startTime, sequence, leap: kind === "melee" && !!leap };
 }
 
 export function enemyActionPresentation(
@@ -40,8 +55,10 @@ export function enemyActionPresentation(
   result.action = active ? kind : "none";
   result.actionPhase = active ? Math.min(1, elapsed / duration) : 0;
   result.actionSide = ((id + (action?.sequence || 0)) & 1) === 0 ? -1 : 1;
+  result.actionSequence = action?.sequence || 0;
   result.actionContact = ENEMY_ACTIONS[kind]?.contact || 0;
   result.actionDuration = duration;
+  result.actionLeap = active && !!action?.leap;
   return result;
 }
 
@@ -49,7 +66,7 @@ export function enemyActionPresentation(
 export function updateEnemyAction(
   enemy,
   time,
-  { melee = false, spit = false },
+  { melee = false, spit = false, leap = false },
 ) {
   const action = enemy.action;
   if (action && action.kind !== "none") {
@@ -78,6 +95,7 @@ export function updateEnemyAction(
       startTime: time,
       sequence: (action?.sequence || 0) + 1,
       contactApplied: false,
+      leap: kind === "melee" && leap,
     };
   }
   return null;

@@ -5,6 +5,10 @@ import * as T from "three";
 import { prepareSurfaces, setSurfaceQuality } from "../surfaces.js";
 import { releaseZombie } from "../creatures.js";
 import { prepareCreatureSkins } from "../creature-head.js";
+import { hordeTextures, prepareHorde } from "../horde/library.js";
+import { HordeEyes } from "../horde/eyes.js";
+import { HordeGibs } from "../horde/gibs.js";
+import { HordeAudio } from "../horde/voice.js";
 import { CombatEffects } from "../combat-effects.js";
 import { captureEnvironment, ContactShadows } from "../rendering.js";
 import { World } from "../world.js";
@@ -95,6 +99,10 @@ export class RunLifecycle {
     this.input.touchInteract = false;
     await Promise.all([
       prepareSurfaces(touch, mapDefinition(map).theme),
+      prepareHorde(touch),
+      (this.sound.horde ||= new HordeAudio(this.sound, touch))
+        .load()
+        .catch((error) => console.warn("Horde sounds unavailable", error)),
       // Creatures fall back to procedural skin when the scanned faces are
       // unavailable; a missing texture must not abort the whole session.
       prepareCreatureSkins(touch).catch((error) =>
@@ -130,6 +138,9 @@ export class RunLifecycle {
     });
     try {
       await this.view.renderer.compileAsync(this.view.scene, this.view.camera);
+      // Upload every body's maps now: a new face mid-wave must not stall a frame.
+      for (const texture of hordeTextures())
+        this.view.renderer.initTexture(texture);
     } finally {
       warmup.forEach((model) => {
         this.view.scene.remove(model);
@@ -152,6 +163,9 @@ export class RunLifecycle {
       this.view.camera,
     );
     this.view.contactShadows = new ContactShadows(this.view.scene);
+    this.view.hordeEyes = new HordeEyes(this.view.scene, touch);
+    this.view.hordeGibs = new HordeGibs(this.view.scene, touch);
+    this.sound.horde?.attach(this.run, this.view.camera);
     if (touch) {
       const anisotropy = Math.min(
         8,
@@ -332,6 +346,11 @@ export class RunLifecycle {
     this.run.downed = false;
     this.view.contactShadows?.dispose();
     this.view.contactShadows = null;
+    this.view.hordeEyes?.dispose();
+    this.view.hordeEyes = null;
+    this.view.hordeGibs?.dispose();
+    this.view.hordeGibs = null;
+    this.sound.horde?.detach();
     this.view.scene.environment = this.view.environmentTarget.texture;
     this.view.viewScene.environment = this.view.environmentTarget.texture;
     this.view.mapEnvironment?.dispose();

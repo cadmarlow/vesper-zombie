@@ -1,5 +1,8 @@
 import {
   animateDeath,
+  corpseBlood,
+  deathDuration,
+  emergenceDirt,
   updateEnemyVisibility,
 } from "../game/enemy-presentation.js";
 import * as T from "three";
@@ -13,10 +16,23 @@ import { setSurfaceQuality } from "../surfaces.js";
 import { disposeModel } from "../resources.js";
 import { glow, glowSprite, mesh } from "../assets.js";
 import {
+  EMERGE_DEPTH,
   enemyActionFromSnapshot,
   enemyActionPresentation,
+  enemySpeed,
   enemyVariation,
+  riseRate,
 } from "../game/enemy-actions.js";
+import { hordeGait } from "../content/horde.js";
+import { crippleEnemy, severArm, tearJaw } from "../game/crawlers.js";
+import { LIMBS } from "../horde/dismember.js";
+import {
+  canVault,
+  vaultCrossing,
+  vaultHeight,
+  vaultPhase,
+  vaultWorld,
+} from "../game/vaulting.js";
 const PICKUP_TYPES = ["health", "ammo", "double", "insta"];
 export class WorldReplica {
   constructor(
@@ -87,6 +103,9 @@ export class WorldReplica {
     }
     // enemies
     const seen = new Set();
+    const crawlers = new Set(s.c || []);
+    const cuts = new Map(s.x || []);
+    const leaps = new Set((s.lp || []).map(([id, seq]) => `${id}:${seq}`));
     for (const row of s.e) {
       const [
         id,
@@ -117,9 +136,10 @@ export class WorldReplica {
           id,
         );
         setSurfaceQuality(model, g.run.settings.quality);
-        model.position.set(x, -1.9, z);
+        model.position.set(x, model.userData.horde ? -EMERGE_DEPTH : -1.9, z);
         model.rotation.y = yaw;
         g.view.scene.add(model);
+        const gait = hordeGait(type, id, g.run.wave);
         e = {
           id,
           model,
@@ -138,6 +158,8 @@ export class WorldReplica {
           speed: 0,
           remote: true,
           samples: [],
+          speedFactor: gait.factor,
+          gait: gait.gait,
         };
         this.remoteEnemies.set(id, e);
         g.run.enemies.push(e);
@@ -149,6 +171,7 @@ export class WorldReplica {
         actionCode,
         actionStart,
         actionSequence,
+        leaps.has(`${id}:${actionSequence}`),
       );
       e.samples.push({
         time,
@@ -160,6 +183,8 @@ export class WorldReplica {
         staggerUntil,
         dead: !!dead,
         headGone: !!headGone,
+        crawler: crawlers.has(id),
+        cuts: cuts.get(id) || 0,
       });
       if (e.samples.length > 8) e.samples.shift();
       e.health = hp;
@@ -244,6 +269,7 @@ export class WorldReplica {
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
+        corpseBlood(e, g.view);
         if (e.deathTime <= 0) e.model.visible = false;
         if (e.removeAt <= clock && e.deathTime <= 0) removed.push(e);
         continue;
@@ -252,7 +278,11 @@ export class WorldReplica {
         removed.push(e);
         continue;
       }
-      e.model.position.y = Math.min(0, e.model.position.y + dt * 2.5);
+      e.model.position.y = Math.min(
+        0,
+        e.model.position.y + dt * riseRate(e.model),
+      );
+      emergenceDirt(e, g.view);
       e.stagger -= dt;
       const m = e.model,
         bx = m.position.x,
@@ -313,6 +343,21 @@ export class WorldReplica {
       motion.turnRate = e.turnRate;
       motion.clock = clock;
       motion.isGrounded = m.position.y >= -0.001;
+      motion.expectedSpeed = enemySpeed(e, g.run.wave);
+      motion.viewer = g.view?.camera?.position;
+      // Crossing a low obstacle: derived from the position, as on the host.
+      if (g.run.world) vaultWorld(g.run.world);
+      const over =
+        g.run.world && canVault(e) && m.position.y >= -0.001
+          ? vaultCrossing(
+              m.position.x,
+              m.position.z,
+              g.run.world.obstacles || [],
+            )
+          : null;
+      if (over) m.position.y = vaultHeight(over);
+      else if (m.position.y > 0) m.position.y = 0;
+      motion.vault = vaultPhase(over, e.velocityX, e.velocityZ);
       const d = Math.hypot(
         m.position.x - g.run.player.position.x,
         m.position.z - g.run.player.position.z,
@@ -337,11 +382,25 @@ export class WorldReplica {
         const at = new T.Vector3();
         destroyZombieHead(m, at);
         g.view.combatEffects.blood.hit(at, new T.Vector3(0, 1, 0), true);
+        const near = g.view.camera
+          ? at.distanceTo(g.view.camera.position)
+          : Infinity;
+        if (near < 3.2)
+          g.emit?.("gore", { strength: Math.min(1, 1.25 - near / 3.2) });
+      }
+      if (observation?.crawler && !e.crawler) crippleEnemy(e, g.view, clock);
+      // Arms torn by the host: replay each new cut in order (elbow first).
+      const missing = (observation?.cuts || 0) & ~(m.userData.cuts || 0);
+      if (missing) {
+        for (const key of ["forearmL", "armL", "forearmR", "armR"])
+          if (missing & LIMBS[key].bit)
+            severArm(e, key.slice(-1), key.startsWith("arm"), g.view);
+        if (missing & LIMBS.jaw.bit) tearJaw(e, g.view);
       }
       if (observation?.dead) {
         e.dead = true;
         e.attacking = false;
-        e.deathTime = 2.4;
+        e.deathTime = deathDuration(e);
         e.fallSide = enemyVariation(e.id) < 0.5 ? -1 : 1;
       }
     }

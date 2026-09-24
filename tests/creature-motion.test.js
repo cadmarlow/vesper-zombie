@@ -357,17 +357,20 @@ test("archon has a distinct gait, and directional reactions recover", () => {
   assert.ok(Math.abs(left.userData.head.rotation.y) < 0.002);
 });
 
-test("far detail preserves exact gait and contacts while close hands resume animation", () => {
+test("far detail keeps arms and fingers moving with the exact same gait and contacts", () => {
   const near = model(),
     far = model();
   near.userData.detail = "full";
   far.userData.detail = "far";
-  let farCurl;
+  const curls = [],
+    arms = [];
   for (let n = 0; n < 120; n++) {
     frame(near, n / 60, 1 / 60, 1.35);
     frame(far, n / 60, 1 / 60, 1.35);
-    if (n === 0) farCurl = far.userData.fingers[0][0].root.rotation.x;
-    assert.equal(far.userData.fingers[0][0].root.rotation.x, farCurl);
+    if (n > 30) {
+      curls.push(far.userData.fingers[0][0].root.rotation.x);
+      arms.push(far.userData.arms[0].rotation.x);
+    }
     assert.equal(near.userData.walkPhase, far.userData.walkPhase);
     for (let i = 0; i < 2; i++) {
       const a = near.userData.motionState.feet[i],
@@ -379,12 +382,153 @@ test("far detail preserves exact gait and contacts while close hands resume anim
           far.userData.legs[i].foot.quaternion,
         ),
       );
+      assert.ok(
+        near.userData.arms[i].quaternion.equals(
+          far.userData.arms[i].quaternion,
+        ),
+      );
     }
   }
-  far.userData.detail = "lite";
-  for (let n = 120; n < 130; n++)
-    frame(far, n / 60, 1 / 60, 1.35, 0, { action: "melee", actionPhase: 0.38 });
   assert.ok(
-    Math.abs(far.userData.fingers[0][0].root.rotation.x - farCurl) > 0.05,
+    Math.max(...curls) - Math.min(...curls) > 0.035,
+    "far hand must keep flexing without an attack",
   );
+  assert.ok(
+    Math.max(...arms) - Math.min(...arms) > 0.2,
+    "far arm must visibly swing during approach",
+  );
+});
+
+test("all species retain relaxed motion in both arms, wrists and each finger at idle and while approaching", () => {
+  for (const [type, profile] of Object.entries(ZOMBIE_MOTION_PROFILES)) {
+    for (const detail of ["full", "lite", "far"]) {
+      for (const speed of [0, profile.speed]) {
+        const g = model(type, 1, 0.31);
+        g.userData.detail = detail;
+        const joints = [];
+        for (let side = 0; side < 2; side++) {
+          joints.push(
+            {
+              name: `arm${side}`,
+              bone: g.userData.arms[side],
+              minRange: speed ? 0.12 : 0.028,
+            },
+            {
+              name: `elbow${side}`,
+              bone: g.userData.elbows[side],
+              minRange: 0.025,
+            },
+            {
+              name: `wrist${side}`,
+              bone: g.userData.wrists[side],
+              minRange: 0.04,
+            },
+          );
+          g.userData.fingers[side].forEach((finger, index) => {
+            joints.push(
+              {
+                name: `finger${side}_${index}`,
+                bone: finger.root,
+                minRange: finger.thumb ? 0.012 : 0.03,
+              },
+              {
+                name: `tip${side}_${index}`,
+                bone: finger.tip,
+                minRange: finger.thumb ? 0.01 : 0.025,
+              },
+            );
+          });
+        }
+        for (const joint of joints) {
+          joint.min = Infinity;
+          joint.max = -Infinity;
+        }
+        // Discard the initial blend: a static resting pose must not pass just
+        // because the bones moved into that pose on the first few frames.
+        for (let n = 0; n < 360; n++) {
+          frame(g, n / 60, 1 / 60, speed);
+          if (n < 90) continue;
+          for (const joint of joints) {
+            joint.min = Math.min(joint.min, joint.bone.rotation.x);
+            joint.max = Math.max(joint.max, joint.bone.rotation.x);
+          }
+        }
+        for (const joint of joints) {
+          assert.ok(
+            joint.max - joint.min > joint.minRange,
+            `${type}/${detail}/${speed ? "approach" : "idle"}/${joint.name} remains stiff: ${(joint.max - joint.min).toFixed(4)} rad`,
+          );
+        }
+      }
+    }
+  }
+});
+
+test("distant finger targets are sampled economically but bones interpolate without steps", () => {
+  for (const [detail, maxSamples] of [
+    ["lite", 14],
+    ["far", 9],
+  ]) {
+    const g = model();
+    g.userData.detail = detail;
+    for (let n = 0; n < 90; n++) frame(g, n / 60, 1 / 60, 1.35);
+    const hand = g.userData.motionState.hands[0];
+    let samples = 0,
+      movingFrames = 0,
+      previousSample = hand.nextSample;
+    let previousCurl = g.userData.fingers[0][0].root.rotation.x;
+    for (let n = 90; n < 150; n++) {
+      frame(g, n / 60, 1 / 60, 1.35);
+      if (hand.nextSample !== previousSample) samples++;
+      previousSample = hand.nextSample;
+      const curl = g.userData.fingers[0][0].root.rotation.x;
+      const change = Math.abs(curl - previousCurl);
+      if (change > 1e-6) movingFrames++;
+      assert.ok(
+        change < 0.025,
+        `${detail}: a sampled hand target snapped the finger by ${change} rad`,
+      );
+      previousCurl = curl;
+    }
+    assert.ok(
+      samples >= 5 && samples <= maxSamples,
+      `${detail}: ${samples} hand samples/s`,
+    );
+    assert.ok(
+      movingFrames > 55,
+      `${detail}: fingers only move on sampled frames`,
+    );
+  }
+});
+
+test("LOD changes preserve the pose and distant attacks refresh hands immediately", () => {
+  const near = model(),
+    far = model();
+  near.userData.detail = "full";
+  far.userData.detail = "far";
+  for (let n = 0; n < 180; n++) {
+    frame(near, n / 60, 1 / 60, 1.35);
+    frame(far, n / 60, 1 / 60, 1.35);
+  }
+  const before = far.userData.fingers[0][0].root.rotation.x;
+  frame(far, 3, 1 / 60, 1.35, 0, { action: "melee", actionPhase: 0.38 });
+  assert.ok(
+    far.userData.fingers[0][0].root.rotation.x > before + 0.025,
+    "far attack waited for the next low-frequency hand sample",
+  );
+  frame(near, 3, 1 / 60, 1.35, 0, { action: "melee", actionPhase: 0.38 });
+  assert.deepEqual(
+    [...far.userData.motionState.hands[0].targets],
+    [...near.userData.motionState.hands[0].targets],
+  );
+  for (let n = 181; n < 270; n++) {
+    if (n % 15 === 0)
+      far.userData.detail = ["full", "lite", "far"][(n / 15) % 3];
+    const previous = far.userData.fingers[0][0].root.rotation.x;
+    frame(far, n / 60, 1 / 60, 1.35);
+    assert.ok(
+      Math.abs(far.userData.fingers[0][0].root.rotation.x - previous) < 0.055,
+      "LOD change snaps the hand instead of blending its current pose",
+    );
+  }
 });

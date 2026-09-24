@@ -9,6 +9,14 @@ import { ENEMIES } from "./config.js";
 import { surface } from "./surfaces.js";
 import { rng } from "./logic.js";
 import { buildCreatureHead, creatureSkinTexture } from "./creature-head.js";
+import {
+  hordeModel,
+  setHordeDetail,
+  releaseHorde,
+  destroyHordeHead,
+} from "./horde/library.js";
+import { animateHorde } from "./horde/animator.js";
+import { animateZombie as animateProcedural } from "./creature-motion.js";
 
 const templates = new Map();
 // These dimensions are shared by every geometric LOD. Keeping a single bind
@@ -1080,11 +1088,23 @@ function creatureSeed(seed) {
   }
   return hash >>> 0;
 }
-export function zombieModel(type, detail = "full", seed) {
-  detail = normalizeDetail(detail);
+function creatureTemplate(type, detail) {
   const key = `${type}-${detail}`;
   if (!templates.has(key)) templates.set(key, build(type, detail));
-  const g = clone(templates.get(key));
+  return templates.get(key);
+}
+export function zombieModel(type, detail = "full", seed) {
+  detail = normalizeDetail(detail);
+  // Motion-captured Rocketbox bodies when their packs are loaded; the
+  // procedural species remains the fallback of every type.
+  const horde = hordeModel(
+    type,
+    detail,
+    seed === undefined ? (Math.random() * 0x7fffffff) | 0 : creatureSeed(seed),
+  );
+  if (horde) return horde;
+  const template = creatureTemplate(type, detail);
+  const g = clone(template);
   const motionSeed =
     seed === undefined
       ? (Math.random() * 0x100000000) >>> 0
@@ -1151,6 +1171,7 @@ export function destroyZombieHead(g, position) {
   if (g.userData.headDestroyed) return false;
   g.updateWorldMatrix(true, true);
   g.userData.head.getWorldPosition(position);
+  if (g.userData.horde) return destroyHordeHead(g);
   // Bone transforms belong to this clone; shared geometry/materials and every
   // other zombie stay intact. A tiny non-zero scale avoids singular transforms.
   g.userData.head.scale.setScalar(0.0001);
@@ -1172,13 +1193,12 @@ export function destroyZombieHead(g, position) {
 
 export function setZombieDetail(g, detail, castShadow = true) {
   detail = normalizeDetail(detail);
+  if (g.userData.horde) return setHordeDetail(g, detail, castShadow);
   if (g.userData.detail !== detail) {
-    const key = `${g.userData.type}-${detail}`;
-    if (!templates.has(key)) templates.set(key, build(g.userData.type, detail));
+    const template = creatureTemplate(g.userData.type, detail);
     const source = new Map(
-      templates
-        .get(key)
-        .children.filter((o) => o.isSkinnedMesh)
+      template.children
+        .filter((o) => o.isSkinnedMesh)
         .map((o) => [o.name, o.geometry]),
     );
     // Levels are matched by bucket role. A level lacking a bucket hides it;
@@ -1203,6 +1223,7 @@ export function setZombieDetail(g, detail, castShadow = true) {
 }
 
 export function releaseZombie(g) {
+  if (g.userData.horde) return releaseHorde(g);
   const skeletons = new Set();
   g.traverse((o) => {
     if (o.skeleton) skeletons.add(o.skeleton);
@@ -1210,4 +1231,8 @@ export function releaseZombie(g) {
   skeletons.forEach((s) => s.dispose());
 }
 
-export { animateZombie } from "./creature-motion.js";
+/** Animate either body kind with the shared per-frame signature. */
+export function animateZombie(g, ...args) {
+  if (g.userData.horde) return animateHorde(g, ...args);
+  return animateProcedural(g, ...args);
+}

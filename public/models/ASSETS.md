@@ -7,3 +7,20 @@
 - Adobe Mixamo usage terms: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html
 
 Adobe permits the characters and animations in personal and commercial games. Keep the asset part of the game; do not redistribute it as a standalone asset library.
+
+# Zombie horde — version 4.0.0
+
+`horde/` holds 18 zombie characters and the shared animation library `horde-anims.glb`. Each character exists as a desktop pack (`<id>.glb`: full/lite/far levels, 2048×1024 colour atlas) and a mobile pack (`<id>-mobile.glb`: lite/far, 1024×512). Every pack keeps the same 23-bone Rocketbox Biped skeleton, so one clip library animates all of them.
+
+The bodies are modified [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) avatars (MIT license, © 2020 Microsoft; notice in `public/licenses/ROCKETBOX-MIT.txt`). Their textures are repainted offline as decayed, bloodied corpses by `scripts/horde/build-characters.mjs`. The clips are retargeted from the CMU Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, funded by NSF EIA-0196217) and the Quaternius Universal Animation Library 1 and 2 (CC0 1.0) by `scripts/horde/build-animations.mjs`, then extended with authored attacks, crawls and deaths.
+
+| Type    | Packs                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------ |
+| Walker  | civilian-08, civilian-05, civilian-13, civilian-12, worker-01, business-01, civilian-f08, civilian-f04 |
+| Runner  | runner-04, runner-10, runner-sports, runner-f12                                                        |
+| Brute   | brute-swat, brute-fire                                                                                 |
+| Spitter | spitter-doctor, spitter-nurse                                                                          |
+| Wraith  | wraith-hood                                                                                            |
+| Archon  | archon-soldier                                                                                         |
+
+The avatar behind each pack, the motion-capture trials and all tools are listed in the root `ASSETS.md`. Keep these files part of the game; do not redistribute them as a standalone asset library.

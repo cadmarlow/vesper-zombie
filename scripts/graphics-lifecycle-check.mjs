@@ -89,7 +89,14 @@ try {
         const g = window.__vesper;
         for (const e of g.enemies) g.damageEnemy(e, 1e8, true);
       });
-      await page.waitForTimeout(2900);
+      // Corpses stay a few seconds (longer for motion-captured bodies).
+      await page.waitForFunction(
+        () => window.__vesper.enemies.length === 0,
+        null,
+        {
+          timeout: 12000,
+        },
+      );
       await page.evaluate(() => {
         const g = window.__vesper;
         for (const p of g.pickups) p.life = 0;
