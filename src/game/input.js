@@ -49,8 +49,8 @@ export class DesktopControls {
           case "KeyC":
             this.commands.toggleCrouch();
             break;
-          case "ShiftLeft":
-          case "ShiftRight":
+          // Space runs (held, see player.js), Shift jumps.
+          case "Space":
             this.run.player.crouched = false;
             break;
           case "KeyF":
@@ -62,6 +62,9 @@ export class DesktopControls {
           case "Digit2":
             this.commands.switchWeapon(1);
             break;
+          case "KeyT":
+            this.commands.inspectWeapon?.();
+            break;
           case "KeyN":
             if (this.run.phase === "rest" && !this.run.session?.peer)
               this.run.phaseTimer = Math.min(this.run.phaseTimer, 0.2);
@@ -69,7 +72,8 @@ export class DesktopControls {
           case "Escape":
             this.commands.pause();
             break;
-          case "Space":
+          case "ShiftLeft":
+          case "ShiftRight":
             this.commands.jump();
             break;
         }

@@ -4,6 +4,13 @@ import { DEFAULT_SETTINGS } from "./content/defaults.js";
 import { readSettings } from "./app/storage.js";
 import { createLauncher } from "./app/launch.js";
 import { createUpdates } from "./app/updates.js";
+import {
+  changelogPanel,
+  changelogStatusBlock,
+  markSeen,
+  unseenRelease,
+  whatsNewCard,
+} from "./ui/changelog.js";
 import { mountShell } from "./ui/shell.js";
 import { createHUD } from "./ui/hud.js";
 import { $, $$, icon, escapeHtml } from "./ui/dom.js";
@@ -41,6 +48,7 @@ let settings = readSettings();
 mountShell(difficulty);
 let currentScreen = "menu";
 let updateStatus = { latest: null, checking: false, error: false };
+let unseen = unseenRelease(__APP_VERSION__);
 const updates = createUpdates({
   version: __APP_VERSION__,
   build: __BUILD_ID__,
@@ -53,8 +61,17 @@ function renderUpdateStatus() {
   const safe = ["menu", "gameover"].includes(currentScreen);
   $("#update-notice").hidden = !updateStatus.latest || !safe;
   if (updateStatus.latest)
-    $("#update-message").textContent =
-      `VESPER ${updateStatus.latest.version} est disponible.`;
+    $("#update-message").textContent = updateStatus.latest.title
+      ? `VESPER ${updateStatus.latest.version} · ${updateStatus.latest.title} est disponible.`
+      : `VESPER ${updateStatus.latest.version} est disponible.`;
+  $("#whats-new").hidden = !unseen || currentScreen !== "menu";
+  if (activePanel === "changelog") {
+    const block = $(".changelog-follow");
+    if (block) {
+      block.outerHTML = changelogStatusBlock(__APP_VERSION__, updateStatus);
+      bindChangelogActions();
+    }
+  }
   const status = $("#update-check-status");
   if (status)
     status.textContent = updateStatus.checking
@@ -68,6 +85,29 @@ function renderUpdateStatus() {
           : "Vous utilisez la dernière version vérifiée.";
 }
 $("#update-now").onclick = () => updates.apply();
+$("#update-notes").onclick = () => openPanel("changelog");
+// Release notes: the version buttons open the journal; after an update a
+// returning player gets a one-time card on the menu.
+function dismissNews() {
+  unseen = null;
+  markSeen(__APP_VERSION__);
+  $("#version-news").hidden = true;
+  $("#whats-new").hidden = true;
+}
+function bindChangelogActions() {
+  const check = $("#changelog-check"),
+    update = $("#changelog-update");
+  if (check) check.onclick = () => updates.check();
+  if (update) update.onclick = () => updates.apply();
+}
+if (unseen) {
+  $("#whats-new").innerHTML = whatsNewCard(unseen);
+  $("#version-news").hidden = false;
+  $("#whats-new-open").onclick = () => openPanel("changelog");
+  $("#whats-new-close").onclick = dismissNews;
+}
+$("#version-button").onclick = () => openPanel("changelog");
+$("#pause-version").onclick = () => openPanel("changelog");
 const renderHUD = createHUD();
 const menuArt = $("#menu-art");
 menuArt.style.backgroundImage = "url(/art/abbey.webp)";
@@ -172,15 +212,19 @@ function onEvent(type, payload) {
     case "announce":
       announce(payload);
       break;
-    case "hit":
-      $("#hitmarker").className =
-        `hitmarker visible ${payload.head ? "headshot" : ""}`;
+    case "hit": {
+      const marker = $("#hitmarker");
+      // Restart the kill pop even on back-to-back kills.
+      marker.className = "hitmarker";
+      void marker.offsetWidth;
+      marker.className = `hitmarker visible${payload.kill ? " kill" : ""}${payload.head ? " headshot" : ""}`;
       clearTimeout(hitTimer);
       hitTimer = setTimeout(
-        () => $("#hitmarker").classList.remove("visible"),
-        110,
+        () => marker.classList.remove("visible"),
+        payload.kill ? 240 : 120,
       );
       break;
+    }
     case "gore":
       splashScreen($("#damage-arcs"), payload?.strength ?? 1);
       break;
@@ -348,7 +392,12 @@ function openPanel(kind) {
   activePanel = kind;
   $("#panel").classList.remove("hidden");
   const content = $("#panel-content");
-  if (kind === "settings") {
+  if (kind === "changelog") {
+    content.innerHTML = changelogPanel(__APP_VERSION__, updateStatus);
+    bindChangelogActions();
+    dismissNews();
+    content.scrollTop = 0;
+  } else if (kind === "settings") {
     content.innerHTML = `<div class="eyebrow">PERSONNALISEZ VOTRE EXPÉRIENCE</div><h2>Paramètres</h2><p class="panel-description">Trouvez votre équilibre entre précision, atmosphère et fluidité.</p><div class="settings-grid"><section><h3>SON & COMMANDES</h3>${slider("volume", "Volume général", 0, 1, 0.05, settings.volume, Math.round(settings.volume * 100) + " %")}${slider("musicVolume", "Musique", 0, 1, 0.05, settings.musicVolume, Math.round(settings.musicVolume * 100) + " %")}<div class="setting"><label for="setting-musicTrack">Bande originale<span>Un morceau différent à chaque partie, ou votre sélection en boucle.</span></label><select id="setting-musicTrack"><option value="random" ${settings.musicTrack === "random" ? "selected" : ""}>Aléatoire à chaque partie</option>${MUSIC_TRACKS.map((track) => `<option value="${track.id}" ${settings.musicTrack === track.id ? "selected" : ""}>${track.title}</option>`).join("")}</select><small id="music-now">${escapeHtml(sound.score?.error || (sound.score?.track ? "À l’écoute : " + sound.score.track.title : "La musique démarre avec votre partie."))}</small></div>${slider("touchSensitivity", "Sensibilité tactile", 0.4, 2.2, 0.1, settings.touchSensitivity, settings.touchSensitivity.toFixed(1))}${toggle("touchAimAssist", "Aide à la précision tactile", settings.touchAimAssist)}${toggle("touchAdaptiveQuality", "Fluidité adaptative mobile<span>Ajuste la résolution quand l’appareil ralentit.</span>", settings.touchAdaptiveQuality)}${slider("sensitivity", "Sensibilité de la souris", 0.2, 3, 0.1, settings.sensitivity, settings.sensitivity.toFixed(1))}<div class="setting"><label for="setting-layout">Disposition du clavier<span>Les commandes suivent la position physique des touches.</span></label><select id="setting-layout"><option value="azerty" ${settings.layout === "azerty" ? "selected" : ""}>AZERTY · ZQSD</option><option value="qwerty" ${settings.layout === "qwerty" ? "selected" : ""}>QWERTY · WASD</option></select></div></section><section><h3>AFFICHAGE</h3>${toggle("adaptiveQuality", "Fluidité adaptative desktop<span>Ajuste la résolution pour garder les commandes réactives.</span>", settings.adaptiveQuality)}${slider("fov", "Champ de vision", 65, 105, 5, settings.fov, settings.fov + "°")}<div class="setting"><label for="setting-frameRate">Cadence maximale<span>30 images par seconde limite la chauffe et la batterie sur téléphone.</span></label><select id="setting-frameRate"><option value="60" ${settings.frameRate !== 30 ? "selected" : ""}>60 images / s</option><option value="30" ${settings.frameRate === 30 ? "selected" : ""}>30 images / s</option></select></div><div class="setting"><label for="setting-quality">Qualité graphique<span>Textures détaillées, ombres et atmosphère. Les effets s’adaptent au mobile.</span></label><select id="setting-quality">${[
       ["high", "Élevée"],
       ["medium", "Équilibrée"],
@@ -409,9 +458,10 @@ function openPanel(kind) {
     };
     content.insertAdjacentHTML(
       "beforeend",
-      `<div class="app-update-settings"><div><b>VESPER · v${__APP_VERSION__}</b><small id="update-check-status"></small></div><button class="secondary-button" id="check-update">VÉRIFIER LA MISE À JOUR</button></div>`,
+      `<div class="app-update-settings"><div><b>VESPER · v${__APP_VERSION__}</b><small id="update-check-status"></small></div><div class="app-update-actions"><button class="text-button" id="open-changelog">NOTES DE VERSION</button><button class="secondary-button" id="check-update">VÉRIFIER LA MISE À JOUR</button></div></div>`,
     );
     $("#check-update").onclick = () => updates.check();
+    $("#open-changelog").onclick = () => openPanel("changelog");
     renderUpdateStatus();
   } else if (kind === "arsenal") {
     content.innerHTML = `<div class="eyebrow">INVENTAIRE DU PROTOCOLE</div><h2>Chaque balle compte.</h2><p class="panel-description">Six armes. Deux emplacements. Une chance de traverser la nuit.<br>Le Reliquaire offre une arme aléatoire pour 950 essences.</p><div class="arsenal-grid">${Object.entries(
@@ -460,14 +510,15 @@ function openPanel(kind) {
       ["SOURIS", "Regarder autour de soi"],
       ["CLIC GAUCHE", "Tirer (maintenir pour les armes automatiques)"],
       ["CLIC DROIT", "Viser"],
-      ["MAJ", "Maintenir pour courir · consomme l’endurance"],
+      ["ESPACE", "Courir (endurance) · en lunette : retenir son souffle"],
       ["C", "S’accroupir / se relever"],
-      ["ESPACE", "Sauter"],
+      ["MAJ", "Sauter"],
       ["R", "Recharger"],
       ["E", "Interagir / acheter / prendre une arme"],
       ["1 / 2 · MOLETTE", "Changer d’arme"],
       ["V", "Coup de couteau"],
       ["G", "Lancer une grenade"],
+      ["T", "Inspecter son arme"],
       ["F", "Lampe torche"],
       ["N", "Appeler la prochaine vague"],
       ["ÉCHAP", "Pause / libérer la souris"],

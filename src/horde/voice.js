@@ -471,6 +471,8 @@ export class HordeAudio {
 }
 
 function setPosition(panner, p) {
+  // A body mid-transition can report a degenerate pose for a frame.
+  if (!Number.isFinite(p.x + p.y + p.z)) return;
   if (panner.positionX) {
     const at = panner.context.currentTime;
     panner.positionX.setValueAtTime(p.x, at);

@@ -1,7 +1,12 @@
 // Test-only observation of the deployed Game instance. This file is never bundled
 // into the game. It changes only the isolated Playwright page, never the server.
 export async function openGameAudit(page) {
-  const url = process.env.VESPER_URL || "http://localhost:5173";
+  // VESPER_DEV_URL: a dev server on another port (the build is instrumented
+  // only through VESPER_URL).
+  const url =
+    process.env.VESPER_URL ||
+    process.env.VESPER_DEV_URL ||
+    "http://localhost:5173";
   if (process.env.VESPER_RELAY)
     await page.addInitScript((relay) => {
       const Native = window.WebSocket;

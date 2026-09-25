@@ -1,0 +1,83 @@
+{
+ "source": "Rocketbox Military_Male_01 (MIT)",
+ "triangles": 10680,
+ "vertices": 5362,
+ "crop": {
+  "strips": [
+   [
+    11,
+    589
+   ],
+   [
+    1459,
+    2037
+   ]
+  ],
+  "top": 1008,
+  "width": 1156,
+  "height": 1030
+ },
+ "landmarks": {
+  "eyeL": [
+   0.03189,
+   1.68603,
+   0.09401
+  ],
+  "eyeR": [
+   -0.03189,
+   1.68603,
+   0.09401
+  ],
+  "head": [
+   0,
+   1.58706,
+   0.00814
+  ]
+ },
+ "bones": [
+  "Bip01 Pelvis",
+  "Bip01 Spine",
+  "Bip01 Spine1",
+  "Bip01 Spine2",
+  "Bip01 Neck",
+  "Bip01 Head",
+  "Bip01 L Clavicle",
+  "Bip01 L UpperArm",
+  "Bip01 L Forearm",
+  "Bip01 L Hand",
+  "Bip01 L Finger0",
+  "Bip01 L Finger01",
+  "Bip01 L Finger02",
+  "Bip01 L Finger1",
+  "Bip01 L Finger11",
+  "Bip01 L Finger12",
+  "Bip01 L Finger2",
+  "Bip01 L Finger21",
+  "Bip01 L Finger22",
+  "Bip01 L Finger3",
+  "Bip01 L Finger31",
+  "Bip01 L Finger32",
+  "Bip01 L Finger4",
+  "Bip01 L Finger41",
+  "Bip01 L Finger42",
+  "Bip01 R Clavicle",
+  "Bip01 R UpperArm",
+  "Bip01 R Forearm",
+  "Bip01 R Hand",
+  "Bip01 R Finger0",
+  "Bip01 R Finger01",
+  "Bip01 R Finger02",
+  "Bip01 R Finger1",
+  "Bip01 R Finger11",
+  "Bip01 R Finger12",
+  "Bip01 R Finger2",
+  "Bip01 R Finger21",
+  "Bip01 R Finger22",
+  "Bip01 R Finger3",
+  "Bip01 R Finger31",
+  "Bip01 R Finger32",
+  "Bip01 R Finger4",
+  "Bip01 R Finger41",
+  "Bip01 R Finger42"
+ ]
+}

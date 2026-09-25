@@ -139,7 +139,12 @@ export class Sound {
     g.connect(this.ambience);
     s.start();
   }
-  shot(def) {
+  /** Weapon report; recordings once the armory bank is decoded. */
+  shot(def, options = {}) {
+    if (this.armory?.ready) {
+      this.armory.shot(def.look || "marauder", options);
+      return;
+    }
     // A few percent of pitch drift keeps automatic fire from sounding looped.
     const drift = 0.94 + Math.random() * 0.12;
     this.noise(0.15 + def.recoil, 0.28, (def.energy ? 3300 : 1900) * drift);
@@ -248,6 +253,10 @@ export class Sound {
       this.tone(73.4 * (i + 1), 2.2, 0.1, "triangle", 0, 0.8 + i * 0.45);
     }
     this.noise(2.2, 0.18, 180, 1.5);
+  }
+  /** Mechanical cue from a weapon action; false when nothing played. */
+  weaponCue(name, id) {
+    return this.armory?.ready ? this.armory.cue(name, id) : false;
   }
   click() {
     this.tone(700, 0.025, 0.035, "sine", 400);

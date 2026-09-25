@@ -8,6 +8,10 @@ const url = process.env.VESPER_URL || "http://localhost:4173";
 const releaseResponse = await fetch(new URL("/version.json", url));
 assert.match(releaseResponse.headers.get("cache-control"), /no-store/);
 const current = await releaseResponse.json();
+assert.ok(
+  current.title && current.highlights?.length,
+  "version.json carries the release notes",
+);
 const out = `artifacts/updates-${Date.now()}`;
 fs.mkdirSync(out, { recursive: true });
 const report = { version: current.version, checks: [], errors: [] };
@@ -35,7 +39,27 @@ for (const touch of [false, true]) {
     await page.route("**/version.json", (route) =>
       route.fulfill({ status: unavailable ? 503 : 200, json: available }),
     );
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("seeded")) {
+        sessionStorage.setItem("seeded", "1");
+        localStorage.setItem("vesper-seen-version", "0.0.1");
+      }
+    });
     await openGameAudit(page);
+    await page.locator("#whats-new").waitFor({ state: "visible" });
+    check(
+      "a returning player sees what is new once",
+      (await page.locator("#whats-new").innerText())
+        .toLowerCase()
+        .includes(current.title.toLowerCase()),
+    );
+    await page.click("#whats-new-close");
+    check(
+      "dismissing the card records the version as seen",
+      (await page.evaluate(() =>
+        localStorage.getItem("vesper-seen-version"),
+      )) === current.version,
+    );
     await page.evaluate(() =>
       localStorage.setItem("update-proof", "saved-settings"),
     );
@@ -61,6 +85,19 @@ for (const touch of [false, true]) {
         ),
       );
     }
+    // Release notes: the version opens the journal, headed by this version.
+    await page.locator("#version-button").click();
+    await page.waitForSelector("#panel:not(.hidden) .release-lead");
+    check(
+      "the version opens the release journal at the current release",
+      (await page.locator(".release-lead .release-version").innerText()) ===
+        `v${current.version}`,
+    );
+    check(
+      "the journal lists earlier releases",
+      (await page.locator(".release").count()) > 1,
+    );
+    await page.click("#close-panel");
     if (touch) await page.locator("#play-button").tap();
     else await page.click("#play-button");
     await page.waitForFunction(() => window.__vesper?.state === "playing");
@@ -68,7 +105,12 @@ for (const touch of [false, true]) {
       window.__vesper.phaseTimer = 9000;
       window.__vesper.player.invulnerable = 1e9;
     });
-    available = { version: "3.2.0", build: "test-next-release" };
+    available = {
+      version: "3.2.0",
+      build: "test-next-release",
+      title: "Nuit d’essai",
+      highlights: ["Nouveauté annoncée"],
+    };
     await page.evaluate(() =>
       window.dispatchEvent(
         new PageTransitionEvent("pageshow", { persisted: true }),
@@ -103,6 +145,21 @@ for (const touch of [false, true]) {
     await page.click("#quit-button");
     await page.click("#confirm-quit");
     await page.locator("#update-notice").waitFor({ state: "visible" });
+    check(
+      "the update notice names the coming release",
+      (await page.locator("#update-message").innerText())
+        .toLowerCase()
+        .includes("nuit d’essai"),
+    );
+    await page.click("#update-notes");
+    await page.waitForSelector(".changelog-follow.has-update");
+    check(
+      "the journal shows what the update brings",
+      (await page.locator(".changelog-upcoming").innerText())
+        .toLowerCase()
+        .includes("nouveauté annoncée"),
+    );
+    await page.click("#close-panel");
     await page.screenshot({
       path: `${out}/${touch ? "mobile" : "desktop"}-update.png`,
     });

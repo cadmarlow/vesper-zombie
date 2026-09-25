@@ -3,6 +3,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { WEAPONS } from "./content/weapons.js";
 import { weaponModel } from "./weapons.js";
+import { createWeaponSync, weaponLoaded } from "./armory/models.js";
+import { RIGS } from "./armory/catalog.js";
+import { dressFlash, FLASH_STYLES } from "./armory/effects.js";
 import { disposeModel } from "./resources.js";
 
 export const TEAM_COLORS = [0xe8a64a, 0x52bfe0, 0xe0655c, 0x8fd47c];
@@ -89,21 +92,49 @@ export function survivorModel(color = TEAM_COLORS[0]) {
   };
   return g;
 }
-export function survivorWeapon(g, id, upgraded) {
+/**
+ * A teammate's weapon: the real model once the armory has streamed it in,
+ * the procedural stand-in until then. Hands target the rig's grips.
+ */
+export function survivorWeapon(g, id, upgraded, level = upgraded ? 1 : 0) {
   const d = g.userData;
-  if (d.gunId === `${id}-${upgraded ? 1 : 0}`) return d.gun;
+  const look = WEAPONS[id].look || id;
+  const armory = !!RIGS[look] && weaponLoaded(look);
+  const key = `${id}-${level}-${armory ? "a" : "p"}`;
+  if (d.gunId === key) return d.gun;
   if (d.gun) {
     d.gun.removeFromParent();
     disposeModel(d.gun);
   }
-  const gun = weaponModel(id, upgraded);
-  gun.scale.setScalar(0.7);
+  d.pistol = look === "vigil";
+  let gun = armory ? createWeaponSync(look, { camo: level }) : null;
+  if (gun) {
+    const rig = RIGS[look];
+    const muzzle = gun.userData.armory.sockets.muzzle;
+    const flash = new T.Group();
+    if (muzzle) flash.position.copy(muzzle.position);
+    flash.visible = false;
+    gun.add(flash);
+    dressFlash(flash, FLASH_STYLES[rig.flash] || FLASH_STYLES.rifle, level > 0);
+    gun.userData.flash = flash;
+    const knuckle = (side) => {
+      const grip = rig.grips[side];
+      const point = new T.Vector3().fromArray(grip.knuckle || grip.wrist);
+      const part = grip.space && gun.userData.armory.parts[grip.space];
+      if (part) point.applyQuaternion(part.quaternion).add(part.position);
+      return point;
+    };
+    d.grip.copy(knuckle("right"));
+    d.foreGrip.copy(knuckle("left"));
+  } else {
+    gun = weaponModel(id, level > 0);
+    gun.scale.setScalar(0.7);
+    d.grip.set(0.013, -0.171, d.pistol ? 0.02 : 0.075);
+    d.foreGrip.set(0, -0.075, d.pistol ? -0.12 : -0.34);
+  }
   d.mount.add(gun);
-  d.pistol = (WEAPONS[id].look || id) === "vigil";
   d.gun = gun;
-  d.gunId = `${id}-${upgraded ? 1 : 0}`;
-  d.grip.set(0.013, -0.171, d.pistol ? 0.02 : 0.075);
-  d.foreGrip.set(0, -0.075, d.pistol ? -0.12 : -0.34);
+  d.gunId = key;
   return gun;
 }
 const shoulder = new T.Vector3(),

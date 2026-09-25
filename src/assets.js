@@ -253,8 +253,10 @@ export function glowSprite(color = 0xff9955, size = 2) {
   return m;
 }
 
-// Operator's field knife: bevelled steel, fuller, brass guard, wrapped grip and a gloved hand.
-export function knifeModel() {
+// Operator's field knife: bevelled steel, fuller, brass guard, wrapped grip
+// and, for the procedural view, a gloved hand. The first-person arms hold the
+// bare knife (hand: false).
+export function knifeModel({ hand: withHand = true } = {}) {
   const g = new T.Group();
   g.name = "operator-knife";
   const steel = mat(0xc4d4d9, 0.22, 0.88, { map: texture("steel", 91) });
@@ -317,6 +319,7 @@ export function knifeModel() {
   cylinder(g, brass, 0, -0.145, 0.008, 0.045, 0.025, 0.045, 12);
   for (const y of [0.16, 0.19])
     box(g, brass, 0.023, y, 0.025, 0.018, 0.004, 0.003);
+  if (!withHand) return g;
   const hand = new T.Group();
   g.add(hand);
   mesh(

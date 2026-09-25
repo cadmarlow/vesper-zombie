@@ -179,6 +179,8 @@ export class Presentation {
     this.bloom.enabled = this.run.settings.quality !== "low";
   }
   dispose() {
+    this.viewEffects?.dispose();
+    this.viewModel?.dispose();
     for (const pass of this.composer.passes) pass.dispose?.();
     this.composer.dispose();
     disposeModel(this.knife);

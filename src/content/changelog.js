@@ -1,0 +1,206 @@
+// Player-facing release notes, newest first. The first entry must match the
+// version in package.json (tests/changelog.test.js); its title and highlights
+// are also published in version.json so an open game can announce them.
+export const RELEASES = [
+  {
+    version: "5.0.0",
+    date: "2026-09-26",
+    title: "L’Armurerie",
+    tagline:
+      "Six armes refaites pièce par pièce, tenues par de vraies mains, avec l’ambition d’un jeu AAA.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Six armes modélisées à l’échelle réelle",
+      "Bras et mains qui tiennent vraiment l’arme",
+      "Rechargements complets et visibles",
+      "Viseurs, lunette et sons entièrement refaits",
+    ],
+    sections: [
+      {
+        title: "Armes",
+        items: [
+          "Vigile .45, Spectre 9, Marauder, Requiem-12, Longinus et Éclipse modélisés pièce par pièce : glissière, culasse, pompe, verrou, chargeurs, détente et organes de visée.",
+          "Usure réaliste : peinture usée sur les arêtes, crasse dans les creux, traces de doigts, noyer veiné. Les armes transfigurées portent un camouflage animé.",
+          "Le Spectre 9 retrouve tous ses détails : il s’affichait presque noir.",
+        ],
+      },
+      {
+        title: "Prise en main",
+        items: [
+          "Chaque main se pose sur sa poignée et ses doigts se referment sur l’arme, sans la traverser.",
+          "Poignets naturels : l’avant-bras suit la main, la main d’appui enveloppe le garde-main, pouce le long du flanc.",
+          "Pistolet tenu à deux mains, pouces vers l’avant, en visée comme à la hanche.",
+        ],
+      },
+      {
+        title: "Animations et visée",
+        items: [
+          "Rechargements visibles : chargeur qui tombe, nouveau chargeur enfoncé, arrêtoir ou levier d’armement à vide, cartouches glissées une à une.",
+          "Pompe et verrou manœuvrés après chaque tir, inspection de l’arme avec T.",
+          "Point rouge et viseur holographique projetés à l’infini ; lunette du Longinus avec distorsion et ombre de l’œil.",
+        ],
+      },
+      {
+        title: "Sensations et son",
+        items: [
+          "Recul propre à chaque arme, balles qui traversent les corps, dégâts qui baissent avec la distance.",
+          "Tirs enregistrés, réverbération propre à chaque carte, bruits de rechargement synchronisés.",
+        ],
+      },
+      {
+        title: "Commandes",
+        items: [
+          "Ordinateur : Espace pour courir (et retenir son souffle en lunette), Maj pour sauter.",
+          "Mobile : viser et sauter, plus petits, côte à côte en haut à droite. Le pouce qui tourne la caméra a toute la place.",
+          "Nouveau journal des versions, et les nouveautés s’affichent dès qu’une mise à jour est disponible.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "4.1.0",
+    date: "2026-09-24",
+    title: "Corps à corps",
+    tagline: "La horde vous encercle, et elle se brise sous les balles.",
+    art: "/art/station.webp",
+    highlights: [
+      "Démembrement : bras, mâchoires, jambes",
+      "Zombies qui enjambent bancs et caisses",
+      "Coureurs qui bondissent",
+    ],
+    sections: [
+      {
+        title: "Horde",
+        items: [
+          "Les zombies s’arrêtent à bout de bras et se répartissent autour de vous ; on ne traverse plus la horde.",
+          "Ils enjambent bancs et caisses près de leur proie. Dès la vague 4, un coureur peut vous sauter dessus.",
+        ],
+      },
+      {
+        title: "Blessures",
+        items: [
+          "Bras arrachés au coude ou à l’épaule, mâchoires emportées, jambes arrachées par les grenades.",
+          "Les membres tombent et restent au sol ; tuer de près projette du sang sur l’écran.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "4.0.0",
+    date: "2026-09-22",
+    title: "La Horde",
+    tagline: "Dix-huit corps réalistes animés par capture de mouvement.",
+    art: "/art/abyss.webp",
+    highlights: [
+      "18 zombies réalistes",
+      "Capture de mouvement",
+      "Rampants et voix enregistrées",
+    ],
+    sections: [
+      {
+        title: "Zombies",
+        items: [
+          "Civils, coureurs, brutes, cracheurs, Rémanent et soldat de l’Archonte, chacun avec ses blessures et ses yeux lumineux.",
+          "Démarches, attaques, réactions et morts issues de la capture de mouvement ; les pieds restent plantés au sol.",
+          "Assez de dégâts dans les jambes et le zombie s’effondre, puis rampe vers vous.",
+          "Râles, cris et pas enregistrés, spatialisés en 3D.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "3.1.0",
+    date: "2026-09-15",
+    title: "Relève",
+    tagline: "On ne laisse personne derrière.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Réanimation en coopération",
+      "Cinq morceaux originaux",
+      "Mises à jour sans perdre sa partie",
+    ],
+    sections: [
+      {
+        title: "Nouveautés",
+        items: [
+          "En coopération, un joueur à terre peut être réanimé pendant 45 secondes.",
+          "Les coéquipiers sont des soldats équipés, arme tenue à deux mains.",
+          "Cinq morceaux originaux, au choix dans les réglages.",
+          "La version s’affiche dans le menu et les nouvelles versions se proposent sans interrompre une partie.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "3.0.0",
+    date: "2026-09-09",
+    title: "Ensemble",
+    tagline: "Jusqu’à quatre survivants dans la même nuit.",
+    art: "/art/station.webp",
+    highlights: ["Coopération de 2 à 4 joueurs", "Salons avec code à partager"],
+    sections: [
+      {
+        title: "Coopération",
+        items: [
+          "Créez un salon, partagez son code de quatre lettres et jouez à plusieurs.",
+          "Les zombies chassent le survivant le plus proche ; chaque élimination revient à celui qui tire.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "2.6.0",
+    date: "2026-09-09",
+    title: "L’Archonte",
+    tagline: "Toutes les cinq vagues, une présence majeure se lève.",
+    art: "/art/abyss.webp",
+    highlights: [
+      "Boss : l’Archonte",
+      "Transfiguration en trois paliers",
+      "Records personnels",
+    ],
+    sections: [
+      {
+        title: "Nouveautés",
+        items: [
+          "L’Archonte rejoint la horde toutes les cinq vagues, deux à partir de la quinzième.",
+          "La Transfiguration a trois paliers ; deux nouveaux atouts : Main de fer et Œil du Veilleur.",
+          "Chaque carte garde votre meilleur record.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "2.5.0",
+    date: "2026-09-09",
+    title: "Allègement",
+    tagline: "Plus fluide, plus frais, surtout sur téléphone.",
+    art: "/art/abbey.webp",
+    highlights: ["Moins de calcul, même image", "Option 30 images/s"],
+    sections: [
+      {
+        title: "Performances",
+        items: [
+          "Décors et effets allégés sans changer l’image ; menus plus légers.",
+          "Option 30 images par seconde pour les téléphones qui chauffent.",
+        ],
+      },
+    ],
+  },
+  {
+    version: "1.2.0",
+    date: "2026-09-05",
+    title: "Édition tactile",
+    tagline: "Toute la nuit, entre vos mains.",
+    art: "/art/station.webp",
+    highlights: ["Commandes mobiles repensées", "Rendu Retina"],
+    sections: [
+      {
+        title: "Mobile",
+        items: [
+          "Joystick libre, tir et visée avec le même pouce, rendu adapté aux écrans Retina.",
+        ],
+      },
+    ],
+  },
+];

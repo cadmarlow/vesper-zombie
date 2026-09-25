@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "weapons": {
+  "vigil": {
+   "triangles": 30556,
+   "bytes": 524780
+  },
+  "spectre": {
+   "triangles": 28704,
+   "bytes": 522392
+  },
+  "marauder": {
+   "triangles": 28078,
+   "bytes": 559432
+  },
+  "requiem": {
+   "triangles": 32531,
+   "bytes": 620064
+  },
+  "longinus": {
+   "triangles": 37482,
+   "bytes": 679624
+  },
+  "eclipse": {
+   "triangles": 22776,
+   "bytes": 410612
+  }
+ }
+}

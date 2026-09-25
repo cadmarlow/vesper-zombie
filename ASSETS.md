@@ -2,6 +2,20 @@
 
 Apart from the third-party assets documented below (surface scans, horde characters, motion capture and sound recordings), gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. No Call of Duty asset, map, logo or audio sample is included.
 
+## Version 5.0.0 — the armory
+
+The six first-person weapons, their arms, surfaces and sounds are rebuilt from scripted modelling and open assets. Nothing is generated at runtime and the game calls no external service.
+
+**Weapons.** Vigile .45, Spectre 9, Marauder, Requiem-12, Longinus and Éclipse are original designs modelled for this project by Blender scripts in `scripts/armory/blender/` (`kit.py` holds the modelling kit: filleted profiles, lathes, sweeps, exact booleans, bevels with weighted normals). They follow the general layout of real weapon families (a single-action pistol, a roller-delayed SMG, a direct-impingement carbine, a pump shotgun, a chassis bolt-action rifle), with no manufacturer marking, trademark or copied dimension drawing. `scripts/armory/build-weapons.mjs` unwraps every weapon into one atlas, bakes its wear map with Cycles (ambient occlusion, convex edges and cavities, 1024 px desktop and 512 px phone WebP) and writes a meshopt-compressed GLB in `public/models/armory/`.
+
+**Arms.** `public/models/armory/arms*` is derived from the [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) avatar Professions/Military_Male_01 (MIT license, © 2020 Microsoft; notice in `public/licenses/ROCKETBOX-MIT.txt`). `scripts/armory/build-arms.mjs` keeps the sleeves and gloves in Blender (`arms.py`), crops the body textures to the arms, repaints the camouflage and converts the specular map to roughness. The hands are posed at runtime by original IK and finger-curl code (`src/armory/arms.js`).
+
+**Surface detail.** The tiling grunge, machining, stipple, checkering and walnut maps in `public/textures/armory/` are procedural and original (`scripts/armory/build-textures.mjs`). Edge wear, grime, fingerprints and the animated transfiguration camouflages are shader code in `src/armory/material.js`.
+
+**Sound.** `public/audio/armory/` contains 81 one-shots cut from 44 CC0 1.0 recordings on [Freesound](https://freesound.org) by 29 authors: michorvath, gattoangus, ken788, morganpurkis, Brokenphono, LilMati, SuperPhat, hyperix6, MrGungus, ajhartman42295, qubodup, Iridiuss, Tycoh, MikeE63, nioczkus, serøutōnin--deprivəd, oneshotofficial, nikkolaus, wadaltmon, Zott820, dasBUTCHER84, Krovi, CeebFrack, brianhanson2nd, magnuswaker, GrayJoy, GryffDavid, Metrolynn, BrickDeveloper171. Every file, title and URL is listed in `public/audio/armory/CREDITS.md` and `manifest.json`. `scripts/armory/build-sounds.mjs` cuts, cleans, loudness-matches and encodes them (ffmpeg). At runtime each shot is layered with a synthesized sub-bass punch and a reverb generated per map; reload and action sounds follow the animation keys.
+
+**Tools.** Blender 4.5 LTS (Cycles bakes), glTF Transform, meshoptimizer, Sharp and ffmpeg-static are development tools only; none ships with the game.
+
 ## Version 4.0.0 — the horde
 
 The zombies are rebuilt from open assets and offline tooling. Nothing is generated at runtime and the game calls no external service. The earlier generated-model attempt (unreleased 3.3–3.5 work) is not shipped; its files are archived outside the build in `art/zombies/`.

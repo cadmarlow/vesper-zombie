@@ -108,11 +108,29 @@ export function createHUD() {
     );
     $("#crosshair").style.display =
       h.settings.crosshair && !h.aim ? "" : "none";
-    $("#crosshair").classList.toggle("wide", h.definition.pellets > 1);
-    $("#scope").classList.toggle(
-      "hidden",
-      !(h.aim && h.definition.scopeFov && h.reload === null),
-    );
+    // Gap from the real cone: half-angle over the vertical field of view.
+    if (h.spread != null && h.fov) {
+      const half = Math.tan((h.fov * Math.PI) / 360);
+      const gap = Math.max(
+        3,
+        Math.min(90, (h.spread / 2 / half) * (window.innerHeight / 2)),
+      );
+      $("#crosshair").style.setProperty("--gap", gap.toFixed(1) + "px");
+    }
+    // A magnified sight tells the keyboard player how to steady it.
+    const breath = h.scoped && !h.touch ? h.breath : null;
+    const hint = $("#breath-hint");
+    hint.classList.toggle("hidden", !breath);
+    hint.classList.toggle("out", breath === "out");
+    if (breath)
+      setHtml(
+        "#breath-hint",
+        breath === "hold"
+          ? "SOUFFLE RETENU"
+          : breath === "out"
+            ? "À BOUT DE SOUFFLE"
+            : "<kbd>ESPACE</kbd> RETENIR SON SOUFFLE",
+      );
     const boss = h.boss?.[0];
     $("#boss-bar").classList.toggle("hidden", !boss);
     if (boss) {

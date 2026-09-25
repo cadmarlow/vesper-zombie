@@ -34,6 +34,8 @@ Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon
 | Recharger / interagir           | R / E                                               |
 | Changer d’arme                  | 1, 2 ou molette                                     |
 | Couteau / grenade               | V / G                                               |
+| Inspecter l’arme                | T                                                   |
+| Retenir son souffle (lunette)   | Maj maintenu en visée                               |
 | Lampe / vague suivante / pause  | F / N / Échap                                       |
 
 Le guide intégré décrit les commandes tactiles. Les réglages et records sont enregistrés dans le navigateur. Armes, atouts et essences appartiennent à chaque joueur ; portes, courant, Reliquaire et extraction sont partagés. Un joueur à terre revient à la vague suivante ; la partie se termine si toute l’équipe tombe.
@@ -65,7 +67,7 @@ La CI utilise `npm run verify -- menu-check waves-check` : formatage, architectu
 
 ## Mise en ligne
 
-La version du jeu vient de `package.json` et apparaît dans le menu, la pause et les paramètres, y compris sur mobile. Augmenter cette version à chaque livraison ; `version.json` est généré automatiquement avec l'identifiant de la publication. Ce numéro est distinct de la version du protocole réseau.
+La version du jeu vient de `package.json` et apparaît dans le menu, la pause et les paramètres, y compris sur mobile. Un clic sur la version ouvre le **journal des versions**. Ses notes sont dans `src/content/changelog.js` : à chaque livraison, augmenter la version et ajouter son entrée en tête de liste (un test vérifie la correspondance). `version.json` est généré automatiquement avec l'identifiant de la publication, le titre et les points forts de la version. Un jeu déjà ouvert peut ainsi annoncer les nouveautés avant de recharger. Après une mise à jour, un joueur qui connaissait une version précédente voit une fois la carte « Nouveau » au menu. Ce numéro est distinct de la version du protocole réseau.
 
 Une app déjà ouverte vérifie les nouvelles publications à son retour au premier plan, au menu et avant une nouvelle partie ou connexion coopérative. La mise à jour recharge la page avec une adresse renouvelée et conserve les sauvegardes/réglages locaux. Une partie en cours n'est pas rechargée. Les paramètres permettent également de vérifier manuellement. HTML, manifeste et métadonnées de version ne sont pas conservés en cache ; les ressources du jeu gardent leur cache normal.
 
@@ -76,6 +78,22 @@ Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La 
 La coopération nécessite un relais WebSocket distinct. `railway.json` et `nixpacks.toml` lancent `node server/index.js`, avec le port fourni par `PORT`. Le dossier `server/` peut également être déployé seul. La route HTTP `/` donne l’état du relais. Définir **`VITE_RELAY_URL=wss://adresse-du-relais` avant le build du client**. Sans cette variable, la coopération distante n’est pas configurée ; le solo reste disponible.
 
 Client et relais doivent utiliser la même version de protocole, actuellement **4**. La version 3.2.0 synchronise les gestes et contacts des zombies avec leur présentation chez les invités ; publier le client et le relais ensemble. La version 4.0.0 conserve le protocole 4 : les nouveaux champs (rampants, zombie à l’origine d’un coup) sont facultatifs et ignorés par les anciens clients. Publier le client suffit ; republier le relais ajoute seulement leur validation. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+
+## L’armurerie — 5.0.0
+
+Les six armes sont refaites de A à Z, avec l’ambition d’un jeu AAA : vraies armes à l’échelle, tenues par de vrais bras.
+
+- **Modèles.** Vigile .45, Spectre 9, Marauder, Requiem-12, Longinus et Éclipse sont modélisés pièce par pièce (glissière et chien, culasse et levier d’armement, pompe, verrou, chargeurs, détente, organes de visée, cartouches du porte-cartouches) avec chanfreins et arêtes adoucies. Chaque arme a une carte d’usure précalculée : peinture usée sur les arêtes, crasse dans les creux, traces de doigts, grain d’usinage, quadrillage des plaquettes, noyer veiné. Les armes passées par la Transfiguration portent un camouflage animé propre à leur palier.
+- **Bras et mains.** Manches et gants d’un soldat Rocketbox (licence MIT) : chaque main se pose sur sa poignée et les doigts se referment au contact de l’arme. Le poignet reste droit et l’avant-bras suit la main. La main d’appui enveloppe le garde-main, pouce le long du flanc.
+- **Animations.** Rechargements complets et visibles : chargeur qui tombe, nouveau chargeur tiré de la ceinture et enfoncé, arrêtoir de culasse ou levier d’armement quand l’arme est vide ; cartouches du fusil à pompe glissées une à une ; pompe et verrou manœuvrés après chaque tir ; sortie de l’arme à la première prise, changement d’arme, course (arme en travers, pistolet relevé), inspection (**T**), coup de couteau porté par la main.
+- **Visée.** Viseur point rouge, viseur holographique et réticule de l’Éclipse projetés à l’infini : le point reste sur la cible même quand l’arme bouge. Lunette du Longinus avec distorsion, franges colorées, ombre quand l’œil se décale et réticule gravé ; **Espace** retient le souffle pour stabiliser l’image.
+- **Commandes.** Sur ordinateur, **Espace** fait courir et **Maj** sauter. Sur mobile, viser et sauter sont de petits boutons côte à côte en haut à droite.
+- **Sensations.** Recul propre à chaque arme (montée qui se récupère, dispersion qui s’élargit en rafale), balancement du regard, pas, respiration, réceptions ; flamme de bouche, étuis éjectés par la fenêtre d’éjection, fumée après une rafale. Les balles traversent les corps en perdant de l’énergie : le Marauder en traverse un, le Longinus jusqu’à trois ; les dégâts diminuent avec la distance.
+- **Son.** Tirs enregistrés (sources CC0), renforcés d’un impact grave et d’une réverbération propre à chaque carte ; chaque geste de rechargement a son bruit, synchronisé avec l’animation. Les tirs des coéquipiers s’entendent à leur position, étouffés par la distance. Les coéquipiers tiennent les mêmes modèles, et le Reliquaire présente l’arme réelle.
+
+Le téléphone charge des textures deux fois plus petites. Les armes et les bras coûtent environ 0,2 ms de calcul et une vingtaine d’appels de rendu par image. Tant qu’un modèle n’est pas chargé, ou s’il échoue, l’arme procédurale d’origine prend le relais.
+
+Reconstruire les ressources (facultatif, les fichiers générés sont dans `public/`) : `node scripts/armory/build-weapons.mjs` (Blender 4.5 requis, variable `BLENDER`), `build-arms.mjs`, `build-textures.mjs` et `build-sounds.mjs`. `node scripts/armory-check.mjs` vérifie chaque arme dans une vraie partie. Provenance et licences : [ASSETS.md](ASSETS.md).
 
 ## La horde — 4.0.0
 

@@ -1,0 +1,756 @@
+{
+ "version": 1,
+ "categories": {
+  "shot_vigil": [
+   {
+    "file": "shot_vigil-1.mp3",
+    "source": 427592,
+    "seconds": 1.4
+   },
+   {
+    "file": "shot_vigil-2.mp3",
+    "source": 217805,
+    "seconds": 1.4
+   },
+   {
+    "file": "shot_vigil-3.mp3",
+    "source": 386745,
+    "seconds": 1.4
+   }
+  ],
+  "shot_spectre": [
+   {
+    "file": "shot_spectre-1.mp3",
+    "source": 390663,
+    "seconds": 1.1
+   },
+   {
+    "file": "shot_spectre-2.mp3",
+    "source": 344143,
+    "seconds": 0.641
+   },
+   {
+    "file": "shot_spectre-3.mp3",
+    "source": 427592,
+    "seconds": 1.1
+   }
+  ],
+  "shot_marauder": [
+   {
+    "file": "shot_marauder-1.mp3",
+    "source": 427596,
+    "seconds": 1.5
+   },
+   {
+    "file": "shot_marauder-2.mp3",
+    "source": 433858,
+    "seconds": 1.225
+   },
+   {
+    "file": "shot_marauder-3.mp3",
+    "source": 484036,
+    "seconds": 1.498
+   },
+   {
+    "file": "shot_marauder-4.mp3",
+    "source": 404562,
+    "seconds": 1.5
+   }
+  ],
+  "shot_requiem": [
+   {
+    "file": "shot_requiem-1.mp3",
+    "source": 427595,
+    "seconds": 1.689
+   },
+   {
+    "file": "shot_requiem-2.mp3",
+    "source": 405504,
+    "seconds": 1.7
+   },
+   {
+    "file": "shot_requiem-3.mp3",
+    "source": 660299,
+    "seconds": 1.7
+   },
+   {
+    "file": "shot_requiem-4.mp3",
+    "source": 773873,
+    "seconds": 1.176
+   }
+  ],
+  "shot_longinus": [
+   {
+    "file": "shot_longinus-1.mp3",
+    "source": 514228,
+    "seconds": 2.3
+   },
+   {
+    "file": "shot_longinus-2.mp3",
+    "source": 668071,
+    "seconds": 1.895
+   },
+   {
+    "file": "shot_longinus-3.mp3",
+    "source": 816114,
+    "seconds": 1.55
+   }
+  ],
+  "shot_eclipse": [
+   {
+    "file": "shot_eclipse-1.mp3",
+    "source": 519414,
+    "seconds": 1.3
+   },
+   {
+    "file": "shot_eclipse-2.mp3",
+    "source": 450768,
+    "seconds": 1.174
+   },
+   {
+    "file": "shot_eclipse-3.mp3",
+    "source": 466867,
+    "seconds": 1.3
+   }
+  ],
+  "magout": [
+   {
+    "file": "magout-1.mp3",
+    "source": 396331,
+    "seconds": 0.241
+   },
+   {
+    "file": "magout-2.mp3",
+    "source": 725397,
+    "seconds": 0.461
+   },
+   {
+    "file": "magout-3.mp3",
+    "source": 677160,
+    "seconds": 0.095
+   },
+   {
+    "file": "magout-4.mp3",
+    "source": 693124,
+    "seconds": 0.396
+   },
+   {
+    "file": "magout-5.mp3",
+    "source": 815879,
+    "seconds": 0.341
+   },
+   {
+    "file": "magout-6.mp3",
+    "source": 616757,
+    "seconds": 0.22
+   }
+  ],
+  "magin": [
+   {
+    "file": "magin-1.mp3",
+    "source": 396331,
+    "seconds": 0.21
+   },
+   {
+    "file": "magin-2.mp3",
+    "source": 379977,
+    "seconds": 0.55
+   },
+   {
+    "file": "magin-3.mp3",
+    "source": 677160,
+    "seconds": 0.376
+   },
+   {
+    "file": "magin-4.mp3",
+    "source": 693124,
+    "seconds": 0.08
+   },
+   {
+    "file": "magin-5.mp3",
+    "source": 815879,
+    "seconds": 0.18
+   },
+   {
+    "file": "magin-6.mp3",
+    "source": 616757,
+    "seconds": 0.256
+   }
+  ],
+  "slide": [
+   {
+    "file": "slide-1.mp3",
+    "source": 674744,
+    "seconds": 0.18
+   },
+   {
+    "file": "slide-2.mp3",
+    "source": 674744,
+    "seconds": 0.15
+   },
+   {
+    "file": "slide-3.mp3",
+    "source": 674744,
+    "seconds": 0.431
+   },
+   {
+    "file": "slide-4.mp3",
+    "source": 674744,
+    "seconds": 0.45
+   },
+   {
+    "file": "slide-5.mp3",
+    "source": 674744,
+    "seconds": 0.276
+   },
+   {
+    "file": "slide-6.mp3",
+    "source": 674744,
+    "seconds": 0.251
+   },
+   {
+    "file": "slide-7.mp3",
+    "source": 442560,
+    "seconds": 0.45
+   }
+  ],
+  "charge": [
+   {
+    "file": "charge-1.mp3",
+    "source": 263513,
+    "seconds": 0.19
+   },
+   {
+    "file": "charge-2.mp3",
+    "source": 263513,
+    "seconds": 0.205
+   },
+   {
+    "file": "charge-3.mp3",
+    "source": 263513,
+    "seconds": 0.401
+   },
+   {
+    "file": "charge-4.mp3",
+    "source": 263513,
+    "seconds": 0.14
+   },
+   {
+    "file": "charge-5.mp3",
+    "source": 855598,
+    "seconds": 0.5
+   },
+   {
+    "file": "charge-6.mp3",
+    "source": 725397,
+    "seconds": 0.286
+   },
+   {
+    "file": "charge-7.mp3",
+    "source": 815879,
+    "seconds": 0.16
+   }
+  ],
+  "pump": [
+   {
+    "file": "pump-1.mp3",
+    "source": 370344,
+    "seconds": 0.6
+   },
+   {
+    "file": "pump-2.mp3",
+    "source": 370344,
+    "seconds": 0.541
+   },
+   {
+    "file": "pump-3.mp3",
+    "source": 370344,
+    "seconds": 0.556
+   },
+   {
+    "file": "pump-4.mp3",
+    "source": 370344,
+    "seconds": 0.541
+   },
+   {
+    "file": "pump-5.mp3",
+    "source": 370344,
+    "seconds": 0.496
+   },
+   {
+    "file": "pump-6.mp3",
+    "source": 370344,
+    "seconds": 0.496
+   },
+   {
+    "file": "pump-7.mp3",
+    "source": 449614,
+    "seconds": 0.482
+   },
+   {
+    "file": "pump-8.mp3",
+    "source": 613801,
+    "seconds": 0.6
+   }
+  ],
+  "bolt": [
+   {
+    "file": "bolt-1.mp3",
+    "source": 370345,
+    "seconds": 0.256
+   },
+   {
+    "file": "bolt-2.mp3",
+    "source": 370345,
+    "seconds": 0.481
+   },
+   {
+    "file": "bolt-3.mp3",
+    "source": 370345,
+    "seconds": 0.837
+   },
+   {
+    "file": "bolt-4.mp3",
+    "source": 370345,
+    "seconds": 0.2
+   },
+   {
+    "file": "bolt-5.mp3",
+    "source": 370345,
+    "seconds": 0.776
+   }
+  ],
+  "shell": [
+   {
+    "file": "shell-1.mp3",
+    "source": 108793,
+    "seconds": 0.271
+   }
+  ],
+  "dryfire": [
+   {
+    "file": "dryfire-1.mp3",
+    "source": 171211,
+    "seconds": 0.22
+   },
+   {
+    "file": "dryfire-2.mp3",
+    "source": 427603,
+    "seconds": 0.1
+   },
+   {
+    "file": "dryfire-3.mp3",
+    "source": 523087,
+    "seconds": 0.3
+   }
+  ],
+  "brass": [
+   {
+    "file": "brass-1.mp3",
+    "source": 210102,
+    "seconds": 0.7
+   },
+   {
+    "file": "brass-2.mp3",
+    "source": 210102,
+    "seconds": 0.7
+   },
+   {
+    "file": "brass-3.mp3",
+    "source": 210102,
+    "seconds": 0.536
+   },
+   {
+    "file": "brass-4.mp3",
+    "source": 210102,
+    "seconds": 0.246
+   },
+   {
+    "file": "brass-5.mp3",
+    "source": 210102,
+    "seconds": 0.246
+   },
+   {
+    "file": "brass-6.mp3",
+    "source": 210102,
+    "seconds": 0.426
+   },
+   {
+    "file": "brass-7.mp3",
+    "source": 318964,
+    "seconds": 0.11
+   },
+   {
+    "file": "brass-8.mp3",
+    "source": 318964,
+    "seconds": 0.175
+   },
+   {
+    "file": "brass-9.mp3",
+    "source": 318964,
+    "seconds": 0.115
+   },
+   {
+    "file": "brass-10.mp3",
+    "source": 318964,
+    "seconds": 0.115
+   },
+   {
+    "file": "brass-11.mp3",
+    "source": 318964,
+    "seconds": 0.115
+   },
+   {
+    "file": "brass-12.mp3",
+    "source": 318964,
+    "seconds": 0.436
+   },
+   {
+    "file": "brass-13.mp3",
+    "source": 318964,
+    "seconds": 0.2
+   },
+   {
+    "file": "brass-14.mp3",
+    "source": 318964,
+    "seconds": 0.396
+   }
+  ],
+  "hulls": [
+   {
+    "file": "hulls-1.mp3",
+    "source": 620929,
+    "seconds": 1.2
+   }
+  ],
+  "raise": [
+   {
+    "file": "raise-1.mp3",
+    "source": 415304,
+    "seconds": 0.9
+   },
+   {
+    "file": "raise-2.mp3",
+    "source": 388819,
+    "seconds": 0.9
+   }
+  ],
+  "energy": [
+   {
+    "file": "energy-1.mp3",
+    "source": 610361,
+    "seconds": 1.4
+   }
+  ]
+ },
+ "credits": [
+  {
+   "id": 427592,
+   "title": "9mm pistol shot",
+   "author": "michorvath",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/michorvath/sounds/427592/"
+  },
+  {
+   "id": 217805,
+   "title": "9mm pistol shoot short reverb.wav",
+   "author": "gattoangus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/gattoangus/sounds/217805/"
+  },
+  {
+   "id": 386745,
+   "title": "Handgun_Shot.wav",
+   "author": "ken788",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/ken788/sounds/386745/"
+  },
+  {
+   "id": 390663,
+   "title": "Submachine Gun.wav",
+   "author": "morganpurkis",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/morganpurkis/sounds/390663/"
+  },
+  {
+   "id": 344143,
+   "title": "Gunshot_001.wav",
+   "author": "Brokenphono",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Brokenphono/sounds/344143/"
+  },
+  {
+   "id": 427596,
+   "title": "AR15 rifle shot",
+   "author": "michorvath",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/michorvath/sounds/427596/"
+  },
+  {
+   "id": 433858,
+   "title": "Rifle Gun Shot 01.wav",
+   "author": "LilMati",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/LilMati/sounds/433858/"
+  },
+  {
+   "id": 484036,
+   "title": "Rifle Gun Shot 02.wav",
+   "author": "LilMati",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/LilMati/sounds/484036/"
+  },
+  {
+   "id": 404562,
+   "title": "AssaultRifle1.wav",
+   "author": "SuperPhat",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/SuperPhat/sounds/404562/"
+  },
+  {
+   "id": 427595,
+   "title": "20 gauge shotgun gunshot",
+   "author": "michorvath",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/michorvath/sounds/427595/"
+  },
+  {
+   "id": 405504,
+   "title": "Shotgun Shot 01.wav",
+   "author": "LilMati",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/LilMati/sounds/405504/"
+  },
+  {
+   "id": 660299,
+   "title": "Shotgun Fire",
+   "author": "hyperix6",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/hyperix6/sounds/660299/"
+  },
+  {
+   "id": 773873,
+   "title": "shotgun shoot",
+   "author": "MrGungus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/MrGungus/sounds/773873/"
+  },
+  {
+   "id": 514228,
+   "title": "Sniper Rifle",
+   "author": "SuperPhat",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/SuperPhat/sounds/514228/"
+  },
+  {
+   "id": 668071,
+   "title": "50 cal shot.wav",
+   "author": "ajhartman42295",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/ajhartman42295/sounds/668071/"
+  },
+  {
+   "id": 816114,
+   "title": "FPS Sniper Shot",
+   "author": "qubodup",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/qubodup/sounds/816114/"
+  },
+  {
+   "id": 519414,
+   "title": "Energy/magic shot",
+   "author": "Iridiuss",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Iridiuss/sounds/519414/"
+  },
+  {
+   "id": 450768,
+   "title": "plasmapistol_shot.wav",
+   "author": "Tycoh",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Tycoh/sounds/450768/"
+  },
+  {
+   "id": 466867,
+   "title": "blaster shot single 5.wav",
+   "author": "MikeE63",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/MikeE63/sounds/466867/"
+  },
+  {
+   "id": 396331,
+   "title": "1911 Reload",
+   "author": "nioczkus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/nioczkus/sounds/396331/"
+  },
+  {
+   "id": 725397,
+   "title": "An M16 Rifle being reloaded while empty; full sequence",
+   "author": "serøutōnin--deprivəd",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/serøutōnin--deprivəd/sounds/725397/"
+  },
+  {
+   "id": 677160,
+   "title": "Uzi submachine gun being reloaded while empty. Full sequence",
+   "author": "serøutōnin--deprivəd",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/serøutōnin--deprivəd/sounds/677160/"
+  },
+  {
+   "id": 693124,
+   "title": "Makarov 9mm Handgun being reloaded while empty. Full sequence",
+   "author": "serøutōnin--deprivəd",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/serøutōnin--deprivəd/sounds/693124/"
+  },
+  {
+   "id": 815879,
+   "title": "Assault Rifle Reload",
+   "author": "qubodup",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/qubodup/sounds/815879/"
+  },
+  {
+   "id": 616757,
+   "title": "MP5A3 Reload",
+   "author": "oneshotofficial",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/oneshotofficial/sounds/616757/"
+  },
+  {
+   "id": 379977,
+   "title": "Inserting Magazine.wav",
+   "author": "morganpurkis",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/morganpurkis/sounds/379977/"
+  },
+  {
+   "id": 674744,
+   "title": "Browning Hi-Power handgun being cocked 5x",
+   "author": "serøutōnin--deprivəd",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/serøutōnin--deprivəd/sounds/674744/"
+  },
+  {
+   "id": 442560,
+   "title": "Sig Sauer P229 Handgun slide rack.wav",
+   "author": "nikkolaus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/nikkolaus/sounds/442560/"
+  },
+  {
+   "id": 263513,
+   "title": "AR15 Various Sounds",
+   "author": "wadaltmon",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/wadaltmon/sounds/263513/"
+  },
+  {
+   "id": 855598,
+   "title": "Pulling and Releasing Barrett M82A1 Charging Handle to Load Round 1",
+   "author": "qubodup",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/qubodup/sounds/855598/"
+  },
+  {
+   "id": 370344,
+   "title": "Pump Action Shotgun Cycle",
+   "author": "Zott820",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Zott820/sounds/370344/"
+  },
+  {
+   "id": 449614,
+   "title": "SXP_SHOTGUN_RACK_01",
+   "author": "dasBUTCHER84",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/dasBUTCHER84/sounds/449614/"
+  },
+  {
+   "id": 613801,
+   "title": "Shotgun Rack Sample.wav",
+   "author": "Krovi",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Krovi/sounds/613801/"
+  },
+  {
+   "id": 370345,
+   "title": "Mosin Nagant Bolt Action Cycle",
+   "author": "Zott820",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Zott820/sounds/370345/"
+  },
+  {
+   "id": 108793,
+   "title": "shell load.ogg",
+   "author": "CeebFrack",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/CeebFrack/sounds/108793/"
+  },
+  {
+   "id": 171211,
+   "title": "Dry Fire",
+   "author": "brianhanson2nd",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/brianhanson2nd/sounds/171211/"
+  },
+  {
+   "id": 427603,
+   "title": "Rifle clip empty",
+   "author": "michorvath",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/michorvath/sounds/427603/"
+  },
+  {
+   "id": 523087,
+   "title": "Gun Hammer Click",
+   "author": "magnuswaker",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/magnuswaker/sounds/523087/"
+  },
+  {
+   "id": 210102,
+   "title": "Brass bullet shell casing drop onto concrete, multiple takes",
+   "author": "GrayJoy",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/GrayJoy/sounds/210102/"
+  },
+  {
+   "id": 318964,
+   "title": "Bouncing Shell Casings (Various Sizes)",
+   "author": "GryffDavid",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/GryffDavid/sounds/318964/"
+  },
+  {
+   "id": 620929,
+   "title": "empty shotgun shells/casings hitting ground bouncing",
+   "author": "Metrolynn",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/Metrolynn/sounds/620929/"
+  },
+  {
+   "id": 415304,
+   "title": "Police 357 Pistol Unholster",
+   "author": "nioczkus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/nioczkus/sounds/415304/"
+  },
+  {
+   "id": 388819,
+   "title": "Holster Pistol",
+   "author": "nioczkus",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/nioczkus/sounds/388819/"
+  },
+  {
+   "id": 610361,
+   "title": "Charge up",
+   "author": "BrickDeveloper171",
+   "license": "CC0 1.0",
+   "url": "https://freesound.org/people/BrickDeveloper171/sounds/610361/"
+  }
+ ]
+}

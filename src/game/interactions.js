@@ -154,7 +154,7 @@ export class InteractionSystem {
         this.run.weapons[this.run.slot].reserve = reserveCapacity(
           this.run.weapons[this.run.slot],
         );
-        this.commands.setGun();
+        this.commands.setGun({ draw: "first" });
         const tier = UPGRADE.names[this.run.weapons[this.run.slot].level];
         this.emit("toast", {
           title: `Transfiguration ${tier}`,
@@ -234,7 +234,7 @@ export class InteractionSystem {
       this.run.weapons.push(newWeapon(id));
       this.run.slot = 1;
     } else this.run.weapons[this.run.slot] = newWeapon(id);
-    this.commands.setGun();
+    this.commands.setGun({ draw: "first" });
     this.sound.purchase();
     this.emit("toast", {
       title: WEAPONS[id].name,

@@ -176,12 +176,13 @@ export class CombatEffects {
       (Math.random() - 0.5) * 0.18,
     );
   }
-  casing(position, quaternion) {
+  casing(position, quaternion, shell = false) {
     const c = this.casings[this.casingCursor++ % this.casings.length];
-    c.life = 3.8;
+    c.life = shell ? 6 : 3.8;
+    c.shell = shell;
     c.p.copy(position);
     c.v
-      .set(1.5 + Math.random(), 1.2 + Math.random(), 0.3)
+      .set(0.6 + Math.random() * 0.8, 0.6 + Math.random() * 0.8, 0.2)
       .applyQuaternion(quaternion);
     c.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
   }

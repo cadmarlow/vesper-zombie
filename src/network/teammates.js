@@ -8,6 +8,8 @@ import {
 } from "../survivor.js";
 import { setSurfaceQuality } from "../surfaces.js";
 import { PLAYER_FLAGS as FLAGS } from "../../server/protocol.js";
+import { WEAPONS } from "../content/weapons.js";
+import { reseedFlash, shapeFlash } from "../armory/effects.js";
 function nameSprite() {
   const c = document.createElement("canvas");
   c.width = 256;
@@ -54,6 +56,42 @@ export class TeammateView {
   constructor(context, roster, players) {
     Object.assign(this, { context, roster, players });
   }
+  /**
+   * While a teammate holds the trigger, their weapon reports at its own
+   * rate: a filtered, panned shot and a muzzle flash on the model.
+   */
+  teammateFire(p, gun, model, dt) {
+    const g = this.context;
+    const firing = !!(p.flags & FLAGS.FIRING);
+    const def = WEAPONS[p.weapon];
+    p.shotAge = (p.shotAge ?? 1) + dt;
+    if (firing && def && g.run.time >= (p.nextShot || 0)) {
+      p.nextShot = g.run.time + def.rate * (0.95 + Math.random() * 0.1);
+      p.shotAge = 0;
+      reseedFlash(gun.userData.flash);
+      const armory = g.sound?.armory;
+      if (armory?.ready) {
+        const dx = model.position.x - g.view.camera.position.x,
+          dz = model.position.z - g.view.camera.position.z;
+        const distance = Math.hypot(dx, dz);
+        const yaw = g.input.yaw;
+        const pan = T.MathUtils.clamp(
+          (dx * Math.cos(yaw) - dz * Math.sin(yaw)) / Math.max(4, distance),
+          -1,
+          1,
+        );
+        armory.shot(def.look || p.weapon, {
+          remote: true,
+          distance,
+          pan,
+          level: p.level || 0,
+        });
+      }
+    }
+    const flash = gun.userData.flash;
+    if (flash?.userData.flash) shapeFlash(flash, p.shotAge, false);
+    else if (flash) flash.visible = firing && Math.random() < 0.5;
+  }
   ensurePlayerModel(p) {
     if (p.model || !this.context?.run.world) return;
     const seat = [...this.roster.keys()].indexOf(p.id);
@@ -99,7 +137,12 @@ export class TeammateView {
       m.visible = true;
       updateLabel(p, g.run.session?.rescue?.status(p.id));
       const crouch = !!(p.flags & FLAGS.CROUCH);
-      const gun = (p.gun = survivorWeapon(m, p.weapon, p.level > 0));
+      const gun = (p.gun = survivorWeapon(
+        m,
+        p.weapon,
+        p.level > 0,
+        p.level || 0,
+      ));
       animateSurvivor(m, g.run.time + p.seed, p.speed / 3.65, {
         crouch,
         pitch: p.pitch,
@@ -107,9 +150,7 @@ export class TeammateView {
         down: !!down,
         reviving: !!(p.flags & FLAGS.REVIVING),
       });
-      if (gun)
-        gun.userData.flash.visible =
-          !!(p.flags & FLAGS.FIRING) && Math.random() < 0.5;
+      if (gun) this.teammateFire(p, gun, m, dt);
     }
   }
 }

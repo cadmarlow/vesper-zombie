@@ -1,4 +1,7 @@
-/** Dispose resources owned by one model. Shared surface textures belong to the app. */
+/**
+ * Dispose resources owned by one model. Shared surfaces (textures, and the
+ * armory's geometries and finish materials) belong to the app.
+ */
 export function disposeModel(root) {
   const geometries = new Set();
   const materials = new Set();
@@ -19,8 +22,10 @@ export function disposeModel(root) {
     }
   });
   for (const skeleton of skeletons) skeleton.dispose();
-  for (const geometry of geometries) geometry.dispose();
-  for (const material of materials) material.dispose();
+  for (const geometry of geometries)
+    if (!geometry.userData.sharedSurface) geometry.dispose();
+  for (const material of materials)
+    if (!material.userData.sharedSurface) material.dispose();
   for (const texture of textures)
     if (!texture.userData.sharedSurface) texture.dispose();
 }

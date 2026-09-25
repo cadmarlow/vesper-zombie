@@ -144,7 +144,7 @@ try {
     for (const mode of ["walk", "run", "crouch"]) {
       reset();
       g.keys.add("KeyW");
-      if (mode === "run") g.keys.add("ShiftLeft");
+      if (mode === "run") g.keys.add("Space");
       if (mode === "crouch") g.toggleCrouch();
       for (let i = 0; i < 120; i++) {
         g.time += 1 / 120;
@@ -159,7 +159,7 @@ try {
     }
     reset();
     g.keys.add("KeyW");
-    g.keys.add("ShiftLeft");
+    g.keys.add("Space");
     g.mouse.aim = true;
     g.updatePlayer(0.1);
     results.aimBlocksSprint = !p.sprinting;
@@ -214,9 +214,12 @@ try {
     "Knife is visible, firearm hidden; no damage before contact",
     await page.evaluate(() => {
       const g = window.__vesper;
-      return (
-        g.knife.visible && !g.gun.visible && g.enemies.at(-1).health === 1000
-      );
+      // The first-person arms carry their own knife; the stand-in knife is
+      // only drawn with the procedural weapon.
+      const knife = g.gun.userData.armory
+        ? g.viewModel.knifeHolder?.visible && !g.knife.visible
+        : g.knife.visible;
+      return knife && !g.gun.visible && g.enemies.at(-1).health === 1000;
     }),
   );
   const ammo = await page.evaluate(() => window.__vesper.weapon.ammo);
@@ -240,7 +243,12 @@ try {
     "Recovery restores the gun and clears the knife",
     await page.evaluate(() => {
       const g = window.__vesper;
-      return g.gun.visible && !g.knife.visible && !g.knifeTrail.visible;
+      return (
+        g.gun.visible &&
+        !g.knife.visible &&
+        !g.knifeTrail.visible &&
+        !g.viewModel?.knifeHolder?.visible
+      );
     }),
   );
   await page.evaluate(() => {
@@ -361,9 +369,13 @@ try {
     await mobile.waitForTimeout(180);
     check(
       `${map}: touch knife draws the blade`,
-      await mobile.evaluate(
-        () => window.__vesper.knife.visible && !window.__vesper.gun.visible,
-      ),
+      await mobile.evaluate(() => {
+        const g = window.__vesper;
+        const knife = g.gun.userData.armory
+          ? g.viewModel.knifeHolder?.visible
+          : g.knife.visible;
+        return knife && !g.gun.visible;
+      }),
     );
     await mobile.screenshot({ path: `${out}/${map}-touch-knife.png` });
     await mobile.waitForTimeout(800);

@@ -42,13 +42,18 @@ try {
       `${mobile}: correct texture resolution loaded`,
       await page.evaluate((mobile) => {
         const wanted = mobile ? 512 : 1024,
+          // The weapons' tiling detail maps are half the surface size.
+          detail = mobile ? 256 : 512,
           urls = performance
             .getEntriesByType("resource")
             .filter((r) => r.name.includes("/textures/"))
-            .map((r) => r.name);
+            .map((r) => r.name),
+          surfaces = urls.filter((url) => !url.includes("/textures/armory/")),
+          armory = urls.filter((url) => url.includes("/textures/armory/"));
         return (
-          urls.length === 24 &&
-          urls.every((url) => url.endsWith(`-${wanted}.webp`))
+          surfaces.length === 24 &&
+          surfaces.every((url) => url.endsWith(`-${wanted}.webp`)) &&
+          armory.every((url) => url.endsWith(`-${detail}.webp`))
         );
       }, mobile),
     );

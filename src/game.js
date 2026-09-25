@@ -131,6 +131,7 @@ export class Game {
       melee: (...args) => this.melee(...args),
       toggleCrouch: (...args) => this.toggleCrouch(...args),
       switchWeapon: (...args) => this.switchWeapon(...args),
+      inspectWeapon: (...args) => this.inspectWeapon(...args),
       pause: (...args) => this.pause(...args),
       jump: (...args) => this.jump(...args),
       resume: (...args) => this.resume(...args),
@@ -297,7 +298,16 @@ export class Game {
       this.view.flash.intensity = 0;
       this.view.gun.userData.flash.visible = false;
     }
-    if (this.run.reloadTime > 0) {
+    if (this.run.pendingDraw > 0) {
+      // A holstered weapon has left the view: raise the next one.
+      this.run.pendingDraw -= dt;
+      if (this.run.pendingDraw <= 0) {
+        this.run.pendingDraw = 0;
+        this.setGun({ draw: "quick" });
+      }
+    }
+    if (this.run.shellReload) this.combat.updateShellReload(dt);
+    else if (this.run.reloadTime > 0) {
       this.run.reloadTime = Math.max(0, this.run.reloadTime - dt);
       if (this.run.reloadTime === 0)
         reloadWeapon(this.run.weapons[this.run.slot]);
@@ -427,7 +437,15 @@ export class Game {
       slots: this.run.weapons.map((w) => ({ ...w })),
       slot: this.run.slot,
       touch: this.run.touch,
-      aim: this.input.mouse.aim,
+      aim: this.run.aiming ?? this.input.mouse.aim,
+      scoped: !!this.run.scoped,
+      breath: this.run.holdingBreath
+        ? "hold"
+        : this.run.player.breathOut > 0
+          ? "out"
+          : "ready",
+      spread: this.run.spreadNow ?? null,
+      fov: this.view.camera.fov,
       settings: {
         crosshair: this.run.settings.crosshair,
         layout: this.run.settings.layout,
@@ -576,6 +594,7 @@ export class Game {
       (this.run.state === "playing" || this.view.needsRender)
     ) {
       this.view.film.uniforms.time.value = now;
+      this.updateScope(delta);
       this.view.film.uniforms.hurt.value = Math.max(
         this.run.lastHurtEffect || 0,
         this.run.player && this.run.player.health < 35 ? 0.25 : 0,
@@ -599,6 +618,23 @@ export class Game {
       this.view.composer.render();
       this.view.needsRender = false;
     }
+  }
+  /** Scope overlay: snaps on at the eye, then the relief shadow opens. */
+  updateScope(dt) {
+    const f = this.view.film.uniforms;
+    const scoped = this.run.state === "playing" && !!this.run.scoped;
+    this.view.scopeOpen = scoped
+      ? T.MathUtils.damp(this.view.scopeOpen || 0, 1, 9, dt)
+      : 0;
+    f.scope.value = scoped ? 1 : 0;
+    f.scopeOpen.value = this.view.scopeOpen;
+    const sway = this.view.viewModel?.sway.value;
+    const drift = this.run.scopeDrift || { x: 0, y: 0 };
+    f.scopeShift.value.set(
+      T.MathUtils.clamp((sway ? -sway.y * 2.2 : 0) + drift.x, -0.09, 0.09),
+      T.MathUtils.clamp((sway ? sway.x * 2.2 : 0) + drift.y, -0.09, 0.09),
+    );
+    f.scopeGlow.value = this.run.world?.power ? 0.7 : 1;
   }
   debug() {
     return observeGame(this);
@@ -646,6 +682,9 @@ export class Game {
   }
   melee(...args) {
     return this.combat.melee(...args);
+  }
+  inspectWeapon(...args) {
+    return this.combat.inspectWeapon(...args);
   }
   meleeContact(...args) {
     return this.combat.meleeContact(...args);

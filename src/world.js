@@ -1,6 +1,8 @@
 import { mapDefinition } from "./maps/catalog.js";
 import { buildMap, validateWorld } from "./maps/builders.js";
 import { weaponModel } from "./weapons.js";
+import { createWeaponSync } from "./armory/models.js";
+import { WEAPONS } from "./content/weapons.js";
 import { disposeModel } from "./resources.js";
 export { disposeModel } from "./resources.js";
 import * as T from "three";
@@ -1050,10 +1052,28 @@ export class World {
     // model once per session instead of rebuilding it on every tick.
     this.boxDisplays ??= new Map();
     if (!this.boxDisplays.has(id)) {
-      const display = weaponModel(id);
-      display.scale.setScalar(1.4);
-      display.position.y = 1.8;
-      this.boxDisplays.set(id, display);
+      // The real model when it has streamed in, centred over the box.
+      const real = createWeaponSync(WEAPONS[id]?.look || id);
+      const display = real || weaponModel(id);
+      if (real) {
+        const box = new T.Box3().setFromObject(real);
+        const center = box.getCenter(new T.Vector3());
+        const size = box.getSize(new T.Vector3());
+        const holder = new T.Group();
+        real.position.sub(center);
+        real.scale.setScalar(1);
+        holder.add(real);
+        // Larger than life over the Reliquary: every weapon reads at the
+        // same size, a pistol as well as a rifle.
+        const length = Math.max(size.x, size.y, size.z) || 1;
+        holder.scale.setScalar(T.MathUtils.clamp(1.6 / length, 1.3, 3.2));
+        holder.position.y = 1.8;
+        this.boxDisplays.set(id, holder);
+      } else {
+        display.scale.setScalar(1.4);
+        display.position.y = 1.8;
+        this.boxDisplays.set(id, display);
+      }
     }
     b.display = this.boxDisplays.get(id);
     b.display.userData.weaponId = id;

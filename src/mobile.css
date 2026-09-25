@@ -219,13 +219,54 @@
     sans-serif;
   letter-spacing: 1.8px;
 }
-.mobile-aim {
-  right: calc(var(--safe-right) + 114px);
-  bottom: calc(var(--safe-bottom) + 151px);
+/* Aim and jump are rarely used: small, side by side in the top corner of
+   the right cluster, away from the thumb that turns the camera. The hit
+   area keeps 44 px; only a 32 px disc is drawn. */
+.mobile-aim,
+.mobile-jump {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: none;
+  bottom: calc(var(--safe-bottom) + 152px);
+}
+.mobile-aim::before,
+.mobile-jump::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid #d4e1d45c;
+  border-radius: 50%;
+  background: #0b182945;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
+}
+.mobile-aim.pressed,
+.mobile-aim.selected,
+.mobile-jump.pressed,
+.mobile-jump.selected {
+  background: none;
+  box-shadow: none;
+}
+.mobile-aim.pressed::before,
+.mobile-aim.selected::before,
+.mobile-jump.pressed::before,
+.mobile-jump.selected::before {
+  border-color: #f1c18d;
+  background: #b886505c;
+}
+.mobile-aim .icon,
+.mobile-jump .icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
 }
 .mobile-jump {
-  right: calc(var(--safe-right) + 14px);
-  bottom: calc(var(--safe-bottom) + 151px);
+  right: calc(var(--safe-right) + 8px);
+}
+.mobile-aim {
+  right: calc(var(--safe-right) + 48px);
 }
 .mobile-crouch {
   right: calc(var(--safe-right) + 14px);
@@ -591,13 +632,15 @@
     right: calc(var(--safe-right) + 74px);
     bottom: calc(var(--safe-bottom) + 90px);
   }
-  .mobile-aim {
-    right: calc(var(--safe-right) + 146px);
-    bottom: calc(var(--safe-bottom) + 185px);
+  .mobile-aim,
+  .mobile-jump {
+    bottom: calc(var(--safe-bottom) + 186px);
   }
   .mobile-jump {
-    right: calc(var(--safe-right) + 36px);
-    bottom: calc(var(--safe-bottom) + 185px);
+    right: calc(var(--safe-right) + 30px);
+  }
+  .mobile-aim {
+    right: calc(var(--safe-right) + 70px);
   }
   .mobile-crouch {
     right: calc(var(--safe-right) + 36px);

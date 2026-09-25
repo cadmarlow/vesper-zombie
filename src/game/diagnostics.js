@@ -91,6 +91,10 @@ const owners = {
   nextShadowFrame: "view",
   warmupSession: "run",
   gun: "view",
+  viewModel: "view",
+  viewEffects: "view",
+  pendingDraw: "run",
+  shellReload: "run",
   flashTimer: "run",
 };
 export function observeGame(game) {

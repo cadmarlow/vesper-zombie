@@ -111,15 +111,20 @@ try {
     g.phaseTimer = 1000;
   });
   await page.mouse.down({ button: "right" });
-  await page.waitForTimeout(350);
-  check(
-    "Sniper scope is clear and the obstructing weapon is hidden",
-    await page.evaluate(
+  // The final pass draws the scope once the rifle reaches the eye (the
+  // real model is raised first; the stand-in snaps on at once).
+  const scoped = await page
+    .waitForFunction(
       () =>
-        !document.querySelector("#scope").classList.contains("hidden") &&
+        window.__vesper.film.uniforms.scope.value === 1 &&
         !window.__vesper.gun.visible,
-    ),
-  );
+      null,
+      { timeout: 2500 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  check("Sniper scope is clear and the obstructing weapon is hidden", scoped);
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/sniper.png` });
   await page.mouse.up({ button: "right" });
   await page.waitForTimeout(120);
@@ -127,7 +132,7 @@ try {
     "Leaving the scope restores weapon view",
     await page.evaluate(
       () =>
-        document.querySelector("#scope").classList.contains("hidden") &&
+        window.__vesper.film.uniforms.scope.value === 0 &&
         window.__vesper.gun.visible,
     ),
   );

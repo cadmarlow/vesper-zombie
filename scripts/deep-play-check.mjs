@@ -383,7 +383,7 @@ class Bot {
       }
       // keep distance: back off when close, stop otherwise
       await this.key("KeyW", false);
-      await this.key("ShiftLeft", false);
+      await this.key("Space", false);
       await this.key("KeyS", best < 4.5);
       await this.key("KeyA", false);
       await this.key("KeyD", best < 4.5 && Math.sin(Date.now() / 900) > 0);
@@ -457,7 +457,7 @@ class Bot {
           const d = Math.hypot(front.x - s.pos[0], front.z - s.pos[2]);
           if (d < 1.6) {
             await this.key("KeyW", false);
-            await this.key("ShiftLeft", false);
+            await this.key("Space", false);
             // face the machine and interact
             const dyaw = wrap(yawTo(s.pos, { x: i.x, z: i.z }) - s.yaw);
             await look(page, dyaw, -s.pitch, s.sensitivity);
@@ -471,7 +471,7 @@ class Bot {
           const dyaw = wrap(yawTo(s.pos, w) - s.yaw);
           await look(page, dyaw, -s.pitch * 0.5, s.sensitivity);
           await this.key("KeyW", Math.abs(dyaw) < 0.5);
-          await this.key("ShiftLeft", Math.abs(dyaw) < 0.5);
+          await this.key("Space", Math.abs(dyaw) < 0.5);
           // stuck detection
           if (
             this.lastPos &&
@@ -481,7 +481,7 @@ class Bot {
             this.stuck++;
           else this.stuck = 0;
           if (this.stuck > 25) {
-            await page.keyboard.press("Space");
+            await page.keyboard.press("ShiftLeft");
             await this.key("KeyA", true);
             await sleep(400);
             await this.key("KeyA", false);
@@ -492,7 +492,7 @@ class Bot {
         }
       }
       await this.key("KeyW", false);
-      await this.key("ShiftLeft", false);
+      await this.key("Space", false);
       // nothing to buy: call the next wave (host only)
       // A considerate host leaves teammates time to shop before calling the wave.
       const patient = this.opts.coop ? s.phaseTimer < 5 : s.phaseTimer > 1.5;

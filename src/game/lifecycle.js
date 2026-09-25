@@ -16,6 +16,10 @@ import { disposeModel } from "../resources.js";
 
 import { ENEMIES, DIFFICULTIES, MAPS } from "../config.js";
 import { newWeapon, Navigation } from "../logic.js";
+import { ViewModel } from "../armory/viewmodel.js";
+import { ViewEffects } from "../armory/effects.js";
+import { RIGS } from "../armory/catalog.js";
+import { WeaponAudio } from "../armory/audio.js";
 /** Owns one run's resources: prepare, attach, cancel, release. */
 export class RunLifecycle {
   constructor(
@@ -98,11 +102,15 @@ export class RunLifecycle {
     this.run.eliminated = false;
     this.input.touchInteract = false;
     await Promise.all([
+      this.prepareArmory(touch),
       prepareSurfaces(touch, mapDefinition(map).theme),
       prepareHorde(touch),
       (this.sound.horde ||= new HordeAudio(this.sound, touch))
         .load()
         .catch((error) => console.warn("Horde sounds unavailable", error)),
+      (this.sound.armory ||= new WeaponAudio(this.sound, touch))
+        .load()
+        .catch((error) => console.warn("Weapon sounds unavailable", error)),
       // Creatures fall back to procedural skin when the scanned faces are
       // unavailable; a missing texture must not abort the whole session.
       prepareCreatureSkins(touch).catch((error) =>
@@ -114,6 +122,7 @@ export class RunLifecycle {
     ]);
     checkpoint();
     this.run.map = map;
+    this.sound.armory?.setRoom(mapDefinition(map).theme);
     this.view.film.uniforms.cold.value = mapDefinition(map).cold;
     this.run.difficulty = DIFFICULTIES[difficulty];
     this.run.difficultyId = difficulty;
@@ -304,6 +313,7 @@ export class RunLifecycle {
     this.run.last = performance.now();
     this.view.nextShadowFrame = 0;
     this.warmupDistantModels();
+    this.preloadArmory();
     this.commands.updateHUD();
     this.emit("state", "playing");
     this.emit("announce", {
@@ -324,6 +334,53 @@ export class RunLifecycle {
     });
     if (!touch) this.commands.lock();
   }
+  /**
+   * First-person arms and the starting weapon load behind the loader. A
+   * failure leaves the procedural weapons in place.
+   */
+  async prepareArmory(touch) {
+    if (!this.view.viewModel || this.view.viewModel.mobile !== touch) {
+      this.view.viewEffects?.dispose();
+      this.view.viewModel?.dispose();
+      this.view.viewModel = new ViewModel(this.view.viewScene, {
+        mobile: touch,
+      });
+      this.view.viewEffects = new ViewEffects(this.view.viewModel.root, touch);
+    }
+    try {
+      await Promise.all([
+        this.view.viewModel.prepare(),
+        this.view.viewModel.load("vigil"),
+      ]);
+    } catch (error) {
+      console.warn("Armory unavailable, procedural weapons in use", error);
+    }
+  }
+  /** The other weapons stream in one by one once the run has started. */
+  preloadArmory() {
+    const vm = this.view.viewModel;
+    if (!vm) return;
+    const session = this.run.warmupSession;
+    const ids = Object.keys(RIGS).filter((id) => !vm.has(id));
+    const next = (i) => {
+      if (i >= ids.length || session !== this.run.warmupSession) return;
+      vm.load(ids[i])
+        .then((weapon) =>
+          this.view.renderer.compileAsync(
+            weapon,
+            this.view.viewCamera,
+            this.view.viewScene,
+          ),
+        )
+        .catch((error) =>
+          console.warn(`Weapon model unavailable: ${ids[i]}`, error),
+        )
+        .finally(() => {
+          this.armoryTimer = setTimeout(() => next(i + 1), 250);
+        });
+    };
+    this.armoryTimer = setTimeout(() => next(0), 1200);
+  }
   warmupDistantModels() {
     // One template per tick keeps each pause well under a frame budget.
     const session = (this.run.warmupSession =
@@ -340,6 +397,9 @@ export class RunLifecycle {
   }
   cleanup() {
     clearTimeout(this.warmupTimer);
+    clearTimeout(this.armoryTimer);
+    this.view.viewModel?.hide();
+    this.run.pendingDraw = 0;
     this.run.warmupSession = (this.run.warmupSession || 0) + 1;
     this.run.session?.detach();
     this.run.session = null;

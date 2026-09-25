@@ -1,10 +1,18 @@
 import { defineConfig } from "vite";
 import { readFileSync } from "node:fs";
+import { RELEASES } from "./src/content/changelog.js";
 const { version } = JSON.parse(
   readFileSync(new URL("./package.json", import.meta.url)),
 );
 const build = process.env.VERCEL_GIT_COMMIT_SHA || `local-${Date.now()}`;
-const release = JSON.stringify({ version, build });
+// The newest notes travel with the version so an open game can announce
+// what an update brings before reloading.
+const notes = RELEASES.find((r) => r.version === version);
+const release = JSON.stringify({
+  version,
+  build,
+  ...(notes && { title: notes.title, highlights: notes.highlights }),
+});
 export default defineConfig({
   // Local audit worktrees can contain different Three.js versions. Only scan
   // this app and the horde labs, never archived HTML under artifacts/.

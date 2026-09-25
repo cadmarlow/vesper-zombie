@@ -128,21 +128,74 @@ export const cinematicShader = {
     cold: { value: 0 },
     texel: { value: new T.Vector2(1, 1) },
     sharpen: { value: 0.2 },
+    // Rifle scope: coverage (0..1), eye-box offset (screen heights), the
+    // eye relief shadow opening (0..1) and the illuminated centre.
+    scope: { value: 0 },
+    scopeShift: { value: new T.Vector2() },
+    scopeOpen: { value: 1 },
+    scopeGlow: { value: 1 },
   },
   vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
   // Edge-limited sharpening restores scan detail after FXAA without bright
   // ringing. No depth of field or motion blur obscures targets or costs frames.
+  // The scope is drawn here: no second scene render, the zoom comes from the
+  // world camera's field of view.
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform vec2 texel;
-    uniform float time,hurt,cold,sharpen; varying vec2 vUv;
+    uniform float time,hurt,cold,sharpen,scope,scopeOpen,scopeGlow; uniform vec2 scopeShift; varying vec2 vUv;
+    float line(float d, float w, float px){ return 1.0 - smoothstep(w * 0.5, w * 0.5 + px, abs(d)); }
     void main(){
-      vec3 c=texture2D(tDiffuse,vUv).rgb;
-      vec3 n=texture2D(tDiffuse,vUv+vec2(0.,texel.y)).rgb;
-      vec3 s=texture2D(tDiffuse,vUv-vec2(0.,texel.y)).rgb;
-      vec3 e=texture2D(tDiffuse,vUv+vec2(texel.x,0.)).rgb;
-      vec3 w=texture2D(tDiffuse,vUv-vec2(texel.x,0.)).rgb;
-      vec3 lo=min(c,min(min(n,s),min(e,w))),hi=max(c,max(max(n,s),max(e,w)));
-      c=clamp(c+(c-(n+s+e+w)*.25)*sharpen,lo,hi);
+      vec3 c;
+      float aspect = texel.y / texel.x;
+      vec2 p = (vUv - 0.5) * vec2(aspect, 1.0);
+      float px = texel.y;
+      float R = 0.44;
+      float d = length(p);
+      if (scope > 0.001) {
+        // Lens: slight barrel magnification and colour fringes at the rim.
+        float k = pow(clamp(d / R, 0.0, 1.0), 3.0);
+        vec2 dir = d > 1e-5 ? p / d : vec2(0.0);
+        vec2 base = vUv - dir * k * 0.018 / vec2(aspect, 1.0);
+        vec2 fringe = dir * k * 0.006 / vec2(aspect, 1.0);
+        c = vec3(texture2D(tDiffuse, base + fringe).r, texture2D(tDiffuse, base).g, texture2D(tDiffuse, base - fringe).b);
+        c *= mix(vec3(1.0), vec3(0.93, 1.0, 1.03), 0.6);
+        // Eye box: off-axis, the exit pupil throws a moving crescent shadow.
+        float eye = length(p - scopeShift);
+        float shadowR = R * mix(0.25, 0.86, scopeOpen);
+        float shadow = smoothstep(shadowR, R * 1.05, eye);
+        c *= 1.0 - shadow * 0.95;
+        c *= 1.0 - smoothstep(R * 0.55, R, d) * 0.25;
+        // Duplex reticle: fine centre cross, heavy outer posts, stadia dots.
+        float thin = max(line(p.x, 1.4 * px, px) * step(abs(p.y), R * 0.34), line(p.y, 1.4 * px, px) * step(abs(p.x), R * 0.34));
+        float post = max(line(p.x, 5.0 * px, px) * step(R * 0.34, abs(p.y)), line(p.y, 5.0 * px, px) * step(R * 0.34, abs(p.x)));
+        float dots = 0.0;
+        for (int i = 1; i <= 4; i++) {
+          float s = float(i) * R * 0.075;
+          dots = max(dots, 1.0 - smoothstep(2.2 * px, 3.2 * px, length(p - vec2(0.0, -s))));
+          dots = max(dots, 1.0 - smoothstep(2.2 * px, 3.2 * px, length(p - vec2(s, 0.0))));
+          dots = max(dots, 1.0 - smoothstep(2.2 * px, 3.2 * px, length(p - vec2(-s, 0.0))));
+        }
+        float ink = max(max(thin, post), dots) * step(d, R);
+        c = mix(c, vec3(0.012), ink * 0.92);
+        // Illuminated centre for the dark nave.
+        float centre = 1.0 - smoothstep(1.2 * px, 2.6 * px, d);
+        float halo = (1.0 - smoothstep(0.0, 9.0 * px, d)) * 0.35;
+        c += vec3(1.0, 0.18, 0.08) * (centre * 1.6 + halo) * scopeGlow;
+        // Tube: black outside the aperture, a sliver of machined rim.
+        float aperture = 1.0 - smoothstep(R - px, R + px, d);
+        float rim = line(d - R - 3.0 * px, 4.0 * px, 2.0 * px) * 0.06;
+        c = mix(vec3(rim), c, aperture);
+        vec3 plain = texture2D(tDiffuse, vUv).rgb;
+        c = mix(plain, c, scope);
+      } else {
+        c=texture2D(tDiffuse,vUv).rgb;
+        vec3 n=texture2D(tDiffuse,vUv+vec2(0.,texel.y)).rgb;
+        vec3 s=texture2D(tDiffuse,vUv-vec2(0.,texel.y)).rgb;
+        vec3 e=texture2D(tDiffuse,vUv+vec2(texel.x,0.)).rgb;
+        vec3 w=texture2D(tDiffuse,vUv-vec2(texel.x,0.)).rgb;
+        vec3 lo=min(c,min(min(n,s),min(e,w))),hi=max(c,max(max(n,s),max(e,w)));
+        c=clamp(c+(c-(n+s+e+w)*.25)*sharpen,lo,hi);
+      }
       float l=dot(c,vec3(.2126,.7152,.0722));
       c=mix(vec3(l),c,.95);
       c*=mix(vec3(.935,1.012,1.037),vec3(1.039,1.014,.961),smoothstep(.08,.8,l));

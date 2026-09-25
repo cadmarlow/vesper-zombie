@@ -1,4 +1,5 @@
 import { weaponModel } from "../weapons.js";
+import { RIGS } from "../armory/catalog.js";
 import * as T from "three";
 import { setSurfaceQuality } from "../surfaces.js";
 import { destroyZombieHead } from "../creatures.js";
@@ -32,7 +33,49 @@ export class CombatSystem {
     Object.assign(this, { run, view, input, sound, emit });
     this.commands = { updateHUD, burst, tracer, drop, announce, hurt };
   }
-  setGun() {
+  /**
+   * Show the weapon of the current slot. draw: "quick" after a switch,
+   * "first" when a weapon is received or transfigured.
+   */
+  setGun({ draw = null } = {}) {
+    const current = this.run.weapons[this.run.slot];
+    const vm = this.view.viewModel;
+    const camo = current.level || 0;
+    this.run.reloadTime = 0;
+    vm?.stop();
+    if (vm && RIGS[current.id]) {
+      if (vm.has(current.id, camo)) {
+        if (this.view.gun && !this.view.gun.userData.armory)
+          this.view.viewScene.remove(this.view.gun);
+        vm.show(current.id, camo);
+        this.view.gun = vm.weapon;
+        vm.onEvent = (name) => {
+          if (name === "eject") this.ejectCasing(!!vm.rig.shellEject);
+          this.sound.weaponCue(name, current.id);
+        };
+        if (draw) {
+          vm.draw(draw === "first");
+          this.sound.weaponCue("raise", current.id);
+        }
+        this.emit("weapon", current);
+        return;
+      }
+      // Loading: the procedural model stands in, then the real one is drawn.
+      vm.load(current.id, camo)
+        .then(() => {
+          const now = this.run.weapons?.[this.run.slot];
+          if (
+            now?.id === current.id &&
+            (now.level || 0) === camo &&
+            this.run.state !== "menu"
+          )
+            this.setGun({ draw: "quick" });
+        })
+        .catch((error) =>
+          console.warn(`Weapon model unavailable: ${current.id}`, error),
+        );
+    }
+    vm?.hide();
     if (this.view.gun) this.view.viewScene.remove(this.view.gun);
     // Building a first-person weapon generates hundreds of geometries and
     // several canvases. Keep every model of the session so a switch or a
@@ -68,8 +111,17 @@ export class CombatSystem {
     )
       return;
     this.run.slot = slot;
-    this.setGun();
-    this.run.shotTimer = 0.25;
+    // The rules switch at once; the view lowers one weapon and raises the other.
+    const vm = this.view.viewModel;
+    const next = this.run.weapons[slot];
+    if (vm?.weapon && RIGS[next.id] && vm.has(next.id, next.level || 0)) {
+      this.run.shotTimer = 0.52;
+      this.run.pendingDraw = 0.17;
+      vm.holster(0.17);
+    } else {
+      this.setGun({ draw: "quick" });
+      this.run.shotTimer = 0.4;
+    }
     this.sound.click();
     this.commands.updateHUD();
   }
@@ -87,9 +139,191 @@ export class CombatSystem {
     this.run.reloadDuration =
       WEAPONS[this.run.weapons[this.run.slot].id].reload *
       (this.run.player.perks.includes("speed") ? 0.65 : 1);
+    const w = this.run.weapons[this.run.slot];
+    const vm = this.view.gun?.userData.armory ? this.view.viewModel : null;
+    const shells = vm?.rig?.shellReload;
+    if (shells) {
+      this.startShellReload(w, vm, shells);
+      return;
+    }
     this.run.reloadTime = this.run.reloadDuration;
-    this.sound.reload(this.run.reloadDuration);
+    const played =
+      vm &&
+      ((w.ammo === 0 &&
+        vm.play("reloadEmpty", this.run.reloadDuration, (cue) =>
+          this.sound.weaponCue?.(cue, w.id),
+        )) ||
+        vm.play("reload", this.run.reloadDuration, (cue) =>
+          this.sound.weaponCue?.(cue, w.id),
+        ));
+    if (!played || !this.sound.armory?.ready)
+      this.sound.reload(this.run.reloadDuration);
     this.commands.updateHUD();
+  }
+  /**
+   * Tube-fed loading: one shell per stroke, each one counted as it enters.
+   * Firing stops the loading after the shell in hand; an empty gun is
+   * pumped at the end.
+   */
+  startShellReload(w, vm, timing) {
+    const scale = this.run.reloadDuration / WEAPONS[w.id].reload;
+    const need = Math.min(magazine(w) - w.ammo, w.reserve);
+    const t = {
+      start: timing.start * scale,
+      shell: timing.shell * scale,
+      end: timing.end * scale,
+    };
+    const state = (this.run.shellReload = {
+      weapon: w,
+      empty: w.ammo === 0,
+      left: need,
+      stop: false,
+      timing: t,
+    });
+    // The HUD bar spans the whole sequence.
+    this.run.reloadDuration =
+      t.start + need * t.shell + t.end + (state.empty ? 0.46 : 0);
+    this.run.reloadTime = this.run.reloadDuration;
+    const cue = (name) => this.sound.weaponCue?.(name, w.id);
+    const next = () => {
+      if (this.run.shellReload !== state || this.view.viewModel !== vm) return;
+      if (
+        state.left > 0 &&
+        !state.stop &&
+        w.reserve > 0 &&
+        w.ammo < magazine(w)
+      ) {
+        vm.play("reloadShell", t.shell, (name) => {
+          cue(name);
+          if (name === "shell" && w.reserve > 0 && w.ammo < magazine(w)) {
+            w.ammo++;
+            w.reserve--;
+            state.left--;
+            this.commands.updateHUD();
+          }
+        });
+        state.timer = t.shell;
+        state.phase = "shell";
+      } else {
+        vm.play("reloadEnd", t.end, cue);
+        state.timer = t.end;
+        state.phase = "end";
+      }
+    };
+    state.next = next;
+    vm.play("reloadStart", t.start, cue);
+    state.timer = t.start;
+    state.phase = "start";
+    if (!this.sound.armory?.ready) this.sound.reload(this.run.reloadDuration);
+    this.commands.updateHUD();
+  }
+  updateShellReload(dt) {
+    const state = this.run.shellReload;
+    if (!state) return;
+    this.run.reloadTime = Math.max(0.001, this.run.reloadTime - dt);
+    if (
+      this.run.weapons[this.run.slot] !== state.weapon ||
+      !this.view.gun?.userData.armory
+    ) {
+      this.run.shellReload = null;
+      this.run.reloadTime = 0;
+      return;
+    }
+    state.timer -= dt;
+    if (state.timer > 0) return;
+    if (state.phase === "end") {
+      this.run.shellReload = null;
+      this.run.reloadTime = 0;
+      if (state.empty && state.weapon.ammo > 0) {
+        // Chambering from an empty gun: nothing to eject.
+        this.view.viewModel.play("pump", 0.46, (name) => {
+          if (name !== "eject") this.sound.weaponCue?.(name, state.weapon.id);
+        });
+        this.run.shotTimer = Math.max(this.run.shotTimer, 0.46);
+      }
+      this.commands.updateHUD();
+      return;
+    }
+    state.next();
+  }
+  /** A trigger pull during a shell reload finishes the shell in hand. */
+  interruptShellReload() {
+    const state = this.run.shellReload;
+    if (!state || state.stop) return !!state;
+    state.stop = true;
+    return true;
+  }
+  /**
+   * Where the visible muzzle is in the world: its view-model position is
+   * projected with the view-model camera and cast back at the same screen
+   * point, so tracers leave the barrel the player sees.
+   */
+  muzzleWorld(target, depth = 0.55) {
+    const vm = this.view.viewModel;
+    if (!this.view.gun?.userData.armory || !vm.socket("muzzle", target)) {
+      return target
+        .copy(this.view.camera.position)
+        .add(
+          new T.Vector3(0.16, -0.16, 0).applyQuaternion(
+            this.view.camera.quaternion,
+          ),
+        );
+    }
+    this.view.viewCamera.updateMatrixWorld();
+    target.project(this.view.viewCamera);
+    target.z = 0.5;
+    target.unproject(this.view.camera);
+    const ray = target.sub(this.view.camera.position).normalize();
+    return ray.multiplyScalar(depth).add(this.view.camera.position);
+  }
+  /**
+   * Recoil pattern: each shot climbs and wanders; the sequence repeats so a
+   * burst can be learned and pulled against. Aiming and Main de fer tame it.
+   */
+  kickRecoil(d, aimed, steady) {
+    const p = this.run.player;
+    const k = d.kick || { up: d.recoil * 0.2, side: d.recoil * 0.05 };
+    const burst =
+      this.run.time - (p.lastShot ?? -10) < (d.rate || 0.1) * 1.9
+        ? (p.burst || 0) + 1
+        : 0;
+    p.burst = burst;
+    p.lastShot = this.run.time;
+    const scale = (steady ? 0.68 : 1) * (aimed ? (k.ads ?? 0.72) : 1);
+    const up =
+      k.up *
+      (1 + Math.min(burst, 10) * (k.climb ?? 0)) *
+      (0.9 + Math.random() * 0.2);
+    const side = k.pattern
+      ? Math.sin(burst * 0.85 + 0.6) * k.side +
+        (Math.random() - 0.5) * k.side * 0.4
+      : (Math.random() * 2 - 1) * k.side;
+    p.recoilPitch = Math.min(0.35, (p.recoilPitch || 0) + up * scale);
+    p.recoilYaw = (p.recoilYaw || 0) + side * scale;
+  }
+  /** A spent case from the ejection port, handed to the world as it falls. */
+  ejectCasing(shell = false) {
+    const vm = this.view.viewModel;
+    const weapon = this.view.gun;
+    const port = vm?.socket(
+      weapon?.userData.armory?.rig.eject || "eject",
+      new T.Vector3(),
+    );
+    if (!port || !this.view.viewEffects) return;
+    const right = new T.Vector3(1, 0.35, 0.25)
+      .normalize()
+      .applyQuaternion(weapon.quaternion);
+    this.view.viewEffects.eject(port, right, weapon.quaternion, shell);
+    // The world copy starts below the view, to the right, and lands beside
+    // the feet where the player can see brass pile up.
+    const yawOnly = new T.Quaternion().setFromAxisAngle(
+      new T.Vector3(0, 1, 0),
+      this.input.yaw,
+    );
+    const ejection = this.run.player.position
+      .clone()
+      .add(new T.Vector3(0.38, -0.75, -0.12).applyQuaternion(yawOnly));
+    this.view.combatEffects.casing(ejection, yawOnly, shell);
   }
   obstacleDistance(origin, direction, max = 100, details = null) {
     ray.set(origin, direction);
@@ -121,6 +355,11 @@ export class CombatSystem {
     return nearest;
   }
   shoot() {
+    if (this.view.viewModel?.busy === "inspect") this.view.viewModel.stop();
+    if (this.run.shellReload && this.run.shellReload.weapon.ammo > 0) {
+      this.interruptShellReload();
+      return;
+    }
     if (
       this.run.state !== "playing" ||
       this.run.downed ||
@@ -134,7 +373,7 @@ export class CombatSystem {
     if (w.ammo <= 0) {
       this.reload();
       if (w.reserve === 0 && this.run.shotTimer <= 0) {
-        this.sound.click();
+        if (!this.sound.weaponCue("dryfire", w.id)) this.sound.click();
         this.run.shotTimer = 0.3;
         this.emit("toast", {
           title: "Munitions épuisées",
@@ -153,38 +392,56 @@ export class CombatSystem {
       0.22,
       this.run.recoil + d.recoil * (steady ? 0.68 : 1),
     );
-    this.sound.shot(d);
-    this.view.gun.userData.flash.visible = true;
-    this.view.gun.userData.cycle = 1;
-    this.view.gun.userData.flash.rotation.z = Math.random() * Math.PI * 2;
+    this.kickRecoil(d, this.input.mouse.aim, steady);
+    this.sound.shot(d, { level: w.level || 0, aimed: !!this.run.aiming });
     this.run.flashTimer = 0.05;
     this.view.flash.intensity = 12;
     this.view.flash.position
       .copy(this.run.player.position)
       .add(this.view.camera.getWorldDirection(dir).multiplyScalar(0.7));
-    const ejection = this.view.camera.position
-      .clone()
-      .add(
-        new T.Vector3(0.18, -0.17, -0.35).applyQuaternion(
-          this.view.camera.quaternion,
-        ),
-      );
-    if (!d.energy)
-      this.view.combatEffects.casing(ejection, this.view.camera.quaternion);
-    this.view.combatEffects.puff(
-      this.view.camera.position
+    const armory = this.view.gun.userData.armory;
+    if (armory) {
+      const vm = this.view.viewModel;
+      vm.fire({ aim: this.input.mouse.aim, empty: w.ammo === 0 });
+      // Brass leaves the real port; bolt and pump guns eject on their cycle.
+      if (!d.energy && !armory.rig.ejectOnCycle) this.ejectCasing();
+      const muzzle = vm.socket("muzzle", new T.Vector3());
+      if (muzzle) this.view.viewEffects?.shot(muzzle);
+      this.view.combatEffects.puff(this.muzzleWorld(new T.Vector3(), 0.9));
+    } else {
+      this.view.gun.userData.flash.visible = true;
+      this.view.gun.userData.cycle = 1;
+      this.view.gun.userData.flash.rotation.z = Math.random() * Math.PI * 2;
+      const ejection = this.view.camera.position
         .clone()
         .add(
-          new T.Vector3(0.12, -0.12, -0.75).applyQuaternion(
+          new T.Vector3(0.18, -0.17, -0.35).applyQuaternion(
             this.view.camera.quaternion,
           ),
-        ),
-    );
+        );
+      if (!d.energy)
+        this.view.combatEffects.casing(ejection, this.view.camera.quaternion);
+      this.view.combatEffects.puff(
+        this.view.camera.position
+          .clone()
+          .add(
+            new T.Vector3(0.12, -0.12, -0.75).applyQuaternion(
+              this.view.camera.quaternion,
+            ),
+          ),
+      );
+    }
     const aimed = this.input.mouse.aim;
+    const p = this.run.player;
+    // Hip fire opens with sustained fire and movement; aiming stays tight.
+    const bloom = p.bloom || 0,
+      moving = this.run.movePenalty || 0;
     const spread =
-      d.spread *
-      (aimed ? 0.3 : 1) *
-      (this.run.player.perks.includes("focus") ? 0.55 : 1);
+      (aimed
+        ? d.spread * 0.3 * (1 + bloom * 0.3)
+        : (d.hipSpread ?? d.spread) * (1 + bloom + moving)) *
+      (p.perks.includes("focus") ? 0.55 : 1);
+    p.bloom = Math.min(3, bloom + (d.bloom ?? 0.3));
     let shotHit = false;
     for (const e of this.run.enemies)
       if (!e.dead) updateEnemyHitVolumes(e.model);
@@ -197,10 +454,7 @@ export class CombatSystem {
       direction.normalize();
       const origin = this.view.camera.position.clone();
       const impact = {};
-      let distance = this.obstacleDistance(origin, direction, 90, impact),
-        target = null,
-        head = false,
-        part = null;
+      let distance = this.obstacleDistance(origin, direction, 90, impact);
       if (direction.y < -0.001) {
         const ground = -origin.y / direction.y;
         if (ground < distance) {
@@ -209,6 +463,8 @@ export class CombatSystem {
         }
       }
       ray.set(origin, direction);
+      // Every body the ray crosses before the wall, nearest first.
+      const crossed = [];
       for (const e of this.run.enemies) {
         if (e.dead) continue;
         // Nearest volume of this body; where the head and the torso overlap
@@ -229,41 +485,69 @@ export class CombatSystem {
         }
         const headFirst = headDistance < near + 0.22;
         const dist = headFirst ? headDistance : near;
-        if (dist < distance) {
-          distance = dist;
-          target = e;
-          head = headFirst;
-          part = headFirst ? null : nearest?.part;
-        }
+        if (dist < distance)
+          crossed.push({
+            e,
+            dist,
+            head: headFirst,
+            part: headFirst ? null : nearest?.part,
+          });
       }
+      crossed.sort((x, y) => x.dist - y.dist);
+      // Rifle rounds go through bodies, losing energy in each one.
+      const pierce = d.penetration || 0;
+      const struck = crossed.slice(0, 1 + pierce);
+      const stopped = crossed.length > pierce;
+      if (stopped && struck.length) distance = struck[struck.length - 1].dist;
       const end = origin.clone().addScaledVector(direction, distance);
-      if (target) {
+      for (const [n, h] of struck.entries()) {
+        const at = origin.clone().addScaledVector(direction, h.dist);
+        const [near, far, floor] = d.falloff || [1e9, 1e9, 1];
+        const range =
+          h.dist <= near
+            ? 1
+            : h.dist >= far
+              ? floor
+              : 1 - ((h.dist - near) / (far - near)) * (1 - floor);
         const damage =
           d.damage *
           damageMultiplier(w.level) *
-          (head ? (this.run.player.perks.includes("focus") ? 3.2 : 2.35) : 1) *
+          range *
+          0.62 ** n *
+          (h.head
+            ? this.run.player.perks.includes("focus")
+              ? 3.2
+              : 2.35
+            : 1) *
           (this.run.powerups.insta > this.run.time ? 100 : 1);
-        this.damageEnemy(target, damage, head, {
-          position: end,
+        this.damageEnemy(h.e, damage, h.head, {
+          position: at,
           direction,
-          leg: !!part?.leg,
-          arm: part?.arm,
-          lower: !!part?.lower,
+          leg: !!h.part?.leg,
+          arm: h.part?.arm,
+          lower: !!h.part?.lower,
         });
-        shotHit = true;
-        this.emit("hit", { head });
-        this.sound.hit(head);
-        if (d.splash) {
-          this.commands.burst(end, 0x67ffdf, 16, 0.8);
-          for (const e of this.run.enemies)
-            if (
-              e !== target &&
-              !e.dead &&
-              e.model.position.distanceTo(end) < d.splash.radius
-            )
-              this.damageEnemy(e, damage * d.splash.multiplier, false);
+        if (n === 0) {
+          shotHit = true;
+          this.emit("hit", {
+            head: h.head,
+            kill: h.e.dead,
+            pierced: struck.length - 1,
+          });
+          this.sound.hit(h.head);
+          if (d.splash) {
+            this.commands.burst(at, 0x67ffdf, 16, 0.8);
+            for (const e of this.run.enemies)
+              if (
+                e !== h.e &&
+                !e.dead &&
+                e.model.position.distanceTo(at) < d.splash.radius
+              )
+                this.damageEnemy(e, damage * d.splash.multiplier, false);
+          }
         }
-      } else if (distance < 90) {
+      }
+      if (!stopped && distance < 90) {
         this.commands.burst(end, d.energy ? 0x61ffdf : 0xdbb58b, 4, 0.3);
         this.view.combatEffects.impact(
           end,
@@ -274,13 +558,7 @@ export class CombatSystem {
       }
       if (pellet === 0 || d.energy)
         this.commands.tracer(
-          origin
-            .clone()
-            .add(
-              new T.Vector3(0.16, -0.16, 0).applyQuaternion(
-                this.view.camera.quaternion,
-              ),
-            ),
+          this.muzzleWorld(new T.Vector3()),
           end,
           d.energy ? 0x6dffe7 : 0xffd4a0,
           d.energy ? 0.065 : 0.024,
@@ -542,6 +820,22 @@ export class CombatSystem {
     if (size > 0.08)
       this.view.combatEffects.blood.stain(point, hit.normal, size);
   }
+  /** Look the weapon over (T); shooting, aiming or reloading cancels it. */
+  inspectWeapon() {
+    const vm = this.view.gun?.userData.armory ? this.view.viewModel : null;
+    if (
+      !vm ||
+      vm.busy ||
+      this.run.state !== "playing" ||
+      this.run.downed ||
+      this.run.reloadTime > 0 ||
+      this.run.meleeTimer > 0 ||
+      this.input.mouse.aim
+    )
+      return;
+    const w = this.run.weapons[this.run.slot];
+    vm.play("inspect", 2.8, (cue) => this.sound.weaponCue(cue, w.id));
+  }
   melee() {
     if (
       this.run.meleeTimer > 0 ||
@@ -710,9 +1004,11 @@ export class CombatSystem {
   }
   updateKnife() {
     const progress = MELEE_DURATION - this.run.meleeTimer;
-    this.view.knife.visible = this.run.meleeTimer > 0;
-    this.view.knifeTrail.visible = this.view.knife.visible;
-    if (!this.view.knife.visible) return;
+    // The first-person arms carry their own knife (see ViewModel.meleeSwing).
+    const armory = !!this.view.gun?.userData.armory;
+    this.view.knife.visible = this.run.meleeTimer > 0 && !armory;
+    this.view.knifeTrail.visible = this.run.meleeTimer > 0;
+    if (!this.view.knifeTrail.visible) return;
     const frames = [
       [0, 0.34, -0.8, -0.5, 0.25, -0.5, -0.9],
       [0.16, 0.17, -0.23, -0.8, -0.15, -0.2, -0.7],
