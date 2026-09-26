@@ -7,6 +7,41 @@ export function dressLacuna(w, a) {
   const { m, block, sign, window } = a,
     random = rng(6172001);
   const stage = w.static;
+  // Streets continue visually beyond the retaining wall: shuttered villas and
+  // mansard roofs anchor the town in the valley without changing its collision.
+  for (const side of [-1, 1])
+    for (const [index, z] of [-59, -22, 18, 59].entries()) {
+      const x = side * 82,
+        height = 10 + (index % 2) * 3;
+      block(index % 2 ? m.wall : m.stone, x, height / 2, z, 17, height, 23);
+      for (const y of [3.1, 6.9, 10.2])
+        if (y < height)
+          for (const dz of [-7, 0, 7])
+            window(
+              side * 73.4,
+              y,
+              z + dz,
+              1.8,
+              2.5,
+              side < 0 ? Math.PI / 2 : -Math.PI / 2,
+              true,
+            );
+      block(m.trim, x, height, z, 18, 0.4, 24);
+      const roof = mesh(
+        new T.CylinderGeometry(0.68, 1, 1, 4),
+        index % 2 ? m.slate : m.copper,
+        stage,
+        x,
+        height + 1.9,
+        z,
+        13,
+        4,
+        17,
+      );
+      roof.rotation.y = Math.PI / 4;
+      for (const dz of [-6, 6])
+        block(m.stone, x, height + 4, z + dz, 1.2, 3, 1.4);
+    }
   // Broad steps are decorative cornices below the walking datum. The actual
   // movement plane stays level so touch users never need precision jumps.
   for (const [x, z, width, depth] of [

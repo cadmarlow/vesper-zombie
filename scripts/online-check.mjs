@@ -166,8 +166,8 @@ try {
   await page.locator("#close-panel").click();
   await page.locator('[data-panel="archives"]').click();
   check(
-    "Online archives contain all three maps, five enemy types and the Archonte",
-    (await page.locator(".archive-maps article").count()) === 3 &&
+    "Online archives contain all four maps, five enemy types and the Archonte",
+    (await page.locator(".archive-maps article").count()) === 4 &&
       (await page.locator(".bestiary-grid article").count()) === 6,
   );
   await page.locator("#close-panel").click();

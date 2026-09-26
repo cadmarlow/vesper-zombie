@@ -18,5 +18,13 @@ Les proportions et l'éclairage sont validés dans le moteur. Les concepts illus
 - Atouts distribués entre les quartiers, trois ravitaillements, archive, extraction.
 - Interface hydraulique et direction de l'objectif. Atlas commun aux enseignes, passerelle fusionnée par matériau, détails réglables selon qualité.
 - Tests de navigation pour rayons 0,36 et 0,60 m, achats, dégâts, cycles et récompenses : passés sur desktop et mobile simulé.
-- Base : 112 tests passés avant ajout des tests du relais et du carillon ; vérification finale à relancer après les dernières modifications.
-- Coop : premier test interrompu par une valeur de délai artificielle hors limites réseau dans le script de test (corrigée de 1 000 000 à 6 000 secondes). Les essais coopératifs doivent être terminés.
+- Base : **114 tests sur 114 passés**, vérification de format, syntaxe, imports et build de production réussis.
+- Menu : **391 combinaisons de viewport** validées, dont le menu à quatre destinations en portrait.
+- Régression : **41 contrôles d'intégration**, commandes tactiles Chrome/WebKit et coopération existante validés.
+- LACUNA : **70 vagues** dans sept positions, tous les types d'ennemis et l'Archonte, sans apparition invalide ni blocage de progression.
+- Coop LACUNA : grille, courant, achats, propriétaire des purges, présence d'un joueur distant sur la passerelle, fermeture, dégâts et pause vérifiés entre deux navigateurs.
+- WebKit, profil iPhone 13 : sélection en portrait, rotation, lancement, purge, tir tactile et pause validés, sans erreur JavaScript ni WebGL.
+- Rechargement LACUNA : audio précédent libéré ; même nombre de textures et de géométries GPU avant et après rechargement. Le retour à une ancienne carte retire le contrôleur hydraulique et rétablit sa distance de vue.
+- Dernière revue visuelle : correction des faces des montagnes, du raccord de terrain et du ciel à grande distance ; captures issues du moteur, pas des concepts.
+
+Les commandes et le parcours sont dans [PLAYTEST.md](PLAYTEST.md). Les rapports détaillés restent dans le dossier local `artifacts/`, ignoré par Git. La fluidité, la chauffe et l'autonomie sur téléphone physique restent à mesurer lors du playtest matériel.

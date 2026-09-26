@@ -2,6 +2,7 @@ import { chromium } from "@playwright/test";
 import { chromiumOptions } from "./browser.mjs";
 import { openGameAudit } from "./game-audit.mjs";
 import { checkLacunaCoop } from "./lacuna-coop.mjs";
+import { reviewLacuna } from "./lacuna-review.mjs";
 import { Navigation, canStand } from "../src/logic.js";
 import fs from "node:fs";
 import assert from "node:assert/strict";
@@ -22,7 +23,8 @@ const browser = await chromium.launch({
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 try {
-  for (const mobile of process.env.LACUNA_COOP_ONLY
+  for (const mobile of process.env.LACUNA_COOP_ONLY ||
+  process.env.LACUNA_REVIEW_ONLY
     ? []
     : process.env.LACUNA_QUICK
       ? [false]
@@ -315,7 +317,10 @@ try {
     console.log("METRICS", name, metrics);
     await page.close();
   }
-  if (!process.env.LACUNA_QUICK) await checkLacunaCoop(browser, report, check);
+  if (!process.env.LACUNA_QUICK && !process.env.LACUNA_REVIEW_ONLY)
+    await checkLacunaCoop(browser, report, check);
+  if (process.env.LACUNA_REVIEW_ONLY)
+    await reviewLacuna(browser, report, check);
   check("no browser or WebGL errors", !report.errors.length, report.errors);
 } finally {
   fs.writeFileSync(`${out}/report.json`, JSON.stringify(report, null, 2));

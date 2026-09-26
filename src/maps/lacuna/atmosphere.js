@@ -47,7 +47,7 @@ export function atmosphere(w, a) {
     side: T.BackSide,
     depthWrite: false,
     uniforms: { time: { value: 0 } },
-    vertexShader: `varying vec3 vDirection; void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    vertexShader: `varying vec3 vDirection; void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position.z=gl_Position.w;}`,
     fragmentShader: `varying vec3 vDirection;uniform float time;${noiseGLSL}
     void main(){vec3 d=normalize(vDirection);float h=max(d.y,0.);
     vec3 sky=mix(vec3(.69,.76,.73),vec3(.28,.43,.50),pow(h,.5));
@@ -64,6 +64,14 @@ export function atmosphere(w, a) {
   });
   const dome = mesh(new T.SphereGeometry(370, 40, 20), sky, w.root);
   dome.castShadow = dome.receiveShadow = false;
+  dome.frustumCulled = false;
+  // Continuous valley ground beyond the playable town, with a true opening
+  // for the deep canal. The sky must never show through a mountainside.
+  for (const x of [-196, 196])
+    a.block(a.m.moss, x, -0.9, 0, 248, 1, 620).castShadow = false;
+  for (const z of [-244, 200])
+    a.block(a.m.moss, 0, -0.9, z, 144, 1, z < 0 ? 248 : 240).castShadow = false;
+  a.block(a.m.stone, 0, -10, -30, 19, 3, 184).castShadow = false;
   // Mountain ridges use vertex colours and silhouettes instead of giant textures.
   const mountainMaterial = worldSurface("stone", 0xabbab8, 16, {
     vertexColors: true,
@@ -92,10 +100,38 @@ export function atmosphere(w, a) {
       colors.push(c.r, c.g, c.b);
     }
     geometry.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
+    if (side > 0) {
+      const index = geometry.index;
+      for (let i = 0; i < index.count; i += 3) {
+        const b = index.getX(i + 1);
+        index.setX(i + 1, index.getX(i + 2));
+        index.setX(i + 2, b);
+      }
+    }
     geometry.computeVertexNormals();
     projectSurfaceUV(geometry, 16);
     const mountain = mesh(geometry, mountainMaterial, w.root);
     mountain.castShadow = false;
+  }
+  for (const side of [-1, 1]) {
+    const rock = new T.IcosahedronGeometry(1, 3);
+    const p = rock.attributes.position;
+    const colors = [];
+    for (let i = 0; i < p.count; i++) {
+      const scale = 1 + 0.08 * Math.sin(p.getY(i) * 13 + p.getZ(i) * 7);
+      p.setXYZ(
+        i,
+        p.getX(i) * scale * 63 + side * 105,
+        p.getY(i) * 104 - 7,
+        p.getZ(i) * 57 - 151,
+      );
+      const c = new T.Color(p.getY(i) > 73 ? 0xbdc7c7 : 0x667974);
+      colors.push(c.r, c.g, c.b);
+    }
+    rock.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
+    rock.computeVertexNormals();
+    projectSurfaceUV(rock, 16);
+    mesh(rock, mountainMaterial, w.root).castShadow = false;
   }
   // Trees outside the playable limits frame the city without blocking routes.
   const foliage = new T.MeshStandardMaterial({ color: 0x314e43, roughness: 1 });

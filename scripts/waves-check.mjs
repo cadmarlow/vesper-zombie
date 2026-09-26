@@ -19,6 +19,10 @@ page.on("console", (message) => {
 });
 try {
   await openGameAudit(page);
+  if (process.env.VESPER_WAVE_MAP)
+    await page.evaluate((map) => {
+      window.__waveMap = map;
+    }, process.env.VESPER_WAVE_MAP);
   // Keep the test oracle independent of the bundled navigation under test.
   await page.addScriptTag({
     content: `window.__waveOracle = (() => { ${rng.toString()} ${inside.toString()} ${canStand.toString()} return { rng, canStand, radii: ${JSON.stringify(Object.fromEntries(Object.entries(ENEMIES).map(([k, v]) => [k, v.radius || 0.36])))} }; })();`,
@@ -53,14 +57,28 @@ try {
           [0, -29, [0, 2]],
           [-28, -34, [0, 1, 2]],
         ].map(([x, z, gates]) => ({ map: "abyss", x, z, gates })),
+        ...[
+          [0, 69, []],
+          [-40, 33, [0]],
+          [15, 24, [0]],
+          [-52, -6, [0]],
+          [40, -35, [0]],
+          [46, 27, [0]],
+          [0, -68, [0]],
+        ].map(([x, z, gates]) => ({ map: "lacuna", x, z, gates })),
       ];
       for (const { map, x, z, gates } of scenarios) {
+        if (window.__waveMap && map !== window.__waveMap) continue;
         const open = gates.length > 0;
         Math.random = rng(2026 + reports.length);
         await g.start(map, "normal", true);
         if (open) {
           for (const index of gates) g.world.openDoor(g.world.doors[index]);
           g.updateNavigation(true);
+          if (map === "lacuna") {
+            g.world.setPower();
+            g.run.mapGameplay.hydraulics.timer = 2;
+          }
         }
         g.player.position.set(x, 1.7, z);
         g.updateNavigation();
@@ -166,7 +184,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    `PASS: ${reports.length * 10} completed waves across three maps, all five enemy types and the Archonte, no invalid spawns or stalled waves.`,
+    `PASS: ${reports.length * 10} completed waves across ${new Set(reports.map((r) => r.map)).size} maps, all five enemy types and the Archonte, no invalid spawns or stalled waves.`,
   );
 } finally {
   await browser.close();

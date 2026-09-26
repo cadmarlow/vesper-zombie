@@ -120,6 +120,34 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 @media (max-width: 600px) and (orientation: portrait) {
+  #menu {
+    display: grid;
+    grid-template-rows: auto minmax(min-content, 1fr) auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  #menu .menu-content {
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+    width: 86%;
+    margin: 34px 7%;
+  }
+  #menu .hero-copy,
+  #menu .deployment {
+    position: static;
+    width: 100%;
+  }
+  #menu .hero-copy .primary-button {
+    width: min(296px, 100%);
+  }
+  #menu .menu-footer {
+    position: relative;
+    inset: auto;
+    margin: 0 7%;
+    min-height: 60px;
+  }
   #menu .map-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
