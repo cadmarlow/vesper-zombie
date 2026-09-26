@@ -569,6 +569,7 @@ export class Session {
     const result = g.commands.applySharedInteraction(
       interaction,
       {
+        id: m.from,
         position: { x: actor.tx, z: actor.tz },
         alive: !(actor.flags & FLAGS.DOWN) && actor.health > 0,
         points: actor.points,

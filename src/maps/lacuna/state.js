@@ -13,11 +13,15 @@ export function createHydraulics() {
     mastered: false,
     bridgeClosed: false,
     sequence: 0,
+    bell: 0,
+    bellCooldown: 0,
   };
 }
 
 export function canActivate(state, action, powered) {
-  if (!powered || state.phase !== PHASE.IDLE) return false;
+  if (!powered) return false;
+  if (action === "bell") return state.bellCooldown <= 0;
+  if (state.phase !== PHASE.IDLE) return false;
   if (action === "release") return state.used === 7 && !state.mastered;
   return (
     Number.isInteger(action) &&
@@ -29,6 +33,11 @@ export function canActivate(state, action, powered) {
 
 export function activate(state, action, powered) {
   if (!canActivate(state, action, powered)) return false;
+  if (action === "bell") {
+    state.bell = 16;
+    state.bellCooldown = 70;
+    return true;
+  }
   state.phase = PHASE.WARNING;
   state.mode = action === "release" ? MODE.RELEASE : MODE.VALVE;
   state.zone = action === "release" ? 0 : action;
@@ -44,6 +53,8 @@ export function activate(state, action, powered) {
 export function advance(state, dt, { enabled, bridgeClear }) {
   dt = Math.max(0, Math.min(dt, 1));
   state.cooldowns = state.cooldowns.map((value) => Math.max(0, value - dt));
+  state.bell = Math.max(0, state.bell - dt);
+  state.bellCooldown = Math.max(0, state.bellCooldown - dt);
   if (state.phase === PHASE.IDLE && !enabled) return;
   state.timer = Math.max(0, state.timer - dt);
   if (state.timer > 0) return;
@@ -98,6 +109,8 @@ export function packHydraulics(state) {
       +state.mastered,
       +state.bridgeClosed,
       state.sequence,
+      state.bell,
+      state.bellCooldown,
     ],
   };
 }
@@ -107,7 +120,7 @@ export function unpackHydraulics(packet) {
     packet?.id !== "lacuna" ||
     packet.revision !== 1 ||
     !Array.isArray(packet.data) ||
-    packet.data.length !== 12 ||
+    packet.data.length !== 14 ||
     !packet.data.every((n) => Number.isFinite(n) && n >= 0)
   )
     return null;
@@ -124,6 +137,8 @@ export function unpackHydraulics(packet) {
     mastered,
     bridgeClosed,
     sequence,
+    bell,
+    bellCooldown,
   ] = packet.data;
   if (
     ![phase, zone, mode, cycle, used, mastered, bridgeClosed, sequence].every(
@@ -137,7 +152,9 @@ export function unpackHydraulics(packet) {
     Math.max(a, b, c) > 58 ||
     mastered > 1 ||
     bridgeClosed > 1 ||
-    sequence > 2
+    sequence > 2 ||
+    bell > 16 ||
+    bellCooldown > 70
   )
     return null;
   return {
@@ -151,5 +168,7 @@ export function unpackHydraulics(packet) {
     mastered: !!mastered,
     bridgeClosed: !!bridgeClosed,
     sequence,
+    bell,
+    bellCooldown,
   };
 }

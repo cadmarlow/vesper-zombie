@@ -65,7 +65,7 @@ export class EnemySystem {
     let pos = positionOverride;
     if (!pos) {
       const candidate = navigation.spawnPosition(
-        this.run.world.spawnPoints,
+        this.run.mapGameplay?.spawnAnchors() || this.run.world.spawnPoints,
         this.run.player.position,
         Math.random,
         this.run.enemies.filter((e) => !e.dead).map((e) => e.model.position),
@@ -174,9 +174,10 @@ export class EnemySystem {
         this.applyDetail(e, dLocal);
       }
       // Co-op: hunt the nearest standing player.
-      const focus = this.run.session
+      let focus = this.run.session
         ? this.run.session.nearest(e.model.position)
         : null;
+      focus = this.run.mapGameplay?.enemyFocus(e, focus) || focus;
       const prey = focus ? focus.position : this.run.player.position;
       const preyLocal = !focus || focus.local;
       const d = focus
@@ -191,8 +192,9 @@ export class EnemySystem {
       const blocked =
         this.commands.obstacleDistance(origin, direct, d) < d - 0.1;
       const large = (ENEMIES[e.type].radius || 0.36) > 0.4;
-      const navigation =
-        focus && !focus.local
+      const navigation = focus?.bait
+        ? focus.navigation
+        : focus && !focus.local
           ? this.run.session.field(focus.id, large)
           : large
             ? this.run.largeNavigation
@@ -372,10 +374,14 @@ export class EnemySystem {
         hordeCanLeap(e.type, this.run.wave) &&
         hordeRandom(e.id, 900 + (e.action?.sequence || 0)) < LEAP.chance;
       const contact = updateEnemyAction(e, this.run.time, {
-        melee: inMeleeRange || leapReady,
-        leap: leapReady,
+        melee: !focus?.bait && (inMeleeRange || leapReady),
+        leap: !focus?.bait && leapReady,
         spit:
-          ENEMIES[e.type].behavior === "spitter" && d > 3 && d < 17 && !blocked,
+          !focus?.bait &&
+          ENEMIES[e.type].behavior === "spitter" &&
+          d > 3 &&
+          d < 17 &&
+          !blocked,
       });
       const motion = enemyActionPresentation(
         e.action,
@@ -403,7 +409,7 @@ export class EnemySystem {
         Math.min(0.16, e.stagger),
         motion,
       );
-      if (contact === "melee") {
+      if (contact === "melee" && !focus?.bait) {
         // A committed swing may miss if its target moves away or behind cover.
         const facing =
           Math.abs(
@@ -448,7 +454,7 @@ export class EnemySystem {
         local: preyLocal,
         run: this.run,
         view: this.view,
-        contact,
+        contact: focus?.bait ? null : contact,
       });
       updateEnemyVisibility(e, this.run.time, dLocal);
     }

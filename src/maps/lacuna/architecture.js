@@ -1,19 +1,46 @@
 import * as T from "three";
-import { mesh, plainBoxGeo, cylinder, label } from "../../assets.js";
+import { mesh, plainBoxGeo, cylinder } from "../../assets.js";
 import { worldSurface } from "../../surfaces.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+// Dynamic bridge leaves keep their transform but submit one mesh per material.
+export function mergeMovingParts(group) {
+  group.updateMatrixWorld(true);
+  const inverse = group.matrixWorld.clone().invert(),
+    buckets = new Map();
+  group.traverse((object) => {
+    if (!object.isMesh) return;
+    const transformed = object.geometry
+      .clone()
+      .applyMatrix4(
+        new T.Matrix4().multiplyMatrices(inverse, object.matrixWorld),
+      );
+    const part = transformed.index ? transformed.toNonIndexed() : transformed;
+    if (part !== transformed) transformed.dispose();
+    if (!buckets.has(object.material)) buckets.set(object.material, []);
+    buckets.get(object.material).push(part);
+  });
+  group.clear();
+  for (const [material, parts] of buckets) {
+    const merged = new T.Mesh(mergeGeometries(parts, false), material);
+    merged.castShadow = merged.receiveShadow = true;
+    group.add(merged);
+    for (const geometry of parts) geometry.dispose();
+  }
+}
 
 export function architect(w) {
   const stage = w.static;
   const m = {
-    stone: worldSurface("ashlar", 0xb5ada0, 3, { roughness: 0.87 }),
-    trim: worldSurface("plaster", 0xddd1b5, 2.5, { roughness: 0.77 }),
-    wall: worldSurface("plaster", 0xb0a591, 3.4, { roughness: 0.89 }),
-    concrete: worldSurface("concrete", 0x8b958f, 6, { roughness: 0.94 }),
-    ground: worldSurface("floor", 0x8c9184, 3.5, { roughness: 0.56 }),
+    stone: worldSurface("ashlar", 0xd4d0c1, 3, { roughness: 0.87 }),
+    trim: worldSurface("plaster", 0xf0e7ce, 2.5, { roughness: 0.77 }),
+    wall: worldSurface("plaster", 0xd5cbb7, 3.4, { roughness: 0.89 }),
+    concrete: worldSurface("concrete", 0xc4c8c1, 6, { roughness: 0.94 }),
+    ground: worldSurface("floor", 0xbfc2b9, 3.5, { roughness: 0.56 }),
     slate: worldSurface("stone", 0x394d50, 1.6, { roughness: 0.8 }),
-    copper: worldSurface("metal", 0x4a897f, 2.1, {
-      roughness: 0.57,
-      metalness: 0.58,
+    copper: worldSurface("metal", 0x75b3a2, 2.1, {
+      roughness: 0.73,
+      metalness: 0.48,
     }),
     iron: worldSurface("steel", 0x394447, 1.5, {
       roughness: 0.66,
@@ -47,15 +74,59 @@ export function architect(w) {
     });
     return object;
   };
+  // All town signs share one atlas/material, and are batched with their sector.
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 2048;
+  const ctx = canvas.getContext("2d"),
+    atlas = new T.CanvasTexture(canvas);
+  atlas.colorSpace = T.SRGBColorSpace;
+  const enamel = new T.MeshStandardMaterial({ map: atlas, roughness: 0.73 });
+  let signIndex = 0;
   const sign = (text, x, y, z, width = 6, rotation = 0, color = "#e9d8b4") => {
-    const board = label(text, color, width, width * 0.16);
+    if (signIndex >= 32) throw new Error("Lacuna sign atlas is full");
+    const sx = (signIndex % 2) * 1024,
+      sy = Math.floor(signIndex++ / 2) * 128;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(1, 128 / 144);
+    ctx.fillStyle = "#152b27";
+    ctx.fillRect(0, 0, 1024, 144);
+    ctx.strokeStyle = "#b6a578";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(9, 9, 1006, 126);
+    ctx.strokeRect(15, 15, 994, 114);
+    ctx.font = "46px Georgia";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    ctx.fillText(text, 512, 74, 936);
+    for (let i = 0; i < 350; i++) {
+      ctx.fillStyle = i % 2 ? "#acb0a216" : "#0b1e191f";
+      ctx.fillRect((i * 173) % 1024, (i * 67) % 144, 2 + (i % 7), 1);
+    }
+    ctx.restore();
+    atlas.needsUpdate = true;
+    const geometry = new T.PlaneGeometry(width, width * 0.14),
+      uv = geometry.attributes.uv;
+    for (let i = 0; i < uv.count; i++)
+      uv.setXY(
+        i,
+        (sx + uv.getX(i) * 1024) / 2048,
+        1 - (sy + (1 - uv.getY(i)) * 128) / 2048,
+      );
+    const board = new T.Mesh(geometry, enamel);
+    const back = new T.Mesh(board.geometry, board.material);
+    back.rotation.y = Math.PI;
+    back.position.z = -0.035;
+    board.add(back);
     board.position.set(x, y, z);
     board.rotation.y = rotation;
-    w.root.add(board);
+    stage.add(board);
     return board;
   };
   const column = (x, z, height = 6, radius = 0.36) => {
-    solid(m.stone, x, 0.25, z, radius * 3, 0.5, radius * 3);
+    block(m.stone, x, 0.25, z, radius * 3, 0.5, radius * 3);
+    w.obstacle(x, z, radius * 3, radius * 3, height);
     cylinder(
       stage,
       m.trim,
@@ -117,20 +188,20 @@ export function architect(w) {
     for (let dx = -length / 2 + 0.35; dx < length / 2; dx += 0.8)
       block(m.iron, dx, 0.74, 0, 0.045, 0.83, 0.045, group);
   };
+  const lampBulb = new T.MeshStandardMaterial({
+    color: 0xf3d7a0,
+    emissive: 0xffcc77,
+    emissiveIntensity: 0.1,
+    roughness: 0.4,
+  });
+  w.lacunaLamps.push(lampBulb);
   const lamp = (x, z, height = 4.8) => {
     cylinder(stage, m.iron, x, height / 2, z, 0.09, height, 0.055, 7);
     cylinder(stage, m.iron, x, 0.25, z, 0.22, 0.5, 0.16, 8);
     block(m.iron, x, height, z, 0.65, 0.12, 0.65);
     block(m.iron, x, height + 0.65, z, 0.72, 0.14, 0.72);
-    const bulb = new T.MeshStandardMaterial({
-      color: 0xf3d7a0,
-      emissive: 0xffcc77,
-      emissiveIntensity: 0.1,
-      roughness: 0.4,
-    });
-    const body = block(bulb, x, height + 0.32, z, 0.46, 0.5, 0.46);
+    const body = block(lampBulb, x, height + 0.32, z, 0.46, 0.5, 0.46);
     body.castShadow = false;
-    w.lacunaLamps.push(bulb);
     // Lamp posts are narrow visual details, not invisible movement traps.
   };
   const bench = (x, z, rotation = 0) => {
@@ -180,7 +251,21 @@ export function thermalBaths(w, a) {
     12,
     z,
   );
-  drum.material = m.stone;
+  drum.material = m.stone.clone();
+  drum.material.side = T.DoubleSide;
+  const innerMaterial = m.trim.clone();
+  innerMaterial.side = T.BackSide;
+  mesh(
+    new T.SphereGeometry(11.92, 40, 18, 0, Math.PI * 2, 0, Math.PI / 2),
+    innerMaterial,
+    w.static,
+    x,
+    13.7,
+    z,
+    1,
+    0.72,
+    1,
+  ).castShadow = false;
   mesh(
     new T.SphereGeometry(12, 40, 18, 0, Math.PI * 2, 0, Math.PI / 2),
     m.copper,
@@ -296,7 +381,7 @@ export function clocktower(w, a) {
   ctx.lineCap = "round";
   ctx.beginPath();
   ctx.moveTo(128, 128);
-  ctx.lineTo(145, 190);
+  ctx.lineTo(119, 191);
   ctx.moveTo(128, 128);
   ctx.lineTo(214, 147);
   ctx.stroke();

@@ -1,0 +1,130 @@
+.lacuna-status {
+  position: absolute;
+  top: 94px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(310px, 40vw);
+  padding: 11px 14px 9px;
+  color: #eee0bd;
+  border: 1px solid #d7bb7f48;
+  border-top: 2px solid #c3a66e;
+  background: linear-gradient(120deg, #162321e6, #1d2824b0);
+  box-shadow: 0 4px 24px #0002;
+  font-family: var(--mono);
+  text-align: left;
+  pointer-events: none;
+}
+.lacuna-status[hidden] {
+  display: none;
+}
+.lacuna-status-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 7px;
+  letter-spacing: 1.5px;
+  color: #b9bea8;
+}
+.lacuna-valves {
+  display: flex;
+  gap: 5px;
+}
+.lacuna-valves i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #bdb38e7d;
+  transform: rotate(45deg);
+}
+.lacuna-valves i.active {
+  background: #d8bd76;
+  box-shadow: 0 0 7px #f9c47760;
+}
+.lacuna-status strong {
+  display: block;
+  margin: 7px 0 4px;
+  font-size: 15px;
+  letter-spacing: 0.25px;
+  font-weight: 500;
+}
+.lacuna-route {
+  font-size: 9px;
+  line-height: 1.5;
+  color: #c6ccc0;
+}
+.lacuna-meter {
+  height: 2px;
+  background: #ddd2b025;
+  margin: 8px 0;
+}
+.lacuna-meter i {
+  display: block;
+  height: 100%;
+  background: #e2bc72;
+  transition: width 0.25s linear;
+}
+.lacuna-guide {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9px;
+  line-height: 1.4;
+  color: #dacfae;
+}
+.lacuna-guide b {
+  display: block;
+  font-size: 19px;
+  line-height: 19px;
+  font-weight: 400;
+  color: #ebdbaa;
+}
+.lacuna-status[data-phase="1"],
+.lacuna-status[data-phase="2"] {
+  border-color: #eba86e80;
+  border-top-color: #ffb069;
+}
+.lacuna-status[data-phase="2"] strong {
+  color: #ffd39b;
+}
+.lacuna-status.in-danger {
+  background: #581f18e3;
+  border-color: #ffb37b;
+}
+.touch-mode .lacuna-status {
+  top: calc(var(--safe-top) + 72px);
+  width: 248px;
+  padding: 7px 10px 6px;
+}
+.touch-mode .lacuna-status strong {
+  font-size: 13px;
+  margin: 5px 0 3px;
+}
+.touch-mode .lacuna-status-head {
+  font-size: 6px;
+}
+.touch-mode .lacuna-route,
+.touch-mode .lacuna-guide {
+  font-size: 8px;
+}
+.touch-mode .lacuna-meter {
+  margin: 5px 0;
+}
+@media (max-width: 600px) {
+  .touch-mode .lacuna-status {
+    top: calc(var(--safe-top) + 114px);
+    width: 248px;
+  }
+}
+
+/* Four authored destinations. Portrait phones use two readable rows. */
+#menu .map-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 600px) and (orientation: portrait) {
+  #menu .map-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #menu .map-cards .map-card {
+    height: 112px;
+    min-height: 112px;
+  }
+}

@@ -1,4 +1,5 @@
 import { mapDefinition } from "../maps/catalog.js";
+import { createMapGameplay } from "../maps/gameplay.js";
 import { prepareSurvivor } from "../survivor.js";
 import { zombieModel } from "../creatures.js";
 import * as T from "three";
@@ -280,6 +281,16 @@ export class RunLifecycle {
       this.view.viewCamera,
     );
     checkpoint();
+    this.run.mapGameplay = createMapGameplay(
+      {
+        run: this.run,
+        view: this.view,
+        input: this.input,
+        sound: this.sound,
+        emit: this.emit,
+      },
+      this.commands,
+    );
     session?.attach({
       run: this.run,
       view: this.view,
@@ -398,6 +409,8 @@ export class RunLifecycle {
     this.warmupTimer = setTimeout(() => step(0), 400);
   }
   cleanup() {
+    this.run.mapGameplay?.dispose();
+    this.run.mapGameplay = null;
     clearTimeout(this.warmupTimer);
     clearTimeout(this.armoryTimer);
     this.view.viewModel?.hide();

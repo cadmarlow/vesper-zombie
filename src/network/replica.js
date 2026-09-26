@@ -66,6 +66,7 @@ export class WorldReplica {
       const door = g.run.world.doors.find((door) => door.id === id);
       if (open && door && !door.open) g.run.world.openDoor(door);
     });
+    g.run.mapGameplay?.applySnapshot(s.mapState);
     const box = g.run.world.interactions.find((i) => i.kind === "box");
     if (box && s.box) {
       const [busy, offered, display] = s.box;

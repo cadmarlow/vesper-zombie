@@ -6,8 +6,10 @@ import {
   hotel,
   clocktower,
   dam,
+  mergeMovingParts,
 } from "./architecture.js";
 import { atmosphere } from "./atmosphere.js";
+import { dressLacuna } from "./dressing.js";
 import { LACUNA, PURGE_ZONES, sectorAt } from "./data.js";
 
 export function buildLacuna(w) {
@@ -53,6 +55,7 @@ export function buildLacuna(w) {
       block(m.rust, 0, 0.012, z, 8.8, 0.02, 0.07, leaf);
     for (const z of [-3.95, 3.95]) rail(0, z, 9, 0, leaf);
     mobileBridge.add(leaf);
+    mergeMovingParts(leaf);
   }
   // Permanent stone bridges carry broad routes on either end of the canal.
   for (const [z, depth] of [
@@ -61,9 +64,10 @@ export function buildLacuna(w) {
   ]) {
     block(m.stone, 0, -0.8, z, 19.2, 1.6, depth);
     for (const edge of [-1, 1]) {
+      if (z === 40 && edge === 1) continue;
       const rz = z + edge * (depth / 2 - 0.2);
       solid(m.stone, 0, 0.55, rz, 18.5, 1.1, 0.5);
-      arch(0, -6, rz, 8.6);
+      arch(0, -10, rz, 8.6);
       for (const x of [-8.6, 8.6]) lamp(x, rz, 4.2);
     }
   }
@@ -101,6 +105,7 @@ export function buildLacuna(w) {
   for (const y of [0.5, 2.7, 4.1])
     block(m.iron, 0, y, 48, 24, 0.12, 0.15, bars);
   const gateSign = sign("LACUNA · ÉVACUATION", 0, 6, 48.3, 16);
+  w.root.attach(gateSign);
   const gate = {
     kind: "door",
     id: "lacuna:evacuation",
@@ -285,6 +290,29 @@ export function buildLacuna(w) {
     root: releaseRoot,
     position: new T.Vector3(19, 1, -2.5),
   });
+  const bellRoot = new T.Group();
+  w.root.add(bellRoot);
+  block(m.copper, 23, 1, -8, 0.75, 2, 0.6, bellRoot);
+  const bellSwitch = mesh(
+    new T.TorusGeometry(0.25, 0.05, 6, 16),
+    m.gold,
+    bellRoot,
+    23,
+    1.5,
+    -7.65,
+  );
+  sign("CARILLON · LEURRE SONORE", 23, 2.7, -7.5, 4.5);
+  w.obstacle(23, -8, 0.75, 0.6, 2);
+  w.interactions.push({
+    kind: "map",
+    id: "lacuna:bell",
+    action: "bell",
+    name: "Carillon des Absents",
+    cost: 200,
+    root: bellRoot,
+    wheel: bellSwitch,
+    position: new T.Vector3(23, 1, -8),
+  });
   const story = sign("AVIS D’ÉVACUATION · 17 JUIN 1936", -17, 2.3, 57, 5.5);
   w.interactions.push({
     kind: "recording",
@@ -296,7 +324,13 @@ export function buildLacuna(w) {
   });
 
   let hydraulicState;
+  const dressing = dressLacuna(w, a);
   return {
+    get bridgeOpen() {
+      return mobileBridge.children.every(
+        (leaf) => Math.abs(leaf.position.x) < 4.65,
+      );
+    },
     setHydraulics(state) {
       hydraulicState = state;
       ambience.setState(state);
@@ -322,6 +356,7 @@ export function buildLacuna(w) {
     },
     setQuality(quality, mobile) {
       ambience.setQuality(quality, mobile);
+      dressing.setQuality(quality, mobile);
     },
   };
 }

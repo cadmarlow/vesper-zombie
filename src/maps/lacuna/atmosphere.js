@@ -1,6 +1,7 @@
 import * as T from "three";
 import { mesh, glowSprite } from "../../assets.js";
 import { rng } from "../../logic.js";
+import { worldSurface, projectSurfaceUV } from "../../surfaces.js";
 import { PURGE_ZONES } from "./data.js";
 import { PHASE, MODE } from "./state.js";
 
@@ -15,13 +16,13 @@ export function atmosphere(w, a) {
   w.scene.background = new T.Color(0x8caaa9);
   w.scene.fog = new T.FogExp2(0x9baead, 0.0036);
   w.lighting = {
-    ambient: 1.15,
+    ambient: 1.65,
     powerAmbient: 0.09,
     fill: 0.3,
     powerFill: 0.1,
     poweredBrightness: 0.72,
   };
-  w.hemi = new T.HemisphereLight(0xc3d8e1, 0x727460, 1.15);
+  w.hemi = new T.HemisphereLight(0xd0e5f1, 0x9a9d8b, 1.65);
   w.sun = new T.DirectionalLight(0xffdfb1, 3.25);
   w.sun.position.set(-95, 110, -48);
   w.sun.castShadow = true;
@@ -64,13 +65,13 @@ export function atmosphere(w, a) {
   const dome = mesh(new T.SphereGeometry(370, 40, 20), sky, w.root);
   dome.castShadow = dome.receiveShadow = false;
   // Mountain ridges use vertex colours and silhouettes instead of giant textures.
-  const mountainMaterial = new T.MeshStandardMaterial({
+  const mountainMaterial = worldSurface("stone", 0xabbab8, 16, {
     vertexColors: true,
     roughness: 1,
-    flatShading: true,
+    flatShading: false,
   });
   for (const side of [-1, 1]) {
-    const geometry = new T.PlaneGeometry(360, 170, 65, 18);
+    const geometry = new T.PlaneGeometry(360, 170, 100, 32);
     geometry.rotateX(-Math.PI / 2);
     const p = geometry.attributes.position,
       colors = [];
@@ -82,8 +83,8 @@ export function atmosphere(w, a) {
         Math.sin(longitudinal * 0.025) * 24 +
         Math.sin(longitudinal * 0.063) * 12;
       const height =
-        Math.max(0, 1 - Math.abs(transverse) / 88) * ridge + random() * 6 - 16;
-      p.setXYZ(i, side * (126 + transverse), height, longitudinal - 25);
+        Math.max(0, 1 - Math.abs(transverse) / 88) * ridge + random() * 3 - 16;
+      p.setXYZ(i, side * (170 + transverse), height, longitudinal - 25);
       const c = new T.Color(
         height > 75 ? 0xb1bab6 : height > 47 ? 0x718385 : 0x405a52,
       );
@@ -92,27 +93,37 @@ export function atmosphere(w, a) {
     }
     geometry.setAttribute("color", new T.Float32BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
+    projectSurfaceUV(geometry, 16);
     const mountain = mesh(geometry, mountainMaterial, w.root);
     mountain.castShadow = false;
   }
   // Trees outside the playable limits frame the city without blocking routes.
   const foliage = new T.MeshStandardMaterial({ color: 0x314e43, roughness: 1 });
-  const trees = new T.InstancedMesh(new T.ConeGeometry(1, 1, 7), foliage, 210);
+  const trees = new T.InstancedMesh(new T.ConeGeometry(1, 1, 9), foliage, 1050);
   const matrix = new T.Matrix4(),
     quaternion = new T.Quaternion();
   for (let i = 0; i < 210; i++) {
     const side = i % 2 ? -1 : 1,
       height = 5 + random() * 11;
-    matrix.compose(
-      new T.Vector3(
-        side * (77 + random() * 27),
-        height / 2 - 0.6,
-        random() * 210 - 120,
-      ),
-      quaternion,
-      new T.Vector3(height * 0.22, height, height * 0.22),
-    );
-    trees.setMatrixAt(i, matrix);
+    const x = side * (78 + random() * 35),
+      z = random() * 220 - 130;
+    for (let tier = 0; tier < 5; tier++) {
+      const width = height * (0.25 - tier * 0.038);
+      matrix.compose(
+        new T.Vector3(
+          x + (random() - 0.5) * 0.5,
+          height * (0.28 + tier * 0.15),
+          z,
+        ),
+        quaternion,
+        new T.Vector3(width, height * 0.42, width * 0.9),
+      );
+      trees.setMatrixAt(i * 5 + tier, matrix);
+      trees.setColorAt(
+        i * 5 + tier,
+        new T.Color().setHSL(0.38, 0.16, 0.48 + random() * 0.14),
+      );
+    }
   }
   trees.receiveShadow = true;
   w.root.add(trees);
@@ -334,7 +345,7 @@ export function atmosphere(w, a) {
         material.emissiveIntensity = 0.12 + w.powerLevel * 1.5;
     },
     setQuality(quality, mobile) {
-      trees.count = quality === "low" ? 100 : mobile ? 150 : 210;
+      trees.count = quality === "low" ? 500 : mobile ? 750 : 1050;
       for (const zone of zones)
         zone.jet.geometry.setDrawRange(
           0,
