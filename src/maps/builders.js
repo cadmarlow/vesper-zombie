@@ -1,6 +1,7 @@
 import { buildAbbey } from "./abbey/layout.js";
 import { buildStation } from "./station/layout.js";
 import { buildAbyss } from "./abyss/layout.js";
+import { buildLacuna } from "./lacuna/layout.js";
 import { enrichWorld } from "../world-detail.js";
 import { buildArchitecture } from "../world-architecture.js";
 // Each registration owns its layout. The legacy visual themes remain reusable.
@@ -8,11 +9,12 @@ export const MAP_BUILDERS = {
   abbey: buildAbbey,
   station: buildStation,
   abyss: buildAbyss,
+  lacuna: buildLacuna,
 };
 export function buildMap(world, definition) {
   const build = MAP_BUILDERS[definition.id];
   if (!build) throw new Error("Missing map builder: " + definition.id);
-  if (definition.theme === "abyss") {
+  if (definition.theme === "abyss" || definition.theme === "lacuna") {
     world.detail = build(world);
     world.machines();
   } else {
@@ -25,7 +27,7 @@ export function buildMap(world, definition) {
     world.weather();
     world.detail = enrichWorld(world);
   }
-  buildArchitecture(world);
+  if (definition.theme !== "lacuna") buildArchitecture(world);
 }
 export function validateWorld(world) {
   const fail = (message) => {

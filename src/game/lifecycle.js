@@ -127,6 +127,8 @@ export class RunLifecycle {
     this.run.difficulty = DIFFICULTIES[difficulty];
     this.run.difficultyId = difficulty;
     this.run.world = new World(this.view.scene, map, this.run.settings.quality);
+    this.view.camera.far = this.run.world.viewDistance || 160;
+    this.view.camera.updateProjectionMatrix();
     this.run.world.viewer = this.view.camera;
     this.run.world.setQuality(this.run.settings.quality, touch);
     this.run.world.update(0, 0);
