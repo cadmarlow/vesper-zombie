@@ -10,6 +10,7 @@ import {
 } from "./architecture.js";
 import { atmosphere } from "./atmosphere.js";
 import { dressLacuna } from "./dressing.js";
+import { quarantine } from "./horror.js";
 import { LACUNA, PURGE_ZONES, sectorAt } from "./data.js";
 
 export function buildLacuna(w) {
@@ -214,7 +215,21 @@ export function buildLacuna(w) {
   ]) {
     solid(m.stone, x, 0.5, z, 3.2, 1, 1.3);
     for (let i = -1; i <= 1; i++) {
-      cylinder(w.static, m.moss, x + i * 0.85, 1.2, z, 0.58, 1.2, 0.22, 7);
+      cylinder(w.static, m.wood, x + i * 0.85, 1.1, z, 0.055, 1.1, 0.025, 5);
+      for (const side of [-1, 1]) {
+        const branch = cylinder(
+          w.static,
+          m.wood,
+          x + i * 0.85 + side * 0.15,
+          1.25,
+          z,
+          0.025,
+          0.6,
+          0.01,
+          5,
+        );
+        branch.rotation.z = side * 0.75;
+      }
     }
   }
   for (const x of [-12, 12]) for (const z of [-58, -29, 18, 45]) lamp(x, z);
@@ -325,6 +340,7 @@ export function buildLacuna(w) {
 
   let hydraulicState;
   const dressing = dressLacuna(w, a);
+  const horror = quarantine(w, a);
   return {
     get bridgeOpen() {
       return mobileBridge.children.every(
@@ -337,6 +353,7 @@ export function buildLacuna(w) {
     },
     update(dt, time) {
       ambience.update(dt, time);
+      horror.update(dt, time);
       mobileBridge.children.forEach((leaf, index) => {
         const side = index ? 1 : -1;
         leaf.position.x = T.MathUtils.damp(
@@ -357,6 +374,7 @@ export function buildLacuna(w) {
     setQuality(quality, mobile) {
       ambience.setQuality(quality, mobile);
       dressing.setQuality(quality, mobile);
+      horror.setQuality(quality, mobile);
     },
   };
 }

@@ -319,7 +319,7 @@ try {
   }
   if (!process.env.LACUNA_QUICK && !process.env.LACUNA_REVIEW_ONLY)
     await checkLacunaCoop(browser, report, check);
-  if (process.env.LACUNA_REVIEW_ONLY)
+  if (process.env.LACUNA_REVIEW_ONLY || process.env.LACUNA_REVIEW)
     await reviewLacuna(browser, report, check);
   check("no browser or WebGL errors", !report.errors.length, report.errors);
 } finally {

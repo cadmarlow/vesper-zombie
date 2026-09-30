@@ -15,6 +15,8 @@ VESPER_PORT=4195 node scripts/serve.mjs
 
 Le port peut changer si un autre serveur l'utilise ; consulter l'adresse affichée. Les commandes du jeu restent celles de la version 5 : interaction avec **E** ou le bouton tactile contextuel.
 
+La révision du 30 septembre se déroule de nuit, dans une ville dont la quarantaine a échoué. Les thermes servent de morgue improvisée. Les éclairages de secours rouges et les tubes verdâtres balisent les lieux ; la lampe du joueur éclaire les menaces proches. Le courant remet les machines en service sans transformer la nuit en plein jour. L'horloge arrêtée à 06:17 commémore le sinistre, pas l'heure actuelle.
+
 ## Le parcours
 
 1. Survivez dans la gare, puis ouvrez la grille d'évacuation pour 750 essences.

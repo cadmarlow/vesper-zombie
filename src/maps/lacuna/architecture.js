@@ -32,11 +32,11 @@ export function mergeMovingParts(group) {
 export function architect(w) {
   const stage = w.static;
   const m = {
-    stone: worldSurface("ashlar", 0xd4d0c1, 3, { roughness: 0.87 }),
-    trim: worldSurface("plaster", 0xf0e7ce, 2.5, { roughness: 0.77 }),
-    wall: worldSurface("plaster", 0xd5cbb7, 3.4, { roughness: 0.89 }),
+    stone: worldSurface("ashlar", 0xa5aaa1, 3, { roughness: 0.82 }),
+    trim: worldSurface("plaster", 0xbab9a6, 2.5, { roughness: 0.87 }),
+    wall: worldSurface("plaster", 0x969d8f, 3.4, { roughness: 0.94 }),
     concrete: worldSurface("concrete", 0xc4c8c1, 6, { roughness: 0.94 }),
-    ground: worldSurface("floor", 0xbfc2b9, 3.5, { roughness: 0.56 }),
+    ground: worldSurface("floor", 0x8b9999, 3.5, { roughness: 0.37 }),
     slate: worldSurface("stone", 0x394d50, 1.6, { roughness: 0.8 }),
     copper: worldSurface("metal", 0x75b3a2, 2.1, {
       roughness: 0.73,
@@ -52,8 +52,8 @@ export function architect(w) {
     }),
     wood: worldSurface("wood", 0x877c5c, 1.5, { roughness: 0.85 }),
     glass: new T.MeshStandardMaterial({
-      color: 0x304948,
-      roughness: 0.23,
+      color: 0x10272c,
+      roughness: 0.38,
       metalness: 0.45,
     }),
     gold: new T.MeshStandardMaterial({
@@ -63,7 +63,12 @@ export function architect(w) {
     }),
     dark: new T.MeshStandardMaterial({ color: 0x1b2a28, roughness: 0.98 }),
     moss: new T.MeshStandardMaterial({ color: 0x455648, roughness: 1 }),
-    warning: new T.MeshStandardMaterial({ color: 0xd4a047, roughness: 0.75 }),
+    warning: new T.MeshStandardMaterial({
+      color: 0xd4a047,
+      roughness: 0.75,
+      emissive: 0x8c5318,
+      emissiveIntensity: 0.08,
+    }),
   };
   const block = (material, x, y, z, width, height, depth, parent = stage) =>
     mesh(plainBoxGeo, material, parent, x, y, z, width, height, depth);
@@ -176,6 +181,47 @@ export function architect(w) {
         );
         slat.rotation.y = side * 0.2;
       }
+    const damage = Math.abs(Math.floor(x * 3 + y * 4 + z * 1.8)) % 5;
+    if (damage < 2) {
+      for (const side of [-1, 1]) {
+        const plank = block(
+          m.wood,
+          0,
+          side * height * 0.2,
+          0.3,
+          width * 1.2,
+          0.22,
+          0.1,
+          group,
+        );
+        plank.rotation.z = side * 0.26;
+      }
+    } else if (damage === 2) {
+      const crack = new T.Shape();
+      crack.moveTo(-0.35, -0.45);
+      for (const [xx, yy] of [
+        [-0.43, 0.08],
+        [-0.17, 0.19],
+        [-0.21, 0.48],
+        [0.12, 0.3],
+        [0.38, 0.43],
+        [0.28, -0.1],
+        [0.4, -0.45],
+      ])
+        crack.lineTo(xx, yy);
+      crack.closePath();
+      mesh(
+        new T.ShapeGeometry(crack),
+        m.dark,
+        group,
+        0,
+        0,
+        0.255,
+        width,
+        height,
+        1,
+      ).castShadow = false;
+    }
   };
   const rail = (x, z, length, rotation = 0, parent = stage) => {
     const group = new T.Group();
@@ -189,8 +235,8 @@ export function architect(w) {
       block(m.iron, dx, 0.74, 0, 0.045, 0.83, 0.045, group);
   };
   const lampBulb = new T.MeshStandardMaterial({
-    color: 0xf3d7a0,
-    emissive: 0xffcc77,
+    color: 0xad795c,
+    emissive: 0xe97645,
     emissiveIntensity: 0.1,
     roughness: 0.4,
   });

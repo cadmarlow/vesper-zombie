@@ -13,17 +13,17 @@ float fbm(vec2 p){return .54*noise(p)+.27*noise(p*2.03)+.13*noise(p*4.07)+.06*no
 
 export function atmosphere(w, a) {
   const random = rng(1936617);
-  w.scene.background = new T.Color(0x8caaa9);
-  w.scene.fog = new T.FogExp2(0x9baead, 0.0036);
+  w.scene.background = new T.Color(0x071017);
+  w.scene.fog = new T.FogExp2(0x101c22, 0.0065);
   w.lighting = {
-    ambient: 1.65,
-    powerAmbient: 0.09,
-    fill: 0.3,
-    powerFill: 0.1,
-    poweredBrightness: 0.72,
+    ambient: 0.56,
+    powerAmbient: 0.035,
+    fill: 0.18,
+    powerFill: 0.035,
+    poweredBrightness: 0.46,
   };
-  w.hemi = new T.HemisphereLight(0xd0e5f1, 0x9a9d8b, 1.65);
-  w.sun = new T.DirectionalLight(0xffdfb1, 3.25);
+  w.hemi = new T.HemisphereLight(0x8ba8bb, 0x29363b, 0.56);
+  w.sun = new T.DirectionalLight(0x9bb8cd, 1.25);
   w.sun.position.set(-95, 110, -48);
   w.sun.castShadow = true;
   Object.assign(w.sun.shadow.camera, {
@@ -37,7 +37,7 @@ export function atmosphere(w, a) {
   w.sun.shadow.normalBias = 0.075;
   w.sun.shadow.bias = -0.00015;
   w.sun.shadow.mapSize.setScalar(2048);
-  w.fill = new T.DirectionalLight(0x9dccdd, 0.3);
+  w.fill = new T.DirectionalLight(0x658695, 0.18);
   w.fill.position.set(90, 45, 45);
   w.root.add(w.hemi, w.sun, w.fill);
   w.coreHalo = glowSprite(0xd9ebcd, 3);
@@ -50,13 +50,13 @@ export function atmosphere(w, a) {
     vertexShader: `varying vec3 vDirection; void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);gl_Position.z=gl_Position.w;}`,
     fragmentShader: `varying vec3 vDirection;uniform float time;${noiseGLSL}
     void main(){vec3 d=normalize(vDirection);float h=max(d.y,0.);
-    vec3 sky=mix(vec3(.69,.76,.73),vec3(.28,.43,.50),pow(h,.5));
-    vec3 sun=normalize(vec3(-.68,.65,-.31));float glow=pow(max(dot(d,sun),0.),18.);
-    sky+=vec3(.35,.24,.10)*glow;
+    vec3 sky=mix(vec3(.011,.023,.031),vec3(.0015,.004,.009),pow(h,.5));
+    vec3 moon=normalize(vec3(-.61,.71,-.31));float glow=pow(max(dot(d,moon),0.),75.);
     vec2 uv=d.xz/(max(d.y,.035))*.8+vec2(time*.001,0.);
-    float cloud=smoothstep(.40,.72,fbm(uv*2.));
-    sky=mix(sky,mix(vec3(.47,.57,.60),vec3(.90,.84,.70),glow),cloud*smoothstep(.02,.20,d.y)*.87);
-    sky+=vec3(.7,.5,.25)*pow(max(dot(d,sun),0.),600.);
+    float cloud=smoothstep(.32,.68,fbm(uv*2.));
+    sky=mix(sky,vec3(.003,.006,.010),cloud*smoothstep(.02,.20,d.y)*.87);
+    sky+=vec3(.028,.044,.058)*glow*(1.-cloud*.7);
+    sky+=vec3(.28,.36,.39)*pow(max(dot(d,moon),0.),8000.)*(1.-cloud*.85);
     gl_FragColor=vec4(sky,1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -178,10 +178,10 @@ export function atmosphere(w, a) {
   w.particles = new T.Points(
     moteGeometry,
     new T.PointsMaterial({
-      color: 0xe3e4d0,
-      size: 0.018,
+      color: 0x7d9ca4,
+      size: 0.012,
       transparent: true,
-      opacity: 0.26,
+      opacity: 0.17,
       depthWrite: false,
     }),
   );
@@ -195,8 +195,8 @@ export function atmosphere(w, a) {
     float n=fbm(p+vec2(sin(p.y*.5),0.));
     float foam=smoothstep(.59,.78,n)*(.24+surge*.65);
     float edge=pow(abs(vUv.x-.5)*2.,12.);
-    vec3 col=mix(vec3(.065,.19,.19),vec3(.24,.41,.39),n);
-    col=mix(col,vec3(.76,.85,.78),clamp(foam+edge*.28,0.,1.));
+    vec3 col=mix(vec3(.003,.012,.015),vec3(.016,.042,.045),n);
+    col=mix(col,vec3(.065,.095,.097)*(1.+surge*.25),clamp(foam+edge*.28,0.,1.));
     gl_FragColor=vec4(col,1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -221,7 +221,7 @@ export function atmosphere(w, a) {
     fragmentShader: `varying vec2 vUv;uniform float time;uniform float surge;${noiseGLSL}
     void main(){float n=fbm(vec2(vUv.x*9.,vUv.y*15.+time*2.3));
     float a=smoothstep(0.,.13,vUv.x)*smoothstep(1.,.87,vUv.x);
-    a*=.3+n*.7;vec3 col=mix(vec3(.55,.71,.70),vec3(.92,.96,.88),n);
+    a*=.3+n*.7;vec3 col=mix(vec3(.027,.045,.055),vec3(.17,.21,.23),n);
     gl_FragColor=vec4(col,a*(.35+surge*.6));
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -284,7 +284,7 @@ export function atmosphere(w, a) {
     const jet = new T.Points(
       steamGeometry,
       new T.PointsMaterial({
-        color: 0xdaede6,
+        color: 0x607c80,
         map: mistTexture(),
         size: 2.2,
         transparent: true,
@@ -378,7 +378,7 @@ export function atmosphere(w, a) {
         }
       }
       for (const material of w.lacunaLamps)
-        material.emissiveIntensity = 0.12 + w.powerLevel * 1.5;
+        material.emissiveIntensity = 0.1 + w.powerLevel * 0.8;
     },
     setQuality(quality, mobile) {
       trees.count = quality === "low" ? 500 : mobile ? 750 : 1050;
