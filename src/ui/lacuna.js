@@ -1,22 +1,33 @@
 import "./lacuna.css";
 
 /** Lacuna's compact instrument panel consumes serializable map data only. */
-export function createLacunaHUD() {
+export function createLacunaHUD(onDismiss = () => {}) {
   const panel = document.createElement("aside");
-  panel.className = "lacuna-status";
+  panel.className = "lacuna-status hidden";
   panel.hidden = true;
   panel.setAttribute("aria-label", "État hydraulique de Lacuna");
   panel.innerHTML = `<div class="lacuna-status-head"><span>RÉSEAU HYDRAULIQUE</span><span class="lacuna-valves" aria-label="Vannes activées"><i></i><i></i><i></i></span></div><strong></strong><div class="lacuna-route"></div><div class="lacuna-meter"><i></i></div><div class="lacuna-guide"><b>↑</b><span></span></div>`;
-  document.querySelector("#hud").append(panel);
+  const close = document.createElement("button");
+  close.className = "lacuna-close";
+  close.type = "button";
+  close.textContent = "×";
+  close.setAttribute("aria-label", "Masquer les aides de LACUNA");
+  close.title = "Masquer les aides · Réactivation dans les paramètres";
+  close.onclick = () => {
+    panel.hidden = true;
+    onDismiss();
+  };
+  panel.append(close);
+  document.body.append(panel);
   const title = panel.querySelector("strong"),
     route = panel.querySelector(".lacuna-route"),
     meter = panel.querySelector(".lacuna-meter i"),
     guide = panel.querySelector(".lacuna-guide span"),
     arrow = panel.querySelector(".lacuna-guide b"),
     dots = [...panel.querySelectorAll(".lacuna-valves i")];
-  return (status) => {
-    panel.hidden = !status;
-    if (!status) return;
+  return (status, enabled = true) => {
+    panel.hidden = !status || !enabled;
+    if (panel.hidden) return;
     panel.dataset.phase = status.phase;
     panel.classList.toggle("in-danger", status.danger);
     title.textContent = status.danger

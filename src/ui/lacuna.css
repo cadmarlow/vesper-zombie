@@ -1,5 +1,6 @@
 .lacuna-status {
-  position: absolute;
+  position: fixed;
+  z-index: 21;
   top: 94px;
   left: 50%;
   transform: translateX(-50%);
@@ -16,6 +17,32 @@
 }
 .lacuna-status[hidden] {
   display: none;
+}
+.lacuna-status-head {
+  padding-right: 25px;
+}
+.lacuna-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #eee0bd;
+  font-size: 24px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.lacuna-close:hover,
+.lacuna-close:focus-visible {
+  background: #ffffff18;
+}
+body:not(.in-game) .lacuna-status {
+  top: 16px;
+  left: 16px;
+  transform: none;
 }
 .lacuna-status-head {
   display: flex;

@@ -108,7 +108,12 @@ if (unseen) {
 }
 $("#version-button").onclick = () => openPanel("changelog");
 $("#pause-version").onclick = () => openPanel("changelog");
-const renderHUD = createHUD();
+const renderHUD = createHUD({
+  onDismissMapHints() {
+    settings.lacunaHints = false;
+    persistSettings();
+  },
+});
 const menuArt = $("#menu-art");
 menuArt.style.backgroundImage = "url(/art/abbey.webp)";
 const formatTime = (s) =>
@@ -183,6 +188,10 @@ function state(s) {
   if (s !== "playing") touchControls.reset();
   else if (game.touch) queueMicrotask(updateViewport);
   document.body.classList.toggle("in-game", s === "playing");
+  $(".lacuna-status").classList.toggle(
+    "hidden",
+    !["playing", "paused"].includes(s),
+  );
   document.body.classList.toggle("touch-mode", !!game?.touch);
   if (s === "playing")
     $("#hud-map").textContent = MAPS.find(
@@ -378,6 +387,7 @@ function persistSettings() {
     localStorage.setItem("vesper-settings", JSON.stringify(settings));
   } catch {}
   game?.applySettings(settings);
+  if (settings.lacunaHints === false) $(".lacuna-status").hidden = true;
   $("#sound-button span").textContent = settings.volume
     ? "SON ACTIVÉ"
     : "SON COUPÉ";
@@ -409,7 +419,7 @@ function openPanel(kind) {
       )
       .join(
         "",
-      )}</select></div>${toggle("shake", "Mouvements de recul", settings.shake)}${toggle("crosshair", "Réticule de visée", settings.crosshair)}</section></div><div class="panel-foot"><span>Vos réglages sont enregistrés automatiquement sur cet appareil.</span><button class="secondary-button" id="reset-settings">RÉGLAGES PAR DÉFAUT</button></div>`;
+      )}</select></div>${toggle("shake", "Mouvements de recul", settings.shake)}${toggle("crosshair", "Réticule de visée", settings.crosshair)}${toggle("lacunaHints", "Aides de LACUNA<span>Guidage, flèche, distances et panneau hydraulique.</span>", settings.lacunaHints)}</section></div><div class="panel-foot"><span>Vos réglages sont enregistrés automatiquement sur cet appareil.</span><button class="secondary-button" id="reset-settings">RÉGLAGES PAR DÉFAUT</button></div>`;
     for (const key of [
       "volume",
       "musicVolume",
@@ -443,6 +453,7 @@ function openPanel(kind) {
     for (const key of [
       "shake",
       "crosshair",
+      "lacunaHints",
       "touchAimAssist",
       "touchAdaptiveQuality",
       "adaptiveQuality",

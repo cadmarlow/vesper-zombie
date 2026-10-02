@@ -2,8 +2,8 @@ import { MAPS, WEAPONS, PERKS, UPGRADE } from "../config.js";
 import { $, icon, escapeHtml, formatTime } from "./dom.js";
 import { createLacunaHUD } from "./lacuna.js";
 /** Receives serializable HUD data; never reaches into the game or Three.js. */
-export function createHUD() {
-  const lacuna = createLacunaHUD();
+export function createHUD({ onDismissMapHints } = {}) {
+  const lacuna = createLacunaHUD(onDismissMapHints);
   const minimap = $("#minimap"),
     mc = minimap.getContext("2d");
   // Rewriting innerHTML thirteen times a second re-creates identical nodes.
@@ -15,7 +15,7 @@ export function createHUD() {
   }
   let miniFrame = 0;
   return function renderHUD(h) {
-    lacuna(h.mapStatus);
+    lacuna(h.mapStatus, h.settings.lacunaHints !== false);
     $("#wave-number").textContent = String(h.wave).padStart(2, "0");
     $("#hud-map").textContent = h.sector
       ? `${MAPS.find((m) => m.id === h.map).sectorPrefix || ""} · ${h.sector.toUpperCase()}`

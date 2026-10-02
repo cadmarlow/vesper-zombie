@@ -13,4 +13,5 @@ export const DEFAULT_SETTINGS = {
   shake: true,
   layout: "azerty",
   crosshair: true,
+  lacunaHints: true,
 };

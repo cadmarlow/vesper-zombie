@@ -3,6 +3,23 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.1.1",
+    date: "2026-10-03",
+    title: "LACUNA — Aides à la carte",
+    tagline: "Choisissez quand afficher le guidage de LACUNA.",
+    art: "/art/lacuna.webp",
+    highlights: ["Aides masquables avec la croix ou dans les paramètres"],
+    sections: [
+      {
+        title: "Affichage",
+        items: [
+          "Les aides de LACUNA sont activées par défaut. La croix les masque ; sur ordinateur, appuyez sur Échap pour libérer le curseur.",
+          "Activez ou désactivez « Aides de LACUNA » dans les paramètres. Votre choix est conservé sur cet appareil.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.1.0",
     date: "2026-10-03",
     title: "LACUNA — La Dernière Crue",
