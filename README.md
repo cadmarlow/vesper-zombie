@@ -1,6 +1,6 @@
 # VESPER — Les derniers vivants
 
-FPS de survie par vagues, jouable dans le navigateur sur ordinateur et mobile, en solo ou en coopération à quatre. Trois cartes : l’Abbaye des Cendres, le Complexe Boréal et les Jardins Abyssaux.
+FPS de survie par vagues, jouable dans le navigateur sur ordinateur et mobile, en solo ou en coopération à quatre. Quatre cartes : l’Abbaye des Cendres, le Complexe Boréal, les Jardins Abyssaux et LACUNA — La Dernière Crue.
 
 ## Jouer en local
 
@@ -55,7 +55,7 @@ npm run verify
 npm run verify:full
 ```
 
-`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, tactile Chrome/WebKit, coopération, relances et 190 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies et locomotion, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
+`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, tactile Chrome/WebKit, coopération, relances et 260 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies et locomotion, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
 
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 
@@ -78,6 +78,12 @@ Le client est un site statique : `npm ci`, `npm run build`, publier `dist/`. La 
 La coopération nécessite un relais WebSocket distinct. `railway.json` et `nixpacks.toml` lancent `node server/index.js`, avec le port fourni par `PORT`. Le dossier `server/` peut également être déployé seul. La route HTTP `/` donne l’état du relais. Définir **`VITE_RELAY_URL=wss://adresse-du-relais` avant le build du client**. Sans cette variable, la coopération distante n’est pas configurée ; le solo reste disponible.
 
 Client et relais doivent utiliser la même version de protocole, actuellement **4**. La version 3.2.0 synchronise les gestes et contacts des zombies avec leur présentation chez les invités ; publier le client et le relais ensemble. La version 4.0.0 conserve le protocole 4 : les nouveaux champs (rampants, zombie à l’origine d’un coup) sont facultatifs et ignorés par les anciens clients. Publier le client suffit ; republier le relais ajoute seulement leur validation. Une ancienne page ouverte doit être rechargée après cette mise à jour. Le relais garde ses salons en mémoire : un redémarrage les ferme. Il héberge la communication ; la simulation reste sur le navigateur de l’hôte. Les essais locaux ne mesurent pas la capacité d’une infrastructure déployée ni les performances d’un téléphone physique.
+
+## LACUNA — 5.1.0
+
+La quatrième destination est une ville thermale alpine en quarantaine, de nuit, dominée par un barrage. Trois vannes déclenchent des purges locales ; le Carillon des Absents attire la horde vers le quai. Après avoir utilisé les trois vannes, la Grande Décrue enchaîne les trois quartiers et récompense chaque joueur une seule fois. Les fortes purges rétractent la passerelle centrale ; deux ponts permanents permettent toujours de traverser. Le parcours et les commandes de vérification sont dans [docs/lacuna/PLAYTEST.md](docs/lacuna/PLAYTEST.md).
+
+La coopération conserve le protocole 4. L’état hydraulique est un champ facultatif des snapshots, transmis tel quel par le relais existant. La mise à jour du relais ajoute sa validation ; elle n’est pas requise pour jouer à LACUNA avec le nouveau client. Tous les participants doivent charger la version 5.1.0 pour choisir cette destination.
 
 ## L’armurerie — 5.0.0
 

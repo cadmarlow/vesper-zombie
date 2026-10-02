@@ -2,10 +2,15 @@ import { createRelay } from "../server/index.js";
 import { openGameAudit } from "./game-audit.mjs";
 
 export async function checkLacunaCoop(browser, report, check) {
-  const relay = createRelay({ port: 0, host: "127.0.0.1" });
-  const address = await relay.ready;
+  // Explicit opt-in: use the deployed client's configured relay for a live
+  // release check. Each run creates its own room and closes both clients.
+  const live = process.env.LACUNA_LIVE_RELAY === "1";
+  const relay = live ? null : createRelay({ port: 0, host: "127.0.0.1" });
+  const address = await relay?.ready;
   const previous = process.env.VESPER_RELAY;
-  process.env.VESPER_RELAY = `ws://127.0.0.1:${address.port}`;
+  if (live) delete process.env.VESPER_RELAY;
+  else process.env.VESPER_RELAY = `ws://127.0.0.1:${address.port}`;
+  report.coopRelay = live ? "deployed client configuration" : "local relay";
   const pages = [];
   try {
     for (let i = 0; i < 2; i++) {
@@ -174,7 +179,7 @@ export async function checkLacunaCoop(browser, report, check) {
     throw error;
   } finally {
     await Promise.all(pages.map((page) => page.close()));
-    await relay.close();
+    await relay?.close();
     if (previous === undefined) delete process.env.VESPER_RELAY;
     else process.env.VESPER_RELAY = previous;
   }

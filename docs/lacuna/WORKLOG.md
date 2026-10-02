@@ -3,12 +3,21 @@
 - Dépôt indépendant : `artifacts/worktrees/lacuna`, branche **`codex/lacuna-v5`**.
 - Base actuelle : **production 5.0.0, `f6d9ba751734f24ebb0a4f7e8a953958171ee486`**, revérifiée sur GitHub le 30 septembre 2026. Le commit LACUNA initial a été reporté sur cette version, sans reprendre le correctif provisoire du chantier des armes.
 - Ancienne sauvegarde conservée : branche `codex/lacuna`, tag `lacuna-baseline`. Ne pas utiliser ces anciennes bases pour intégrer la carte.
-- Aucun déploiement ni fusion dans le dépôt de production.
+- Au 30 septembre, aucun déploiement ni fusion dans le dépôt de production. Le 3 octobre, préparation de la publication 5.1.0 à la demande de l’utilisateur ; `main` et la production sont toujours sur `f6d9ba7` avant intégration.
 - Direction retenue : ville thermale alpine, barrage monumental, danger hydraulique, trois quartiers de purge, deux ponts permanents et une passerelle mobile. Le train appartient à une future carte distincte.
 - Objectif : carte jouable sur desktop et mobile, mécanique hydraulique synchronisée en coopération, lecture claire des dangers, navigation vérifiée et réglages graphiques adaptés.
 - Serveur de test courant : **http://localhost:4195**. Le relais de test utilise un port temporaire et s'arrête après les vérifications.
 
 Les proportions ont été vérifiées dans le moteur. La première direction lumineuse a été rejetée au playtest : la révision du 30 septembre remplace le matin alpin par une nuit de quarantaine. Les captures de conception initiales ne représentent plus l'ambiance livrée.
+
+## Préparation de la publication 5.1.0 — 3 octobre
+
+- Version et journal des nouveautés mis à jour pour annoncer LACUNA aux joueurs déjà présents.
+- Base GitHub et production revérifiées sur `f6d9ba7` avant intégration ; aucun changement des trois anciennes cartes ou de l’armurerie.
+- Vérification du candidat : formatage, architecture, **114 tests unitaires**, build, **391 formats de menu**, mise à jour du client, combat, tactile Chrome/WebKit, coopération et contrôles de publication réussis. Rapport : `artifacts/lacuna-release-5.1.0-verify.log`.
+- **260 vagues simulées** sur les quatre cartes, dont 70 sur LACUNA : aucune apparition invalide ni vague bloquée.
+- **56 contrôles LACUNA** réussis : navigation, vannes, carillon, dégâts, Grande Décrue, passerelle, coopération, rechargement des ressources et parcours tactile WebKit. Aucune erreur JavaScript/WebGL. Rapport : `artifacts/lacuna-release-5.1.0/report.json`.
+- Le contrôle en ligne couvre désormais les quatre destinations. L’option explicite `LACUNA_LIVE_RELAY=1` permet de vérifier la coopération sur le relais configuré en production, dans un salon temporaire propre au test.
 
 ## Refonte horreur — 30 septembre
 

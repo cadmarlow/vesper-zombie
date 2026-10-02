@@ -1,6 +1,6 @@
 # LACUNA — La Dernière Crue
 
-Cette version de travail se trouve dans le dépôt indépendant `artifacts/worktrees/lacuna`, branche `codex/lacuna-v5`, sur la production 5.0.0 (`f6d9ba7`). Elle n'est ni fusionnée ni déployée.
+Carte ajoutée avec la version 5.1.0. Son développement a été isolé dans le dépôt indépendant `artifacts/worktrees/lacuna`, branche `codex/lacuna-v5`, sur la production 5.0.0 (`f6d9ba7`).
 
 ## Jouer
 
@@ -58,16 +58,18 @@ Le test LACUNA contrôle les achats, la navigation, les dégâts, les chemins de
 
 La simulation mobile vérifie le rendu WebGL et l'interface tactile dans Chrome et WebKit sur cet ordinateur. Elle ne mesure pas la fluidité, la chauffe ou l'autonomie d'un téléphone physique.
 
+Après publication, vérifier les interactions en ligne et le relais réellement configuré dans le client avec `VESPER_URL=https://vesper-zombie.vercel.app LACUNA_LIVE_RELAY=1 node scripts/lacuna-check.mjs`. Ce contrôle crée son propre salon et ferme ses deux clients à la fin. Sans cette option explicite, la coopération utilise toujours un relais local temporaire.
+
 Pour reproduire uniquement la revue visuelle, le contrôle de rechargement et le parcours tactile WebKit :
 
 ```sh
 VESPER_URL=http://localhost:4195 LACUNA_REVIEW_ONLY=1 node scripts/lacuna-check.mjs
 ```
 
-## Intégration ultérieure
+## Périmètre d’intégration
 
 Les changements de carte commencent au commit `8ff3ff9`, directement après `f6d9ba7`. Le développement précédent, fondé sur une copie de travaux non publiés, est conservé sur l'ancienne branche `codex/lacuna` mais ne fait pas partie de cette nouvelle base.
 
 La carte possède ses modules dans `src/maps/lacuna`. Ses points de raccordement sont limités à l'enregistrement des cartes, au cycle de vie de la partie, aux interactions, à la cible sonore des ennemis, au HUD et à un champ réseau facultatif `mapState`. Les autres cartes ne créent aucun contrôleur LACUNA. Aucun protocole de messages distinct ni commande tactile supplémentaire n'est nécessaire.
 
-Les captures de conception sont une direction artistique. Le rendu livré est celui du moteur Three.js, à valider en jeu avant une éventuelle sortie publique.
+Les captures de conception sont une direction artistique. Le rendu joué et testé est celui du moteur Three.js ; les captures de conception ne sont pas des captures du jeu.

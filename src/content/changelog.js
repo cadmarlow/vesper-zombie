@@ -3,6 +3,46 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.1.0",
+    date: "2026-10-03",
+    title: "LACUNA — La Dernière Crue",
+    tagline:
+      "Une ville en quarantaine, un barrage sous pression et des morts que les eaux ne retiennent plus.",
+    art: "/art/lacuna.webp",
+    highlights: [
+      "Une quatrième carte : LACUNA, de nuit",
+      "Trois vannes et des crues meurtrières",
+      "Un carillon pour attirer la horde",
+      "La Grande Décrue, en solo ou en coopération",
+    ],
+    sections: [
+      {
+        title: "La vallée condamnée",
+        items: [
+          "Explorez les deux rives d’une ville thermale alpine dominée par un barrage : quais, bains transformés en morgue et ateliers de maintenance.",
+          "Nuit d’orage, brouillard bas, éclairages de secours, traces de quarantaine et bruits dans les conduites.",
+          "Atouts, ravitaillements et Transfiguration sont répartis dans la ville : préparez vos traversées.",
+        ],
+      },
+      {
+        title: "Le barrage se réveille",
+        items: [
+          "Rétablissez le courant. À partir de la vague 3, la pression monte pendant les combats : les sirènes annoncent le quartier à évacuer.",
+          "Actionnez les vannes pour purger les quais, les thermes ou les ateliers. L’eau frappe aussi les survivants : quittez les bandes jaunes.",
+          "Les fortes purges rétractent la passerelle centrale une fois libérée ; les deux ponts de pierre restent praticables.",
+        ],
+      },
+      {
+        title: "Retourner la ville contre la horde",
+        items: [
+          "Faites sonner le Carillon des Absents pour attirer les zombies vers le quai, puis déclenchez une purge. Les boss et les ennemis déjà au contact continuent à vous poursuivre.",
+          "Utilisez les trois vannes pour débloquer la Grande Décrue au carillon. Elle enchaîne les trois quartiers et récompense une fois chaque survivant : 1 000 essences et 2 grenades, dans la limite de 5.",
+          "Les vannes, la passerelle et le carillon sont synchronisés en coopération. L’extraction reste disponible après la vague 10 et le rétablissement du courant.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.0.0",
     date: "2026-09-26",
     title: "L’Armurerie",
