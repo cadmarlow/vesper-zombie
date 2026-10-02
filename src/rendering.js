@@ -97,7 +97,7 @@ export function captureEnvironment(renderer, scene, world, mobile) {
     generateMipmaps: true,
     minFilter: T.LinearMipmapLinearFilter,
   });
-  const camera = new T.CubeCamera(0.2, 145, cube);
+  const camera = new T.CubeCamera(0.2, world.viewDistance || 145, cube);
   camera.position.set(0, 3.3, world.id === "abyss" ? 8 : 10);
   const previous = scene.environment,
     intensity = scene.environmentIntensity;

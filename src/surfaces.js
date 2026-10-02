@@ -42,9 +42,11 @@ export async function prepareSurfaces(mobile = false, map = "abbey") {
       "cloth",
       ...(map === "abbey"
         ? ["ashlar", "plaster"]
-        : map === "station"
-          ? ["steel", "concrete", "plaster"]
-          : ["steel"]),
+        : map === "lacuna"
+          ? ["ashlar", "plaster", "steel", "concrete"]
+          : map === "station"
+            ? ["steel", "concrete", "plaster"]
+            : ["steel"]),
     ];
     libraries.set(
       key,

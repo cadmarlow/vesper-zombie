@@ -156,6 +156,13 @@ export function validSnapshot(s) {
     integer(s.power, 0, 1) &&
     finite(s.extraction) &&
     typeof s.paused === "boolean" &&
+    (s.mapState === undefined ||
+      (isObject(s.mapState) &&
+        contentId(s.mapState.id) &&
+        integer(s.mapState.revision, 1, 100) &&
+        Array.isArray(s.mapState.data) &&
+        s.mapState.data.length <= 32 &&
+        s.mapState.data.every((value) => finite(value, 0, 1e9)))) &&
     (s.c === undefined ||
       (Array.isArray(s.c) &&
         s.c.length <= 128 &&

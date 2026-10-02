@@ -242,6 +242,7 @@ export class Game {
       else this.run.session.broadcast({ k: "pause", paused: true });
     }
     this.run.state = "paused";
+    this.run.mapGameplay?.setPaused(true);
     this.input.keys.clear();
     this.input.touchMove = { x: 0, y: 0 };
     this.input.touchSprint = false;
@@ -262,6 +263,7 @@ export class Game {
     }
     this.run.state = "playing";
     this.run.last = performance.now();
+    this.run.mapGameplay?.setPaused(false);
     this.frameClock.reset();
     this.emit("state", "playing");
     this.sound.init();
@@ -313,6 +315,7 @@ export class Game {
         reloadWeapon(this.run.weapons[this.run.slot]);
     }
     this.updatePlayer(dt);
+    this.run.mapGameplay?.update(dt);
     if (this.run.meleeSwing && this.run.meleeTimer <= MELEE_DURATION - 0.23) {
       this.run.meleeSwing = false;
       this.sound.knifeSwing();
@@ -369,6 +372,7 @@ export class Game {
     this.emit("hud", {
       map: this.run.map,
       sector: this.run.world.sectorAt?.(this.run.player.position),
+      mapStatus: this.run.mapGameplay?.hud() || null,
       health: this.run.player.health,
       maxHealth: this.run.player.maxHealth,
       stamina: this.run.player.stamina,
@@ -458,6 +462,7 @@ export class Game {
     if (this.run.session?.host && !remote)
       this.run.session.broadcast({ k: "end", victory: !!victory });
     this.run.state = "gameover";
+    this.run.mapGameplay?.setPaused(true);
     if (document.pointerLockElement) document.exitPointerLock();
     this.input.mouse.fire = this.input.mouse.aim = false;
     this.sound.death();

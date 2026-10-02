@@ -34,6 +34,7 @@ export class InteractionSystem {
     const i = this.nearInteraction();
     if (!i) return;
     const actor = {
+      id: this.run.session?.id ?? null,
       position: this.run.player.position,
       alive: !this.run.downed,
       points: this.run.player.points,
@@ -97,7 +98,12 @@ export class InteractionSystem {
       this.run.player.grenades >= 3
     )
       return fail("Vos réserves sont déjà pleines.");
-    if (["door", "box", "power"].includes(i.kind)) {
+    if (
+      i.kind === "map" &&
+      this.run.mapGameplay?.interactionCost(i, actor) === null
+    )
+      return fail(this.run.mapGameplay.interactionText(i));
+    if (["door", "box", "power", "map"].includes(i.kind)) {
       if (this.run.session?.peer) {
         this.run.session.requestInteraction(i);
         return;
@@ -107,6 +113,8 @@ export class InteractionSystem {
     this.run.player.points -= cost;
     this.sound.purchase();
     switch (i.kind) {
+      case "map":
+        break;
       case "door":
         this.emit("toast", {
           title: "Nouvelle zone ouverte",
@@ -187,6 +195,9 @@ export class InteractionSystem {
     if (cost === null) return null;
     let weapon = null;
     switch (i.kind) {
+      case "map":
+        if (!this.run.mapGameplay?.interact(i, actor)) return null;
+        break;
       case "door":
         this.run.world.openDoor(i);
         this.commands.updateNavigation(true);
@@ -263,6 +274,8 @@ export class InteractionSystem {
   }
   interactionText(i) {
     if (!i) return null;
+    if (i.kind === "map")
+      return this.run.mapGameplay?.interactionText(i) || null;
     const cost = this.interactionCost(i);
     let action = `${i.name} · ${cost ? `${cost} essences` : "Activer"}`;
     if (i.kind === "upgrade" && this.run.weapons[this.run.slot].level)

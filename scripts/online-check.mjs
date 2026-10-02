@@ -166,8 +166,8 @@ try {
   await page.locator("#close-panel").click();
   await page.locator('[data-panel="archives"]').click();
   check(
-    "Online archives contain all three maps, five enemy types and the Archonte",
-    (await page.locator(".archive-maps article").count()) === 3 &&
+    "Online archives contain all four maps, five enemy types and the Archonte",
+    (await page.locator(".archive-maps article").count()) === 4 &&
       (await page.locator(".bestiary-grid article").count()) === 6,
   );
   await page.locator("#close-panel").click();
@@ -214,7 +214,7 @@ try {
       page = await context.newPage();
       observe(page, `${engine}-${profile}`);
       const touch = !!options.hasTouch;
-      for (const map of ["abbey", "station", "abyss"]) {
+      for (const map of ["abbey", "station", "abyss", "lacuna"]) {
         const label = `${engine} ${profile} ${map}`;
         await page.goto(url);
         await press(`[data-map="${map}"]`, touch);
@@ -236,7 +236,12 @@ try {
         check(
           `${label}: correct 3D map starts without debug API`,
           (await page.locator("#hud-map").innerText()).includes(
-            { abbey: "ABBAYE", station: "BORÉAL", abyss: "NÉRÉIDE" }[map],
+            {
+              abbey: "ABBAYE",
+              station: "BORÉAL",
+              abyss: "NÉRÉIDE",
+              lacuna: "LACUNA",
+            }[map],
           ) && (await page.evaluate(() => window.__vesper === undefined)),
         );
         check(

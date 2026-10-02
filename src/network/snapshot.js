@@ -16,6 +16,7 @@ export function snapshot(context, players, id, tick, me) {
     timer: +g.run.phaseTimer.toFixed(1),
     remaining: g.run.remaining,
     power: g.run.world.power ? 1 : 0,
+    ...(g.run.mapGameplay ? { mapState: g.run.mapGameplay.snapshot() } : {}),
     doors: g.run.world.doors.map((d) => [d.id, d.open ? 1 : 0]),
     box: box
       ? [

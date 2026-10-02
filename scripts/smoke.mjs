@@ -50,8 +50,8 @@ try {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${outputDir}/menu.png` });
   check(
-    "Main menu and all three maps visible",
-    (await page.locator(".map-card").count()) === 3,
+    "Main menu and all four maps visible",
+    (await page.locator(".map-card").count()) === 4,
   );
   check(
     "Menu primary action has clear spacing",

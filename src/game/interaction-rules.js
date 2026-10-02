@@ -21,6 +21,8 @@ export function sharedInteractionCost(interaction, run, actor, take = false) {
   if (!actor.alive || interactionDistance(interaction, actor.position) >= 3.1)
     return null;
   switch (interaction.kind) {
+    case "map":
+      return run.mapGameplay?.interactionCost(interaction, actor) ?? null;
     case "door":
       if (interaction.open) return null;
       break;
