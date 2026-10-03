@@ -3,6 +3,23 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.1.2",
+    date: "2026-10-03",
+    title: "LACUNA — Guidage synchronisé",
+    tagline: "Les aides restent masquées lorsque vous les désactivez.",
+    art: "/art/lacuna.webp",
+    highlights: ["Croix et paramètres des aides correctement synchronisés"],
+    sections: [
+      {
+        title: "Correctif",
+        items: [
+          "La croix masque durablement le guidage et désactive son option, y compris sur iPhone.",
+          "Le réglage agit immédiatement. Les réglages par défaut réactivent les aides ; votre choix est conservé entre les parties.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.1.1",
     date: "2026-10-03",
     title: "LACUNA — Aides à la carte",

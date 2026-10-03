@@ -387,7 +387,9 @@ function persistSettings() {
     localStorage.setItem("vesper-settings", JSON.stringify(settings));
   } catch {}
   game?.applySettings(settings);
-  if (settings.lacunaHints === false) $(".lacuna-status").hidden = true;
+  if (["playing", "paused"].includes(game?.state)) game.updateHUD();
+  const hintsToggle = $("#setting-lacunaHints");
+  if (hintsToggle) hintsToggle.checked = settings.lacunaHints !== false;
   $("#sound-button span").textContent = settings.volume
     ? "SON ACTIVÉ"
     : "SON COUPÉ";

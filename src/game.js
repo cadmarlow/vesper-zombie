@@ -453,6 +453,7 @@ export class Game {
       settings: {
         crosshair: this.run.settings.crosshair,
         layout: this.run.settings.layout,
+        lacunaHints: this.run.settings.lacunaHints,
       },
     });
   }
