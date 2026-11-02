@@ -36,6 +36,15 @@ export function snapshot(context, players, id, tick, me) {
     lp: g.run.enemies
       .filter((e) => e.action?.leap)
       .map((e) => [e.id, e.action.sequence]),
+    // Tactical presentation only. Guests never simulate the director.
+    ai: g.run.enemies
+      .filter((e) => !e.dead && e.intent)
+      .map((e) => [
+        e.id,
+        e.intent.role,
+        e.intent.sequence,
+        +e.intent.since.toFixed(3),
+      ]),
     e: g.run.enemies.map((e) => [
       e.id,
       e.type,

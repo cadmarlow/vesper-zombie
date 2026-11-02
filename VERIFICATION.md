@@ -2,6 +2,22 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 5.2.0 — La Horde vivante
+
+Vérification locale du 2 novembre 2026, sous Node.js 25.5.0. Le directeur compose les renforts en fronts, pinces et harcèlement, avec des arrivées groupées et de courtes respirations. Les quotas de vague et les statistiques des ennemis sont conservés. Les intentions ajoutent interceptions bornées, détours latéraux, appuis temporaires, cibles stables et budgets de bonds/crachats. L’hôte prend les décisions ; les invités présentent leurs avertissements avec le champ facultatif `ai` du protocole 4. Les portes, le carillon, les rampants et les deux derniers zombies gardent leurs règles propres.
+
+**135 tests unitaires/réseau réussis**, formatage et architecture valides (107 modules), build de production réussi. La vérification courante a été couverte par passes successives : menu, nouveautés, combat, rythme, assauts, armurerie, tactile, coopération, relances, stabilité, rampants, mise au repos et longues manches. Les contrôles comprennent **41 pour les assauts**, **78 tactiles Chrome/WebKit**, **34 de fondation**, **18 de stabilité**, **22 de cadence/mise au repos** et **51 pour LACUNA**, dont le carillon et les purges en solo ainsi que les mécanismes partagés en coopération. Les essais à quatre navigateurs couvrent la chute de l’hôte, le dernier survivant et les déconnexions. La coopération vérifie les intentions effectivement reçues par l’invité et l’absence de directeur local chez celui-ci.
+
+La confirmation finale reconstruit le jeu et repasse assauts, combat, coopération et **260 manches terminées sur les quatre cartes**, avec les cinq types ordinaires et l’Archonte, sans apparition invalide ni manche bloquée. Rapport global : `artifacts/upgrade-1793652838917.json` ; détail des manches : `artifacts/waves-regression-1793652838668.json`.
+
+Deux cas limites ont été reproduits puis corrigés : la poussée cumulée d’un amas de corps est bornée, et une équipe dispersée qui couvre toutes les entrées à plus de 10 m dispose d’un repli à plus de 7 m de chaque survivant, avec 2,8 secondes avant toute attaque du nouvel arrivant. Les détours cessent sur blocage ou changement de topologie. Même les deux derniers ennemis espacent leurs nouvelles actions spéciales.
+
+Comparaison au commit `d6af769` (5.1.3), sur ce Mac avec Chrome : même population de 28 ennemis, même trajet à pied et 45 secondes simulées par carte. Les trois intentions apparaissent sur les quatre cartes ; le maximum de préparations simultanées de bonds/crachats passe de 3 à 1 sur l’Abbaye, Boréal et Néréide (LACUNA reste à 1). Le temps CPU médian d’`updateEnemies` est de 0,4 à 0,7 ms, contre 0,4 à 0,6 ms avant ; le 95e percentile est de 0,6 à 1,0 ms, contre 0,6 à 0,8 ms. Ce sont des mesures locales courtes de l’IA, pas une mesure de cadence globale ou de consommation. Chrome mobile émulé couvre les quatre cartes ; WebKit mobile émulé couvre l’Abbaye et LACUNA. Aucun essai sur téléphone physique ni déploiement effectué.
+
+Rapports : `artifacts/assaults-1793652619569/report.json`, `artifacts/upgrade-1793652580883.json`, `artifacts/foundation.json`, `artifacts/stability-1793652355479/report.json`, `artifacts/thermal-check-1793652404863/report.json` et `artifacts/lacuna-1793652537400/report.json`. Les contrôles tactiles et d’armurerie sont dans `artifacts/touch-native-1793651780045/` et `artifacts/armory-1793651733418/`.
+
+Pour reproduire avec les serveurs isolés : `npm run verify -- assault-check smoke pacing-check touch-native-check coop-check foundation-check stability-check crawler-check thermal-check waves-check lacuna-check`. Pour la comparaison, construire aussi un checkout de la version de référence et le désigner par `VESPER_BASELINE_DIR` lors d’`assault-check`.
+
 ## Version 5.1.3 — rythme des manches et messages
 
 Vérification locale du 2 novembre 2026. Les deux derniers ennemis debout courent une fois toutes les apparitions terminées, dès la première vague ; les boss et rampants gardent leur déplacement propre. Le passage marche/course est animé chez l’hôte et les invités, sans modification du protocole 4. Les annonces et notifications partagent une petite carte en haut à droite, affichée 2,1 secondes par défaut et 2,6 secondes au maximum. Les invites d’interaction et le guidage de LACUNA occupent la même colonne ; le bouton tactile conserve une cible de 44 px.

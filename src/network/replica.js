@@ -3,6 +3,7 @@ import {
   corpseBlood,
   deathDuration,
   emergenceDirt,
+  presentEnemyIntent,
   updateEnemyVisibility,
 } from "../game/enemy-presentation.js";
 import * as T from "three";
@@ -108,6 +109,12 @@ export class WorldReplica {
     const crawlers = new Set(s.c || []);
     const cuts = new Map(s.x || []);
     const leaps = new Set((s.lp || []).map(([id, seq]) => `${id}:${seq}`));
+    const intents = new Map(
+      (s.ai || []).map(([id, role, sequence, since]) => [
+        id,
+        { role, sequence, since },
+      ]),
+    );
     for (const row of s.e) {
       const [
         id,
@@ -187,6 +194,7 @@ export class WorldReplica {
         headGone: !!headGone,
         crawler: crawlers.has(id),
         cuts: cuts.get(id) || 0,
+        intent: intents.get(id) || null,
       });
       if (e.samples.length > 8) e.samples.shift();
       e.health = hp;
@@ -322,6 +330,9 @@ export class WorldReplica {
       e.turnRate = dt > 0 ? delta / dt : 0;
       const actionState =
         b?.action && b.action.startTime <= clock ? b.action : a?.action;
+      const observation = b?.time <= clock ? b : a?.time <= clock ? a : null;
+      e.intent = observation?.intent || null;
+      presentEnemyIntent(e, clock);
       const motion = enemyActionPresentation(
         actionState,
         clock,
@@ -382,7 +393,6 @@ export class WorldReplica {
       updateEnemyVisibility(e, clock, d);
       // Flags are observations, just like positions: a future snapshot must
       // not interrupt a swing whose contact has not yet been presented.
-      const observation = b?.time <= clock ? b : a?.time <= clock ? a : null;
       if (observation?.headGone && !m.userData.headDestroyed) {
         const at = new T.Vector3();
         destroyZombieHead(m, at);

@@ -243,6 +243,8 @@ export class RunLifecycle {
     this.run.phaseTimer = 10;
     this.run.remaining = 0;
     this.run.spawnTimer = 0;
+    this.run.assault = null;
+    this.run.enemyTactics = null;
     this.run.reloadTime = 0;
     this.run.reloadDuration = 0;
     this.run.shotTimer = 0;
@@ -409,6 +411,8 @@ export class RunLifecycle {
     this.warmupTimer = setTimeout(() => step(0), 400);
   }
   cleanup() {
+    this.run.assault = null;
+    this.run.enemyTactics = null;
     this.run.mapGameplay?.dispose();
     this.run.mapGameplay = null;
     clearTimeout(this.warmupTimer);

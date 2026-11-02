@@ -1,4 +1,5 @@
 import { bossCount, waveCount } from "../logic.js";
+import { assaultSpawnInterval, beginAssaultWave } from "./assault-director.js";
 
 /** survival owns its rules; commands are the explicit cross-system operations. */
 export class SurvivalMode {
@@ -13,6 +14,7 @@ export class SurvivalMode {
     this.run.wave++;
     this.run.phase = "wave";
     this.run.remaining = waveCount(this.run.wave, this.run.difficulty.count);
+    beginAssaultWave(this.run);
     this.run.spawnTimer = 0.4;
     this.sound.wave();
     const bosses = bossCount(this.run.wave);
@@ -73,7 +75,7 @@ export class SurvivalMode {
         this.run.spawnTimer <= 0
       ) {
         if (this.commands.spawnEnemy()) this.run.remaining--;
-        this.run.spawnTimer = Math.max(0.35, 1.6 - this.run.wave * 0.07);
+        this.run.spawnTimer = assaultSpawnInterval(this.run);
       }
       if (this.run.remaining === 0 && !this.run.enemies.some((e) => !e.dead)) {
         this.run.phase = "rest";

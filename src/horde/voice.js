@@ -276,6 +276,10 @@ export class HordeAudio {
           );
         v.nextVocal = t + 1.5 + Math.random() * 2;
         break;
+      case "hunt":
+        this.vocal(model, "growl", 0.8);
+        v.nextVocal = t + 2;
+        break;
       case "swing":
         this.play("whoosh", {
           position: model.position.clone().setY(1.3),

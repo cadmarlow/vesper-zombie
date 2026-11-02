@@ -9,6 +9,7 @@ const scripts = process.argv.slice(2).length
       "updates-check",
       "smoke",
       "pacing-check",
+      "assault-check",
       "armory-check",
       "feel-check",
       "touch-native-check",
@@ -39,6 +40,7 @@ const allowed = new Set([
   "visual-check",
   "smoke",
   "pacing-check",
+  "assault-check",
   "armory-check",
   "feel-check",
   "touch-native-check",
@@ -50,6 +52,7 @@ const allowed = new Set([
   "remaster-check",
   "blood-check",
   "crawler-check",
+  "lacuna-check",
 ]);
 const report = {
   started: new Date().toISOString(),

@@ -40,6 +40,12 @@ Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon
 
 Le guide intégré décrit les commandes tactiles. Les réglages et records sont enregistrés dans le navigateur. Armes, atouts et essences appartiennent à chaque joueur ; portes, courant, Reliquaire et extraction sont partagés. Un joueur à terre revient à la vague suivante ; la partie se termine si toute l’équipe tombe.
 
+## Version 5.2 — La Horde vivante
+
+Les assauts arrivent par groupes, avec des poussées frontales, des pinces et du harcèlement à partir de la manche 4. Certains Affamés anticipent brièvement votre trajectoire : changer de direction peut les tromper. Les Rémanents débordent et les Porte-peste prennent temporairement position. Les bonds et crachats s’espacent, les cibles sont plus stables en coopération et les nouvelles actions spéciales laissent un court répit après des dégâts ou une mise à terre.
+
+Pour essayer la mise à jour, recharger la page et lancer une nouvelle partie sur `http://localhost:5180`. Les manches 4 à 10 montrent les différentes compositions ; les Rémanents apparaissent à partir de la manche 6. Les deux derniers zombies conservent leur course de fin de manche.
+
 ## Développer et vérifier
 
 Le point d’entrée pour reprendre le code est **[ARCHITECTURE.md](ARCHITECTURE.md)** : responsabilités des modules, ajout d’une carte, d’un ennemi ou d’une arme, fonctionnement de la coopération et règles de nettoyage.
@@ -55,7 +61,7 @@ npm run verify
 npm run verify:full
 ```
 
-`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, tactile Chrome/WebKit, coopération, relances et 260 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies et locomotion, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
+`verify` vérifie formatage, imports et dépendances, tests unitaires/réseau, build de production, menu, combat, assauts et intentions des zombies, tactile Chrome/WebKit, coopération, relances et 260 vagues simulées. `verify:full` ajoute les suites de sensations, livraison, parcours navigateur, mémoire graphique, zombies et locomotion, Néréide, rendu et sang. Les mesures GPU s’exécutent successivement. Ces commandes ferment leurs propres serveurs et n’utilisent pas une partie déjà ouverte.
 
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 

@@ -169,6 +169,17 @@ export function validSnapshot(s) {
         s.c.every((v) => integer(v, 1)))) &&
     (s.lp === undefined ||
       rows(s.lp, 128, 2, (r) => integer(r[0], 1) && integer(r[1], 0, 1e9))) &&
+    (s.ai === undefined ||
+      rows(
+        s.ai,
+        128,
+        4,
+        (r) =>
+          integer(r[0], 1) &&
+          integer(r[1], 0, 3) &&
+          integer(r[2], 0, 1e9) &&
+          finite(r[3], 0, 1e9),
+      )) &&
     (s.x === undefined ||
       rows(s.x, 128, 2, (r) => integer(r[0], 1) && integer(r[1], 0, 63))) &&
     (s.rescue === undefined ||

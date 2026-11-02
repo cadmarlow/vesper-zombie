@@ -3,6 +3,7 @@ import {
   animateDeath,
   corpseBlood,
   emergenceDirt,
+  presentEnemyIntent,
   updateEnemyVisibility,
 } from "./enemy-presentation.js";
 import { zombieModel, animateZombie } from "../creatures.js";
@@ -23,6 +24,18 @@ import {
 
 import { ENEMIES } from "../config.js";
 import { moveSlide, enemyType } from "../logic.js";
+import {
+  assaultSpawnScore,
+  commitAssaultSpawn,
+  nextAssaultSpawn,
+} from "./assault-director.js";
+import {
+  enemyFocus,
+  enemySpecialAllowed,
+  enemyTacticalGoal,
+  huntTargets,
+  prepareEnemyIntentions,
+} from "./enemy-intentions.js";
 import {
   LEAP,
   hordeCanLeap,
@@ -58,19 +71,64 @@ export class EnemySystem {
     this.run.session?.updateFields(rebuild);
   }
   spawnEnemy(typeOverride, positionOverride) {
-    const type = typeOverride || enemyType(this.run.wave);
+    const plan =
+      !typeOverride && !positionOverride ? nextAssaultSpawn(this.run) : null;
+    const type = typeOverride || plan?.type || enemyType(this.run.wave);
+    const people = huntTargets(this.run);
+    const prey = people[(plan?.group || 0) % Math.max(1, people.length)] || {
+      local: true,
+      position: this.run.player.position,
+    };
+    const large = (ENEMIES[type].radius || 0.36) > 0.4;
     const navigation =
-      (ENEMIES[type].radius || 0.36) > 0.4
-        ? this.run.largeNavigation
-        : this.run.navigation;
+      !prey.local && this.run.session?.field
+        ? this.run.session.field(prey.id, large)
+        : large
+          ? this.run.largeNavigation
+          : this.run.navigation;
     let pos = positionOverride;
+    let crowdedArrival = false;
     if (!pos) {
-      const candidate = navigation.spawnPosition(
-        this.run.mapGameplay?.spawnAnchors() || this.run.world.spawnPoints,
-        this.run.player.position,
+      const anchors =
+        this.run.mapGameplay?.spawnAnchors() || this.run.world.spawnPoints;
+      const occupied = this.run.enemies
+        .filter((e) => !e.dead)
+        .map((e) => e.model.position);
+      const options = {
+        avoid: people.map((p) => p.position),
+        score: navigation.clear
+          ? (p) => assaultSpawnScore(plan, p, prey, people, navigation)
+          : undefined,
+      };
+      let candidate = navigation.spawnPosition(
+        anchors,
+        prey.position,
         Math.random,
-        this.run.enemies.filter((e) => !e.dead).map((e) => e.model.position),
+        occupied,
+        options,
       );
+      if (!candidate && people.length > 1) {
+        // A spread-out team can cover all preferred entrances. Keep a safe
+        // emergence available, with extra time before this body can attack.
+        candidate = navigation.spawnPosition(
+          anchors,
+          prey.position,
+          Math.random,
+          occupied,
+          {
+            ...options,
+            minDistance: 7,
+            score: (p) =>
+              Math.min(
+                ...people.map((person) =>
+                  Math.hypot(p.x - person.position.x, p.z - person.position.z),
+                ),
+              ) +
+              (options.score?.(p) || 0) * 0.15,
+          },
+        );
+        crowdedArrival = !!candidate;
+      }
       if (!candidate) return false;
       // Always spawn at the validated position. The old fallback used the
       // authored anchor even when it overlapped a column or scenery collider.
@@ -114,7 +172,10 @@ export class EnemySystem {
       spit: 2 + Math.random() * 3,
       speedFactor: gait.factor,
       gait: gait.gait,
+      assault: plan,
+      arrivalUntil: crowdedArrival ? this.run.time + 2.8 : 0,
     });
+    if (plan) commitAssaultSpawn(this.run);
     return true;
   }
   applyDetail(e, d) {
@@ -135,6 +196,8 @@ export class EnemySystem {
   updateEnemies(dt) {
     if (this.run.session?.peer) return this.run.session.updateRemoteEnemies(dt);
     const cleanup = isWaveCleanup(this.run);
+    this.run.playerYaw = this.input?.yaw || 0;
+    prepareEnemyIntentions(this.run, cleanup);
     for (const e of this.run.enemies) {
       e.hurrying = cleanup && !e.crawler && !ENEMIES[e.type].boss;
       e.age += dt;
@@ -176,10 +239,8 @@ export class EnemySystem {
         e.nextDetailCheck = this.run.time + 0.4;
         this.applyDetail(e, dLocal);
       }
-      // Co-op: hunt the nearest standing player.
-      let focus = this.run.session
-        ? this.run.session.nearest(e.model.position)
-        : null;
+      // Keep a standing target stable, with a small bias toward shared pressure.
+      let focus = enemyFocus(this.run, e);
       focus = this.run.mapGameplay?.enemyFocus(e, focus) || focus;
       const prey = focus ? focus.position : this.run.player.position;
       const preyLocal = !focus || focus.local;
@@ -202,11 +263,19 @@ export class EnemySystem {
           : large
             ? this.run.largeNavigation
             : this.run.navigation;
-      target = navigation.direction(
-        e.model.position.x,
-        e.model.position.z,
-        prey,
+      const tacticalGoal = enemyTacticalGoal(
+        this.run,
+        e,
+        focus,
+        navigation,
+        d,
+        blocked,
+        cleanup,
       );
+      presentEnemyIntent(e, this.run.time);
+      target =
+        tacticalGoal ||
+        navigation.direction(e.model.position.x, e.model.position.z, prey);
       // Near the prey, low obstacles in the way are climbed over.
       const radius = ENEMIES[e.type].radius || 0.36;
       const solid = vaultWorld(this.run.world);
@@ -233,7 +302,7 @@ export class EnemySystem {
             solid,
             radius,
           ));
-      const goal = overLow ? prey : target;
+      const goal = overLow ? tacticalGoal || prey : target;
       const delta = dir.set(
         goal.x - e.model.position.x,
         0,
@@ -261,10 +330,18 @@ export class EnemySystem {
         const dx = e.model.position.x - other.model.position.x,
           dz = e.model.position.z - other.model.position.z,
           ds = dx * dx + dz * dz;
-        if (ds < 0.7 && ds > 0.001) {
-          sx += (dx / ds) * 0.22;
-          sz += (dz / ds) * 0.22;
+        const space = radius + (ENEMIES[other.type].radius || 0.36) + 0.08;
+        if (ds < space * space && ds > 0.000001) {
+          const distance = Math.sqrt(ds);
+          const force = Math.min(0.9, (space - distance) * 1.8);
+          sx += (dx / distance) * force;
+          sz += (dz / distance) * force;
         }
+      }
+      const separation = Math.hypot(sx, sz);
+      if (separation > 0.9) {
+        sx *= 0.9 / separation;
+        sz *= 0.9 / separation;
       }
       // A pounce carries the body at the prey between its coil and contact.
       const leapAction =
@@ -360,8 +437,13 @@ export class EnemySystem {
         e.type,
       );
       e.turnRate = dt > 0 ? (e.model.rotation.y - previousYaw) / dt : 0;
+      const arrivalReady = this.run.time >= (e.arrivalUntil || 0);
       const inMeleeRange =
-        d < (e.crawler ? CRAWL_REACH : 1.65) && !blocked && !falling && !over;
+        arrivalReady &&
+        d < (e.crawler ? CRAWL_REACH : 1.65) &&
+        !blocked &&
+        !falling &&
+        !over;
       // Sprinters facing their prey a few metres away may pounce instead.
       const facingPrey =
         Math.abs(
@@ -370,7 +452,10 @@ export class EnemySystem {
             Math.cos(e.targetYaw - e.model.rotation.y),
           ),
         ) < 0.6;
+      const specialAllowed = enemySpecialAllowed(this.run, e);
       const leapReady =
+        arrivalReady &&
+        specialAllowed &&
         !inMeleeRange &&
         !blocked &&
         !e.crawler &&
@@ -383,6 +468,8 @@ export class EnemySystem {
         melee: !focus?.bait && (inMeleeRange || leapReady),
         leap: !focus?.bait && leapReady,
         spit:
+          arrivalReady &&
+          specialAllowed &&
           !focus?.bait &&
           ENEMIES[e.type].behavior === "spitter" &&
           d > 3 &&

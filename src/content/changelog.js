@@ -3,6 +3,36 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.2.0",
+    date: "2026-11-02",
+    title: "La Horde vivante",
+    tagline: "Lisez leurs approches. Déjouez leurs assauts.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Assauts composés sur les quatre cartes",
+      "Interceptions, débordements et appuis à distance",
+      "Cibles plus stables et pression répartie en coopération",
+    ],
+    sections: [
+      {
+        title: "Des approches différentes",
+        items: [
+          "Les vagues alternent poussées frontales, pinces légères et harcèlement, avec des arrivées groupées et de courtes respirations. Les types d’ennemis se débloquent aux mêmes manches.",
+          "Certains Affamés interceptent brièvement votre trajectoire ; des Rémanents et Affamés débordent par des passages accessibles. Un changement de direction peut les tromper.",
+          "Les Porte-peste prennent temporairement position pour cracher, puis reprennent leur poursuite. La foule tient mieux compte de la taille de chaque corps.",
+        ],
+      },
+      {
+        title: "Une pression lisible",
+        items: [
+          "Les cibles restent stables et les approches tactiques sont limitées par joueur. Les bonds et crachats s’espacent ; après des dégâts ou une mise à terre, les nouvelles menaces spéciales laissent un court répit.",
+          "Les apparitions respectent une distance de sécurité par rapport à tous les survivants. Les changements de porte, les purges et le carillon de LACUNA sont pris en compte.",
+          "Les deux derniers ennemis reviennent à la poursuite directe, avec leur course de fin de manche. Les intentions et leurs avertissements sonores sont synchronisés en coopération.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.1.3",
     date: "2026-11-02",
     title: "Une fin de vague plus nerveuse",

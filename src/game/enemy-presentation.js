@@ -1,5 +1,7 @@
 import { ENEMIES } from "../content/enemies.js";
 import { CORPSE_TIME } from "../content/horde.js";
+import { INTENT, TACTICS } from "../content/assaults.js";
+import { hordeEvent } from "../horde/voice.js";
 import { animateHordeDeath } from "../horde/animator.js";
 import * as T from "three";
 
@@ -178,4 +180,24 @@ export function updateEnemyVisibility(enemy, time, distance) {
   if (ENEMIES[enemy.type].behavior === "wraith")
     enemy.model.visible =
       Math.sin(time * 5 + enemy.seed) > 0.05 || distance < 4;
+}
+
+/** Positional warning, presented at the same intent clock on host and peers. */
+export function presentEnemyIntent(enemy, clock) {
+  const intent = enemy.intent;
+  if (
+    !intent ||
+    intent.since > clock ||
+    enemy.intentCueSequence === intent.sequence
+  )
+    return;
+  enemy.intentCueSequence = intent.sequence;
+  if (
+    (intent.role === INTENT.intercept || intent.role === INTENT.flank) &&
+    clock - intent.since < 0.65 &&
+    clock - (enemy.lastIntentCue ?? -10) >= TACTICS.cueCooldown
+  ) {
+    enemy.lastIntentCue = clock;
+    hordeEvent(enemy.model, "hunt");
+  }
 }

@@ -1,6 +1,7 @@
 import { chromiumOptions } from "./browser.mjs";
 import fs from "node:fs";
 import { openGameAudit } from "./game-audit.mjs";
+import { validSnapshot } from "../server/protocol.js";
 // Two browsers, one relay: create/join, start, sync, hits, doors, death/respawn.
 import { chromium } from "@playwright/test";
 fs.mkdirSync("artifacts", { recursive: true });
@@ -118,7 +119,30 @@ await host.evaluate(() => {
       g.player.position.clone().set(i * 2 - 3, 0, 8),
     );
 });
-await peer.waitForTimeout(600);
+await peer
+  .waitForFunction(() => window.__vesper.enemies.length === 4, null, {
+    timeout: 15000,
+  })
+  .catch(async (error) => {
+    const diagnostic = await Promise.all(
+      [host, peer].map((page) =>
+        page.evaluate(() => ({
+          state: window.__vesper.state,
+          time: window.__vesper.time,
+          enemies: window.__vesper.enemies.length,
+          socketState: window.__vesper.session.net.socket?.readyState,
+        })),
+      ),
+    );
+    const packet = await host.evaluate(() =>
+      window.__vesper.session.snapshot(),
+    );
+    console.log(
+      "Replica diagnostic",
+      JSON.stringify({ diagnostic, valid: validSnapshot(packet), packet }),
+    );
+    throw error;
+  });
 const mirrored = await peer.evaluate(() =>
   window.__vesper.enemies.map((e) => [
     e.type,
@@ -334,6 +358,102 @@ check(
       enemies.every((e) => e.hurrying && e.clip?.startsWith("run_")),
   ),
   JSON.stringify(cleanup),
+);
+// Real host decisions, delivered by the relay, are presented by the guest.
+await host.evaluate(() => {
+  const g = window.__vesper;
+  for (const e of g.enemies) if (!e.dead) g.damageEnemy(e, 1e9, false);
+  g.wave = 8;
+  g.phase = "wave";
+  g.remaining = 0;
+  g.player.invulnerable = 1e9;
+  g.player.position.set(0, 1.7, 20);
+  for (const [type, x] of [
+    ["wraith", -7],
+    ["wraith", 7],
+    ["runner", -3],
+    ["runner", 3],
+    ["walker", 0],
+  ]) {
+    g.spawnEnemy(type, g.player.position.clone().set(x, 0, 6));
+    const e = g.enemies.at(-1);
+    e.model.position.y = 0;
+    e.age = 3;
+  }
+  g.updateNavigation();
+});
+await host
+  .waitForFunction(
+    () => window.__vesper.enemies.some((e) => !e.dead && e.intent?.role),
+    null,
+    { timeout: 9000 },
+  )
+  .catch(async (error) => {
+    console.log(
+      "Tactical diagnostic",
+      await host.evaluate(() => {
+        const g = window.__vesper;
+        return {
+          state: g.state,
+          time: g.time,
+          phase: g.phase,
+          remaining: g.remaining,
+          relief: g.run.enemyTactics?.reliefUntil,
+          people: g.run.enemyTactics?.people,
+          enemies: g.enemies
+            .filter((e) => !e.dead)
+            .map((e) => ({
+              id: e.id,
+              type: e.type,
+              age: e.age,
+              at: e.model.position.toArray(),
+              intent: e.intent,
+              target: e.huntTarget,
+              next: e.nextTactic,
+            })),
+        };
+      }),
+    );
+    throw error;
+  });
+const intentHost = await host.evaluate(() =>
+  window.__vesper.enemies
+    .filter((e) => !e.dead && e.intent?.role)
+    .map((e) => [e.id, e.intent.role, e.intent.sequence]),
+);
+await peer.waitForFunction(
+  (intents) =>
+    window.__vesper.enemies.some(
+      (e) =>
+        !e.dead &&
+        intents.some(
+          ([id, role, sequence]) =>
+            e.id === id &&
+            e.intent?.role === role &&
+            e.intent?.sequence === sequence,
+        ),
+    ),
+  intentHost,
+  { timeout: 9000 },
+);
+const intentPeer = await peer.evaluate(() =>
+  window.__vesper.enemies
+    .filter((e) => !e.dead && e.intent?.role)
+    .map((e) => [e.id, e.intent.role, e.intent.sequence]),
+);
+check(
+  "Host tactical intentions are replayed by the guest",
+  intentHost.length > 0 &&
+    intentHost.some((a) =>
+      intentPeer.some((b) => a.every((v, i) => v === b[i])),
+    ),
+  JSON.stringify({ intentHost, intentPeer }),
+);
+check(
+  "The guest never creates its own tactical director",
+  await peer.evaluate(
+    () => !window.__vesper.run.enemyTactics && !window.__vesper.run.assault,
+  ),
 );
 // Everyone down ends the game for both
 await host.evaluate(() => {

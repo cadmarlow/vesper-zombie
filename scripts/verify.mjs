@@ -58,6 +58,7 @@ try {
           "updates-check",
           "smoke",
           "pacing-check",
+          "assault-check",
           "armory-check",
           "touch-native-check",
           "coop-check",

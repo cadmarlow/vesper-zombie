@@ -230,6 +230,7 @@ export class Navigation {
     return [...set];
   }
   rebuild() {
+    this.revision = (this.revision || 0) + 1;
     this.indexObstacles();
     this.distance.fill(-1);
     this.links.fill(0);
@@ -342,12 +343,72 @@ export class Navigation {
     // connection to the flow field instead of permanently freezing there.
     return best || retreat || from;
   }
-  spawnPosition(anchors, player, random = Math.random, occupied = []) {
+  clear(from, to, radius = this.clearance) {
+    return clearPath(from, to, this.candidates(from, to), radius);
+  }
+  /** A bounded tactical detour on the existing collision graph, not a new field. */
+  route(from, to, maxVisited = 384) {
+    if (this.clear(from, to)) return [{ x: to.x, z: to.z }];
+    const nearest = (p) =>
+      this.nearby(p.x, p.z, 2)
+        .filter((i) => this.clear(p, this.point(i)))
+        .sort(
+          (a, b) =>
+            Math.hypot(this.point(a).x - p.x, this.point(a).z - p.z) -
+            Math.hypot(this.point(b).x - p.x, this.point(b).z - p.z),
+        )[0];
+    const start = nearest(from),
+      end = nearest(to);
+    if (start === undefined || end === undefined) return null;
+    const destination = this.point(end);
+    const heuristic = (i) => {
+      const p = this.point(i);
+      return (
+        (Math.abs(p.x - destination.x) + Math.abs(p.z - destination.z)) /
+        this.cell
+      );
+    };
+    const open = [{ i: start, cost: 0, rank: heuristic(start) }];
+    const costs = new Map([[start, 0]]),
+      parents = new Map();
+    for (let visited = 0; open.length && visited < maxVisited; visited++) {
+      open.sort((a, b) => b.rank - a.rank);
+      const row = open.pop();
+      if (row.cost !== costs.get(row.i)) continue;
+      if (row.i === end) {
+        const path = [{ x: to.x, z: to.z }];
+        for (let at = end; at !== undefined; at = parents.get(at))
+          path.push(this.point(at));
+        path.reverse();
+        return path;
+      }
+      this.neighbours(row.i).forEach((j, direction) => {
+        if (!(this.links[row.i] & (1 << direction))) return;
+        const cost = row.cost + 1;
+        if (cost >= (costs.get(j) ?? Infinity)) return;
+        costs.set(j, cost);
+        parents.set(j, row.i);
+        open.push({ i: j, cost, rank: cost + heuristic(j) });
+      });
+    }
+    return null;
+  }
+  spawnPosition(
+    anchors,
+    player,
+    random = Math.random,
+    occupied = [],
+    options = {},
+  ) {
+    const minDistance = options.minDistance ?? 10;
     const valid = (i) => {
       if (this.blocked[i] || this.distance[i] < 0) return false;
       const p = this.point(i);
       return (
-        Math.hypot(p.x - player.x, p.z - player.z) > 10 &&
+        Math.hypot(p.x - player.x, p.z - player.z) > minDistance &&
+        (options.avoid || []).every(
+          (other) => Math.hypot(p.x - other.x, p.z - other.z) > minDistance,
+        ) &&
         occupied.every(
           (other) =>
             Math.hypot(p.x - other.x, p.z - other.z) >
@@ -365,6 +426,14 @@ export class Navigation {
         if (valid(i)) candidates.push(i);
     }
     if (!candidates.length) return null;
+    if (options.score) {
+      const ranked = candidates.map((i) => ({
+        i,
+        score: options.score(this.point(i)) + random() * 0.7,
+      }));
+      ranked.sort((a, b) => b.score - a.score);
+      return this.point(ranked[0].i);
+    }
     return this.point(candidates[Math.floor(random() * candidates.length)]);
   }
 }

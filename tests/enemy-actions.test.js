@@ -111,6 +111,44 @@ test("cleanup preserves faster runners, boss speeds and crawler movement", () =>
   }
 });
 
+test("a compressed crowd cannot eject a body sideways at unbounded speed", () => {
+  const enemies = Array.from({ length: 28 }, (_, i) => {
+    const model = modelFixture();
+    model.position.set(i === 0 ? 0 : 0.12 + i * 0.004, 0, 10 + (i % 3) * 0.02);
+    return {
+      id: i + 1,
+      type: "walker",
+      model,
+      age: 3,
+      stagger: 0,
+      attack: 2,
+      spit: 4,
+      seed: 0,
+      nextDetailCheck: Infinity,
+    };
+  });
+  const run = {
+    time: 0,
+    wave: 1,
+    phase: "wave",
+    remaining: 0,
+    enemies,
+    player: { position: new T.Vector3() },
+    navigation: { direction: (_x, _z, target) => target },
+    world: { obstacles: [] },
+  };
+  const system = new EnemySystem(
+    { run },
+    { obstacleDistance: (_o, _d, d) => d },
+  );
+  const before = enemies[0].model.position.clone();
+  system.updateEnemies(1 / 30);
+  assert.ok(
+    before.distanceTo(enemies[0].model.position) <=
+      (enemySpeed(enemies[0], 1) + 0.9) / 30 + 1e-9,
+  );
+});
+
 test("a running brute finishes a tiny corner waypoint before continuing the hunt", () => {
   const obstacles = [
     { x: -23, z: 39, w: 5.8, d: 5.8 },
@@ -156,6 +194,51 @@ test("a running brute finishes a tiny corner waypoint before continuing the hunt
     assert.ok(canStand(model.position.x, model.position.z, obstacles, 0.6));
   }
   assert.ok(model.position.distanceTo(run.player.position) < 2);
+});
+
+test("a crowded-room arrival cannot hit before its advertised emergence grace", () => {
+  const model = modelFixture();
+  model.position.set(0, 0, 1.2);
+  const enemy = {
+    id: 1,
+    type: "walker",
+    model,
+    age: 3,
+    stagger: 0,
+    attack: 0,
+    spit: 4,
+    seed: 0,
+    nextDetailCheck: Infinity,
+    arrivalUntil: 2.8,
+  };
+  const run = {
+    time: 0,
+    wave: 1,
+    phase: "wave",
+    remaining: 0,
+    enemies: [enemy],
+    player: { position: new T.Vector3() },
+    navigation: { direction: (_x, _z, target) => target },
+    world: { obstacles: [] },
+  };
+  let hits = 0;
+  const system = new EnemySystem(
+    { run },
+    { obstacleDistance: (_o, _d, d) => d, hurt: () => hits++ },
+  );
+  for (let f = 0; f < 84; f++) {
+    run.time = f / 30;
+    system.updateEnemies(1 / 30);
+  }
+  assert.equal(hits, 0);
+  assert.equal(enemy.action, undefined);
+  run.time = 2.9;
+  system.updateEnemies(1 / 30);
+  assert.equal(enemy.action.kind, "melee");
+  assert.equal(hits, 0);
+  run.time = 3.4;
+  system.updateEnemies(1 / 30);
+  assert.equal(hits, 1);
 });
 
 test("every melee variant anticipates, contacts once and finishes recovery", () => {
@@ -355,6 +438,28 @@ function presentationFixture() {
     at,
   };
 }
+
+test("peers present tactical intentions on the delayed timeline and consume each cue once", () => {
+  const { enemy, replica, packet, at } = presentationFixture();
+  const row = [1, "walker", 0, 0, 0, 90, 0, 0, 0, 0, 90, 0, 0, 0, 0, 0];
+  replica.apply({ ...packet(10, [row]), ai: [[1, 0, 1, 10]] });
+  replica.apply({ ...packet(10.4, [row]), ai: [[1, 2, 2, 10.4]] });
+  at(10.2);
+  assert.equal(enemy.intent.role, 0);
+  at(10.41);
+  assert.equal(enemy.intent.role, 2);
+  assert.equal(enemy.intentCueSequence, 2);
+  const cue = enemy.lastIntentCue;
+  at(10.45);
+  assert.equal(enemy.lastIntentCue, cue);
+  replica.apply(packet(10.6, [row]));
+  at(10.6);
+  assert.equal(
+    enemy.intent,
+    null,
+    "old snapshots without metadata remain supported",
+  );
+});
 
 test("a peer presents the swing contact before a later death and head destruction", () => {
   const { enemy, blood, replica, packet, at, remoteEnemies, context } =

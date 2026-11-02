@@ -4,28 +4,29 @@ La base reste une application JavaScript avec Three.js et un relais WebSocket. C
 
 ## Où intervenir
 
-| Besoin                                        | Modules                                                     |
-| --------------------------------------------- | ----------------------------------------------------------- |
-| Écrans, paramètres, salons, lancement         | `src/main.js`, `src/app/`, `src/ui/`                        |
-| Ordre d’une image, commandes publiques        | `src/game.js`                                               |
-| Chargement, relance, libération d’une partie  | `src/game/lifecycle.js`                                     |
-| Déplacement, santé, état à terre              | `src/game/player.js`                                        |
-| Tirs, couteau, dégâts, grenades               | `src/game/combat.js`                                        |
-| Armes à la première personne, bras, sons      | `src/armory/`, `scripts/armory/`                            |
-| Apparition, navigation, attaques ennemies     | `src/game/enemies.js`, `enemy-behaviors.js`                 |
-| Corps, animations, voix et yeux des zombies   | `src/horde/`, `src/content/horde.js`                        |
-| Rampants et démembrement                      | `src/game/crawlers.js`, `src/horde/dismember.js`, `gibs.js` |
-| Zombie procédural de repli                    | `src/creature-motion.js`, `creatures.js`                    |
-| Construction des ressources de la horde       | `scripts/horde/`                                            |
-| Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`            |
-| Vagues, récompenses de transition, extraction | `src/game/survival.js`                                      |
-| Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`          |
-| Statistiques, réglages par défaut             | `src/content/`                                              |
-| Métadonnées et géométrie d’une carte          | `src/maps/<carte>/`                                         |
-| Monde commun, matériaux, modèles procéduraux  | `src/world.js`, `assets.js`, `creatures.js`, `weapons.js`   |
-| Rendu, post-traitement, effets                | `src/game/presentation.js`, `rendering.js`, `*-effects.js`  |
-| Session coopérative                           | `src/multiplayer.js`, `src/network/`                        |
-| Connexion et protocole                        | `src/net.js`, `server/protocol.js`, `server/index.js`       |
+| Besoin                                        | Modules                                                                          |
+| --------------------------------------------- | -------------------------------------------------------------------------------- |
+| Écrans, paramètres, salons, lancement         | `src/main.js`, `src/app/`, `src/ui/`                                             |
+| Ordre d’une image, commandes publiques        | `src/game.js`                                                                    |
+| Chargement, relance, libération d’une partie  | `src/game/lifecycle.js`                                                          |
+| Déplacement, santé, état à terre              | `src/game/player.js`                                                             |
+| Tirs, couteau, dégâts, grenades               | `src/game/combat.js`                                                             |
+| Armes à la première personne, bras, sons      | `src/armory/`, `scripts/armory/`                                                 |
+| Apparition, navigation, attaques ennemies     | `src/game/enemies.js`, `enemy-behaviors.js`                                      |
+| Composition des assauts et intentions         | `src/game/assault-director.js`, `enemy-intentions.js`, `src/content/assaults.js` |
+| Corps, animations, voix et yeux des zombies   | `src/horde/`, `src/content/horde.js`                                             |
+| Rampants et démembrement                      | `src/game/crawlers.js`, `src/horde/dismember.js`, `gibs.js`                      |
+| Zombie procédural de repli                    | `src/creature-motion.js`, `creatures.js`                                         |
+| Construction des ressources de la horde       | `scripts/horde/`                                                                 |
+| Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`                                 |
+| Vagues, récompenses de transition, extraction | `src/game/survival.js`                                                           |
+| Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`                               |
+| Statistiques, réglages par défaut             | `src/content/`                                                                   |
+| Métadonnées et géométrie d’une carte          | `src/maps/<carte>/`                                                              |
+| Monde commun, matériaux, modèles procéduraux  | `src/world.js`, `assets.js`, `creatures.js`, `weapons.js`                        |
+| Rendu, post-traitement, effets                | `src/game/presentation.js`, `rendering.js`, `*-effects.js`                       |
+| Session coopérative                           | `src/multiplayer.js`, `src/network/`                                             |
+| Connexion et protocole                        | `src/net.js`, `server/protocol.js`, `server/index.js`                            |
 
 Les longs fichiers de géométrie décrivent des décors et modèles. Une extraction supplémentaire se justifie par un élément réutilisable ou une responsabilité distincte, pas par un nombre arbitraire de lignes.
 
@@ -61,7 +62,7 @@ Une variante se définit dans `content/enemies.js`. `look` permet de reprendre u
 
 Les attaques spéciales s’enregistrent dans `game/enemy-behaviors.js`. Le déplacement, le choix de cible, les collisions et les dégâts au contact restent communs dans `EnemySystem`. L’attaque `spitter` fournit un exemple complet. Une nouvelle attaque doit prévoir son effet local et sa représentation chez les invités.
 
-`spawn.wave` indique la première vague admissible et `spawn.below` un **seuil cumulatif**, dans l’intervalle `[0, 1]`. Les entrées admissibles sont triées par seuil ; le premier seuil supérieur au tirage gagne. Ce format conserve exactement la distribution historique. Adapter les seuils ensemble et vérifier leurs limites dans `tests/logic.test.js` ou `tests/runtime.test.js`. Les boss ont leur calendrier explicite dans `SurvivalMode`.
+`spawn.wave` indique la première vague admissible. Les renforts ordinaires suivent les compositions de `content/assaults.js` et respectent ce déblocage. `spawn.below` conserve le tirage historique de repli : c’est un **seuil cumulatif**, dans l’intervalle `[0, 1]`. Les entrées admissibles sont triées par seuil ; le premier seuil supérieur au tirage gagne. Adapter les seuils ensemble et vérifier leurs limites dans `tests/logic.test.js` ou `tests/runtime.test.js`. Les boss ont leur calendrier explicite dans `SurvivalMode`.
 
 Les ennemis utilisent leur identifiant texte sur le réseau. Ajouter une variante n’exige pas de maintenir un second tableau d’indices dans la coopération. Les propriétés visuelles communes des morts et des Rémanents sont partagées entre hôte et invité dans `enemy-presentation.js`.
 
@@ -76,6 +77,20 @@ Les zombies sont des corps Rocketbox (`public/models/horde/`) animés par une bi
 `enemy-actions.js` définit l'horloge et le contact unique des attaques. L'animation, les dégâts et le départ du projectile utilisent le même marqueur. Les volumes touchables suivent leurs os ; ils sont actualisés une fois par tir, puis réutilisés entre les plombs. Un geste plus ample doit garder ce raccord au combat.
 
 `npm run test:locomotion` inspecte les modèles du build, les semelles réellement déformées, les appuis, les gestes d'attaque et les tirs à la tête ; `npm run test:crawlers` suit un rampant de la grenade à sa mort. Il produit un rapport et une galerie dans `artifacts/`. `node scripts/locomotion-check.mjs --webkit` ajoute le profil mobile WebKit. Les tests unitaires couvrent les appuis en espace monde, les arrêts, les virages, les vitesses et la synchronisation des contacts.
+
+## Assauts et intentions
+
+`SurvivalMode.beginWave` initialise `run.assault` avec le quota habituel. `assault-director.js` choisit des groupes de 4 ennemis au début, puis 5 à 7 : front, pince ou harcèlement, sans répéter deux compositions disponibles à la suite. Un essai d’apparition raté ne consomme ni membre ni quota. Les plafonds simultanés des spécialistes et les courtes respirations modulent la composition et la cadence ; santé, dégâts et progression de vitesse restent dans `content/enemies.js`.
+
+Les entrées privilégient un axe d’approche et pénalisent les apparitions proches dans le regard des survivants. `Navigation.spawnPosition` vérifie l’accès à la cible et l’éloignement de tous les joueurs debout. Si une équipe dispersée couvre toutes les entrées à plus de 10 m, le repli cherche à plus de 7 m de chacun et interdit toute attaque du nouvel arrivant pendant 2,8 secondes. Il conserve la sortie de terre normale. Aucun essai invalide n’utilise une ancre brute.
+
+`enemy-intentions.js` partage un relevé des survivants par image et échantillonne leur vitesse toutes les 0,3 seconde. L’aggro reste verrouillée brièvement, puis compare distance et charge avant de changer de cible. Quelques coureurs visent une position anticipée bornée ; les Rémanents et certains coureurs de pince prennent un détour latéral. Les Porte-peste peuvent tenir leur position 1,65 seconde, puis reprennent la poursuite. Les bonds et crachats ont un budget par cible et un court intervalle de récupération ; les dégâts ou une mise à terre ouvrent 2,5 secondes de répit pour les nouvelles actions spéciales.
+
+Les détours utilisent une recherche bornée sur le graphe de navigation existant, avec deux recherches au maximum par image. Les points restent soumis aux collisions. Un changement de porte, de cible, un blocage, un déséquilibre, un carillon ou la fin de manche annulent le détour. Les champs de navigation ordinaires restent le repli. Les mémoires de cible et les compositions sont propres à la partie et libérées par `Lifecycle`.
+
+L’hôte seul décide. Le champ facultatif `ai` des instantanés contient `[id, rôle, séquence, instant]` ; les invités présentent l’intention et son avertissement spatial sur leur horloge retardée, sans exécuter le directeur. Le protocole reste en version 4 et les instantanés sans `ai` sont acceptés.
+
+`npm run test:assaults` utilise le build de `dist/` avec son propre serveur temporaire : poursuite de 28 ennemis sur les quatre cartes, Chrome ordinateur/mobile et WebKit mobile, intentions, budgets d’attaques et quotas. `VESPER_BASELINE_DIR` peut désigner un autre checkout déjà construit pour comparer la même population et le même trajet. Les tests unitaires couvrent notamment l’annulation des détours, le carillon, les portes, les entrées encombrées, l’aggro et le répit ; `coop-check` vérifie les intentions à travers le vrai relais.
 
 ## L’armurerie
 
