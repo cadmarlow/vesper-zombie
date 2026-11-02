@@ -3,12 +3,12 @@ import { chromiumOptions } from "./browser.mjs";
 // deltas and UI buttons. The game state is READ to decide inputs (like a
 // player reading the screen), never written.
 //   MODE=solo|coop  WAVES=6  MAP=abbey|station|abyss  DIFFICULTY=normal
-//   Dev server (5173) by default; VESPER_URL=http://localhost:4173 for the build.
+//   Dev server (5180) by default; VESPER_URL=http://localhost:4173 for the build.
 //   Co-op needs `npm run relay` running.
 import { chromium } from "@playwright/test";
 import fs from "node:fs";
 
-const URL = process.env.VESPER_URL || "http://localhost:5173";
+const URL = process.env.VESPER_URL || "http://localhost:5180";
 const MODE = process.env.MODE || "solo"; // solo | coop
 const TARGET_WAVE = Number(process.env.WAVES || 6);
 const DIFFICULTY = process.env.DIFFICULTY || "normal";

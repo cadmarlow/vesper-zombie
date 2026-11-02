@@ -22,7 +22,7 @@ npm run relay
 
 Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon et partager son code. L’hôte choisit carte et difficulté. Tous les participants doivent avoir terminé leur chargement pour que la partie démarre. Si l’hôte quitte, les autres reviennent au menu ; le salon permet de relancer une partie.
 
-`npm run dev` sert les sources avec rechargement automatique et écoute sur le réseau local. Le serveur `npm start` écoute uniquement sur cet ordinateur. Pour un essai sur téléphone en Wi-Fi, utiliser l’adresse réseau affichée par Vite et laisser également tourner le relais. WebGL 2 et l’accélération graphique sont nécessaires ; sur mobile, jouer en paysage.
+`npm run dev` sert les sources avec rechargement automatique sur `http://localhost:5180` et écoute aussi sur le réseau local. Le port de développement est fixé à 5180 pour éviter de tomber sur un autre jeu lancé sur le port 5173 ; si 5180 est occupé, Vite signale l’erreur. Le serveur `npm start` écoute uniquement sur cet ordinateur. Pour un essai sur téléphone en Wi-Fi, utiliser l’adresse réseau affichée par Vite et laisser également tourner le relais. WebGL 2 et l’accélération graphique sont nécessaires ; sur mobile, jouer en paysage.
 
 ## Commandes
 

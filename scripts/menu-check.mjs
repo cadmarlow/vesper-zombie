@@ -7,7 +7,7 @@ const browser = await chromium.launch({
   ...chromiumOptions,
 });
 const page = await browser.newPage();
-const url = process.env.VESPER_URL || "http://localhost:5173/";
+const url = process.env.VESPER_URL || "http://localhost:5180/";
 const out = `artifacts/menu-audit-${Date.now()}`;
 fs.mkdirSync(out, { recursive: true });
 const failures = [];

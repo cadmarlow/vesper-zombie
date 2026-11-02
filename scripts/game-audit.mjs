@@ -6,7 +6,7 @@ export async function openGameAudit(page) {
   const url =
     process.env.VESPER_URL ||
     process.env.VESPER_DEV_URL ||
-    "http://localhost:5173";
+    "http://localhost:5180";
   if (process.env.VESPER_RELAY)
     await page.addInitScript((relay) => {
       const Native = window.WebSocket;

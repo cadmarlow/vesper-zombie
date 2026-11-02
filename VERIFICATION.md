@@ -2,6 +2,16 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 5.1.3 — rythme des manches et messages
+
+Vérification locale du 2 novembre 2026. Les deux derniers ennemis debout courent une fois toutes les apparitions terminées, dès la première vague ; les boss et rampants gardent leur déplacement propre. Le passage marche/course est animé chez l’hôte et les invités, sans modification du protocole 4. Les annonces et notifications partagent une petite carte en haut à droite, affichée 2,1 secondes par défaut et 2,6 secondes au maximum. Les invites d’interaction et le guidage de LACUNA occupent la même colonne ; le bouton tactile conserve une cible de 44 px.
+
+Un essai sur Néréide a révélé une brute immobilisée juste avant un angle d’obstacle : le déplacement non normalisé à moins de 1 mm réduisait la distance sans jamais atteindre le point de passage. La normalisation est corrigée et un test reproduit cette géométrie, vérifie le passage exact et la poursuite sans traverser les obstacles.
+
+Résultats : formatage et architecture valides, **117 tests unitaires/réseau réussis**, build de production réussi ; **20 contrôles de rythme et notifications**, **41 de combat**, **78 tactiles Chrome/WebKit**, coopération (y compris la course des deux derniers zombies chez les deux joueurs), et **260 manches terminées sur les quatre cartes**, sans apparition invalide ni manche bloquée. Les **23 contrôles des aides de LACUNA** passent aussi, sur Chrome et WebKit iPhone : fermeture, pause, paramètres, réinitialisation et persistance.
+
+Rapports et captures : `artifacts/pacing-1793645072348/report.json`, `artifacts/verification-1793644747058/`, `artifacts/touch-native-1793644779134/`, `artifacts/waves-regression-1793645203503.json` et `artifacts/lacuna-hints-1793645204027/report.json`. Pour reproduire : `npm run verify -- pacing-check smoke touch-native-check coop-check waves-check`, puis `node scripts/lacuna-hints-check.mjs`. Mobile émulé ; aucun essai sur téléphone physique ni déploiement effectué.
+
 ## Version 5.0.0 — l’armurerie
 
 Mise à jour du 26 septembre 2026, avant publication : prises des mains refaites (poignet limité à 15° au repos, 40° pendant une action ; prises conçues depuis la direction de l’avant-bras puis refermées au contact), carte d’usure du Spectre 9 recuite (elle était vide et l’arme s’affichait noire), Espace pour courir et Maj pour sauter, boutons viser et sauter réduits sur mobile, journal des versions et annonce des nouveautés. `armory-check` vérifie désormais que chaque main atteint sa prise, poignet droit et doigts refermés vers la paume ; `updates-check` couvre le journal, la carte « Nouveau » et l’annonce d’une version à venir. **Les 20 suites de `verify:full` passent** sur le build final, 105 tests unitaires compris. Rapport : `artifacts/upgrade-1790379142837.json`.

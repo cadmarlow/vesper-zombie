@@ -15,6 +15,7 @@ import {
   enemyActionPresentation,
   enemySpeed,
   enemyVariation,
+  isWaveCleanup,
   riseRate,
   turnEnemyYaw,
   updateEnemyAction,
@@ -133,7 +134,9 @@ export class EnemySystem {
   }
   updateEnemies(dt) {
     if (this.run.session?.peer) return this.run.session.updateRemoteEnemies(dt);
+    const cleanup = isWaveCleanup(this.run);
     for (const e of this.run.enemies) {
+      e.hurrying = cleanup && !e.crawler && !ENEMIES[e.type].boss;
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
@@ -237,7 +240,10 @@ export class EnemySystem {
         goal.z - e.model.position.z,
       );
       const length = delta.length();
-      if (length > 0.001) delta.divideScalar(length);
+      // Even a sub-millimetre step must reach its waypoint exactly. Leaving
+      // this delta unnormalized squares the remaining distance and can trap
+      // a body forever just before a tight obstacle corner.
+      if (length > 0) delta.divideScalar(length);
       const falling = this.run.time < (e.crawlFall || 0);
       const speed =
         (e.crawler
@@ -398,6 +404,7 @@ export class EnemySystem {
       motion.clock = this.run.time;
       motion.isGrounded = e.model.position.y >= -0.001;
       motion.expectedSpeed = enemySpeed(e, this.run.wave);
+      motion.hurrying = e.hurrying;
       motion.viewer = this.view?.camera?.position;
       motion.vault = vaultPhase(over, e.velocityX, e.velocityZ);
       e.attacking = motion.action !== "none";

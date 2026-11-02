@@ -14,6 +14,8 @@ const release = JSON.stringify({
   ...(notes && { title: notes.title, highlights: notes.highlights }),
 });
 export default defineConfig({
+  // Keep Vesper separate from other local games using Vite's default port.
+  server: { port: 5180, strictPort: true },
   // Local audit worktrees can contain different Three.js versions. Only scan
   // this app and the horde labs, never archived HTML under artifacts/.
   optimizeDeps: {

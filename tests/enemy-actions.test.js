@@ -2,10 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as T from "three";
 import { ENEMIES } from "../src/content/enemies.js";
+import { Navigation, canStand } from "../src/logic.js";
 import {
   ENEMY_ACTIONS,
   enemyActionDuration,
   enemyActionPresentation,
+  enemySpeed,
   enemyVariation,
   turnEnemyYaw,
   updateEnemyAction,
@@ -36,6 +38,125 @@ function modelFixture() {
   };
   return model;
 }
+
+test("the final two enemies run only after the entire wave has spawned", () => {
+  const enemies = [1, 2, 3].map((id) => {
+    const model = modelFixture();
+    model.position.set(id * 5, 0, 20);
+    return {
+      id,
+      model,
+      type: "walker",
+      attack: 1,
+      spit: 5,
+      stagger: 0,
+      seed: 0,
+      age: 1,
+      speedFactor: 0.52,
+      nextDetailCheck: Infinity,
+    };
+  });
+  const run = {
+    phase: "wave",
+    time: 0,
+    wave: 1,
+    remaining: 0,
+    enemies,
+    player: { position: new T.Vector3() },
+    navigation: { direction: (_x, _z, target) => target },
+    world: { obstacles: [] },
+  };
+  const system = new EnemySystem(
+    { run },
+    { obstacleDistance: (_origin, _direction, distance) => distance },
+  );
+  const distancePerSecond = () => {
+    const before = enemies[0].model.position.clone();
+    run.time += 1 / 60;
+    system.updateEnemies(1 / 60);
+    return before.distanceTo(enemies[0].model.position) * 60;
+  };
+  const walking = distancePerSecond();
+  assert.ok(walking < 1, "early walkers retain their slow gait at three alive");
+  // A corpse must not count as a third living enemy.
+  enemies[2].dead = true;
+  enemies[2].deathTime = 5;
+  const running = distancePerSecond();
+  assert.ok(running > 3, "two survivors close the distance at running speed");
+  assert.ok(running > walking * 3);
+  assert.ok(enemies[0].motion.hurrying);
+  assert.ok(enemies[1].motion.hurrying);
+  // Pending reinforcements forbid cleanup even when only two are on the map.
+  run.remaining = 1;
+  assert.ok(Math.abs(distancePerSecond() - walking) < 1e-8);
+  run.remaining = 0;
+  enemies[1].dead = true;
+  enemies[1].deathTime = 5;
+  assert.ok(Math.abs(distancePerSecond() - running) < 1e-8);
+  run.phase = "rest";
+  assert.ok(Math.abs(distancePerSecond() - walking) < 1e-8);
+});
+
+test("cleanup preserves faster runners, boss speeds and crawler movement", () => {
+  for (const type of Object.keys(ENEMIES)) {
+    const enemy = { type, speedFactor: 1.06 };
+    const normal = enemySpeed(enemy, 20);
+    enemy.hurrying = true;
+    const rushing = enemySpeed(enemy, 20);
+    assert.ok(rushing >= normal, `${type} never slows down during cleanup`);
+    if (ENEMIES[type].boss) assert.equal(rushing, normal);
+    else assert.ok(rushing >= ENEMIES.runner.speed * 1.44);
+    enemy.crawler = true;
+    assert.equal(enemySpeed(enemy, 20), normal);
+  }
+});
+
+test("a running brute finishes a tiny corner waypoint before continuing the hunt", () => {
+  const obstacles = [
+    { x: -23, z: 39, w: 5.8, d: 5.8 },
+    { x: -28, z: 34, w: 2.8, d: 1.5 },
+  ];
+  const model = modelFixture();
+  model.position.set(-26.500167220255907, 0, 35.50005179347928);
+  const enemy = {
+    id: 1,
+    model,
+    type: "brute",
+    attack: 1,
+    spit: 5,
+    stagger: 0,
+    seed: 0,
+    age: 1,
+    nextDetailCheck: Infinity,
+  };
+  const navigation = new Navigation(obstacles, 92, 1, 0.6);
+  navigation.update(0, 36);
+  const run = {
+    phase: "wave",
+    time: 0,
+    wave: 7,
+    remaining: 0,
+    enemies: [enemy],
+    player: { position: new T.Vector3(0, 0, 36) },
+    largeNavigation: navigation,
+    world: { obstacles },
+  };
+  const system = new EnemySystem(
+    { run },
+    {
+      obstacleDistance: () => 0,
+      hurt() {},
+    },
+  );
+  system.updateEnemies(1 / 30);
+  assert.ok(model.position.distanceTo(new T.Vector3(-26.5, 0, 35.5)) < 1e-9);
+  for (let frame = 0; frame < 600; frame++) {
+    run.time += 1 / 30;
+    system.updateEnemies(1 / 30);
+    assert.ok(canStand(model.position.x, model.position.z, obstacles, 0.6));
+  }
+  assert.ok(model.position.distanceTo(run.player.position) < 2);
+});
 
 test("every melee variant anticipates, contacts once and finishes recovery", () => {
   for (const type of Object.keys(ENEMIES)) {

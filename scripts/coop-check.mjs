@@ -300,6 +300,41 @@ check(
   "Peer sees the new wave number",
   await peer.evaluate(() => window.__vesper.wave === 1),
 );
+// Cleanup speed and its run animation reach guests through normal snapshots.
+await host.evaluate(() => {
+  const g = window.__vesper;
+  g.remaining = 0;
+  g.spawnTimer = 1e6;
+  for (const e of g.enemies) if (!e.dead) g.damageEnemy(e, 1e9, false);
+  g.player.position.set(0, 1.7, 20);
+  g.updateNavigation();
+  for (const x of [-2, 2]) {
+    g.spawnEnemy("walker", g.player.position.clone().set(x, 0, 12));
+    g.enemies.at(-1).model.position.y = 0;
+  }
+});
+await peer.waitForTimeout(900);
+const cleanup = await Promise.all(
+  [host, peer].map((page) =>
+    page.evaluate(() =>
+      window.__vesper.enemies
+        .filter((e) => !e.dead)
+        .map((e) => ({
+          hurrying: e.motion?.hurrying,
+          clip: e.model.userData.horde?.anim?.move?.getClip().name,
+        })),
+    ),
+  ),
+);
+check(
+  "The final two walkers run on both host and peer",
+  cleanup.every(
+    (enemies) =>
+      enemies.length === 2 &&
+      enemies.every((e) => e.hurrying && e.clip?.startsWith("run_")),
+  ),
+  JSON.stringify(cleanup),
+);
 // Everyone down ends the game for both
 await host.evaluate(() => {
   const g = window.__vesper;

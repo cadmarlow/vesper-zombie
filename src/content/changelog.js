@@ -3,6 +3,33 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.1.3",
+    date: "2026-11-02",
+    title: "Une fin de vague plus nerveuse",
+    tagline: "Les derniers égarés vous rejoignent. Le combat reste dégagé.",
+    art: "/art/lacuna.webp",
+    highlights: [
+      "Les deux derniers zombies courent vers les survivants",
+      "Messages compacts et brefs en haut à droite",
+    ],
+    sections: [
+      {
+        title: "Rythme des manches",
+        items: [
+          "Une fois tous les ennemis apparus, les deux derniers zombies encore debout passent à la course, dès la première vague, en solo et en coopération. Les boss et les rampants conservent leur déplacement propre.",
+          "Le contournement des angles très serrés est corrigé : un dernier ennemi ne reste plus immobilisé à une fraction de millimètre de son prochain point de passage.",
+        ],
+      },
+      {
+        title: "Un écran dégagé",
+        items: [
+          "Les annonces de vague, bonus, achats et ravitaillements partagent une petite notification en haut à droite. Elle disparaît après environ deux secondes et les messages identiques ne prolongent plus son affichage.",
+          "Les invites de porte et de machine ainsi que les aides de LACUNA rejoignent la même colonne. Le bouton tactile reste accessible tant que l’action est disponible.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.1.2",
     date: "2026-10-03",
     title: "LACUNA — Guidage synchronisé",

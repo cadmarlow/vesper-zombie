@@ -154,9 +154,12 @@ function startCrawling(model, anim, clock) {
   const crawl = anim.pools.crawl || HORDE_MOTION.walker.crawl;
   anim.crawling = true;
   // The standing loops fade out under the fall; the ground loops take over.
-  anim.retired = [anim.idle, anim.move]
-    .filter(Boolean)
-    .map((a) => ({ action: a, weight: a.getEffectiveWeight() }));
+  anim.retired = [
+    ...(anim.retired || []),
+    ...[anim.idle, anim.move]
+      .filter(Boolean)
+      .map((a) => ({ action: a, weight: a.getEffectiveWeight() })),
+  ];
   anim.idle = action(anim.mixer, anim.pack, crawl.idle);
   anim.move = action(anim.mixer, anim.pack, crawl.move);
   anim.moveInfo = hordeClipInfo(crawl.move) || { speed: 0.3 };
@@ -223,6 +226,32 @@ export function animateHorde(
   const speed = Math.hypot(vx, vz);
 
   if (data.legsLost && !anim.crawling) startCrawling(model, anim, clock);
+  // The final stragglers switch to a run, rather than speeding up a shamble.
+  const hurrying = !!motion.hurrying && !ENEMIES[anim.type].boss;
+  if (!anim.crawling && hurrying !== !!anim.hurrying) {
+    anim.hurrying = hurrying;
+    const pool = hurrying
+      ? (ENEMIES[anim.type].look || anim.type) === "brute"
+        ? ["run_gorilla"]
+        : HORDE_MOTION.runner.move
+      : anim.pools.move;
+    const name = pickGait(pool, motion.expectedSpeed ?? speed, scale, anim.id);
+    if (name && anim.move?.getClip() !== hordeClipFor(anim.pack, name)) {
+      // Existing retired loops also handle the walk/run crossfade.
+      anim.retired ||= [];
+      if (anim.move)
+        anim.retired.push({
+          action: anim.move,
+          weight: anim.move.getEffectiveWeight(),
+        });
+      const next = action(anim.mixer, anim.pack, name);
+      anim.retired = anim.retired.filter((r) => r.action !== next);
+      anim.move = next;
+      anim.moveInfo = hordeClipInfo(name) || { speed: 1 };
+      anim.rate = 1;
+      if (anim.feet) for (const foot of anim.feet) foot.locked = false;
+    }
+  }
   // An arm torn off rocks the body back on its heels.
   const cuts = data.cuts || 0;
   if (cuts !== (anim.cuts ?? 0)) {
@@ -416,7 +445,7 @@ export function animateHorde(
   const previousWeight = o?.previous
     ? (o.previous.weight ?? 0) * (1 - overlayWeight)
     : 0;
-  // Standing loops retired by a fall.
+  // Previous locomotion loops fade under a fall or a walk/run transition.
   let retiredWeight = 0;
   if (anim.retired) {
     for (const r of anim.retired) {

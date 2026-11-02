@@ -1300,12 +1300,43 @@ kbd {
   opacity: 0.45;
   font-size: 11px;
 }
-.hud-objective {
-  position: absolute;
-  right: 33px;
-  top: 34px;
+.hud-feedback {
+  position: fixed;
+  z-index: 21;
+  pointer-events: none;
+  text-shadow: 0 2px 7px #000b;
+  right: calc(var(--safe-right, 0px) + 33px);
+  top: calc(var(--safe-top, 0px) + 34px);
+  width: min(310px, calc(100vw - 40px));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   text-align: right;
   max-width: 310px;
+}
+.hud-feedback button {
+  pointer-events: auto;
+}
+.interaction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: #09151ccb;
+  border-right: 2px solid var(--accent);
+  text-align: left;
+}
+.interaction kbd {
+  padding: 3px 5px;
+  font-size: 11px;
+  color: var(--accent);
+  flex: none;
+}
+.interaction > span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #e3e4cf;
+  overflow-wrap: anywhere;
 }
 .hud-objective > .tiny {
   font-size: 7px;
@@ -1548,65 +1579,6 @@ kbd {
   100% {
     opacity: 0;
   }
-}
-.announcement {
-  position: absolute;
-  top: 23%;
-  left: 50%;
-  width: min(800px, 80%);
-  transform: translateX(-50%);
-  text-align: center;
-  opacity: 0;
-  transition: opacity 1s;
-}
-.announcement.visible {
-  opacity: 1;
-  animation: announce 0.5s ease-out;
-}
-.announcement .eyebrow {
-  justify-content: center;
-  font-size: 9px;
-  letter-spacing: 4px;
-}
-.announcement h2 {
-  font-family: var(--display);
-  font-size: clamp(32px, 4.8vw, 70px);
-  font-weight: 500;
-  letter-spacing: 4px;
-  margin: 14px 0 8px;
-  line-height: 1.05;
-}
-.announcement p {
-  font-size: 11px;
-  letter-spacing: 0.7px;
-  line-height: 1.7;
-  color: #c5cdbd;
-  margin: 0;
-}
-.interaction {
-  position: absolute;
-  left: 50%;
-  top: 62%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #09151ccb;
-  border-top: 1px solid #d6c4a56e;
-  padding: 12px 20px;
-  box-shadow: 0 8px 35px #0002;
-  white-space: nowrap;
-}
-.interaction kbd {
-  padding: 6px 9px;
-  font-size: 14px;
-  color: var(--accent);
-  border-color: #e4b18477;
-}
-.interaction > span {
-  font-size: 12px;
-  color: #e3e4cf;
-  letter-spacing: 0.4px;
 }
 .hud-bottom-left {
   position: absolute;
@@ -2095,51 +2067,70 @@ kbd {
 #toast-container {
   position: fixed;
   z-index: 80;
-  left: 50%;
-  bottom: 120px;
-  transform: translate(-50%, 12px);
-  opacity: 0;
+  top: calc(var(--safe-top, 0px) + 24px);
+  right: calc(var(--safe-right, 0px) + 24px);
+  width: min(310px, calc(100vw - 40px));
+  display: none;
   pointer-events: none;
-  transition:
-    opacity 0.3s,
-    transform 0.3s;
-  max-width: 90vw;
+  text-align: left;
 }
 #toast-container.visible {
-  opacity: 1;
-  transform: translate(-50%, 0);
+  display: block;
+  animation: notice-in 0.16s ease-out;
+}
+.hud-feedback #toast-container {
+  position: relative;
+  inset: auto;
+  width: 100%;
 }
 .toast {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  background: #102028f0;
-  padding: 17px 22px;
-  border: 1px solid #aabbac40;
-  border-left: 2px solid var(--accent);
-  box-shadow: 0 6px 50px #0004;
-  min-width: 280px;
-  max-width: 520px;
-  backdrop-filter: blur(10px);
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 11px;
+  background: #0b1c24df;
+  border-right: 2px solid var(--accent);
+}
+.toast > div:last-child {
+  min-width: 0;
+}
+.toast strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #ecddc6;
+  overflow-wrap: anywhere;
+}
+.toast p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #adc0b5;
+  margin: 3px 0 0;
+}
+.toast p:empty {
+  display: none;
+}
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 .toast-icon {
   color: var(--accent);
 }
 .toast-icon > .icon {
-  width: 24px;
-  height: 24px;
-}
-.toast strong {
-  font-size: 12px;
-  font-weight: 500;
-  color: #ecddc6;
-  letter-spacing: 0.4px;
-}
-.toast p {
-  font-size: 10px;
-  line-height: 1.6;
-  color: #adc0b5;
-  margin: 6px 0 0;
+  width: 14px;
+  height: 14px;
 }
 .touch-controls {
   position: fixed;
@@ -2254,17 +2245,6 @@ kbd {
   }
   100% {
     transform: translateX(380%);
-  }
-}
-@keyframes announce {
-  from {
-    filter: blur(5px);
-    letter-spacing: 8px;
-    opacity: 0;
-  }
-  to {
-    filter: blur(0);
-    opacity: 1;
   }
 }
 @keyframes score {
@@ -2445,7 +2425,7 @@ kbd {
   .guide-grid {
     gap: 45px;
   }
-  .hud-objective {
+  .hud-feedback {
     max-width: 250px;
   }
   .compass {
@@ -2543,7 +2523,7 @@ kbd {
     top: 20px;
     left: 20px;
   }
-  .hud-objective {
+  .hud-feedback {
     right: 20px;
     top: 24px;
     max-width: 230px;
@@ -2589,15 +2569,6 @@ kbd {
   }
   #objective-subtitle {
     font-size: 8px;
-  }
-  .announcement {
-    top: 26%;
-  }
-  .announcement h2 {
-    font-size: 45px;
-  }
-  .announcement p {
-    font-size: 9px;
   }
   .hud-bottom-center {
     bottom: 18px;
@@ -2910,7 +2881,7 @@ kbd {
   .enemy-counter > span:last-child {
     font-size: 6px;
   }
-  .hud-objective {
+  .hud-feedback {
     max-width: 150px;
     right: 15px;
     top: 20px;
@@ -2994,35 +2965,6 @@ kbd {
   .grenade-row > span:nth-child(2) {
     font-size: 5px;
   }
-  .announcement {
-    top: 26%;
-    width: 90%;
-  }
-  .announcement h2 {
-    font-size: 34px;
-    letter-spacing: 2px;
-  }
-  .announcement .eyebrow {
-    font-size: 6px;
-    letter-spacing: 2px;
-  }
-  .announcement p {
-    font-size: 8px;
-  }
-  .interaction {
-    max-width: 90%;
-    white-space: normal;
-    top: 56%;
-    padding: 8px 13px;
-    gap: 9px;
-  }
-  .interaction > span {
-    font-size: 10px;
-  }
-  .interaction kbd {
-    padding: 4px 7px;
-    font-size: 12px;
-  }
   .touch-stick {
     left: 23px;
     bottom: 190px;
@@ -3047,21 +2989,6 @@ kbd {
   .touch-actions .icon {
     width: 18px;
     height: 18px;
-  }
-  #toast-container {
-    bottom: 320px;
-    width: 90%;
-  }
-  .toast {
-    padding: 12px 15px;
-    min-width: 0;
-    gap: 10px;
-  }
-  .toast strong {
-    font-size: 10px;
-  }
-  .toast p {
-    font-size: 9px;
   }
   .hud-bottom-center {
     bottom: 160px;
@@ -3168,7 +3095,7 @@ kbd {
   .enemy-counter {
     margin-top: 5px;
   }
-  .hud-objective {
+  .hud-feedback {
     top: 18px;
     right: 18px;
   }
@@ -3206,19 +3133,6 @@ kbd {
   .grenade-row {
     margin-top: 5px;
   }
-  .announcement {
-    top: 20%;
-  }
-  .announcement h2 {
-    font-size: 34px;
-    letter-spacing: 2px;
-  }
-  .announcement p {
-    font-size: 9px;
-  }
-  .announcement .eyebrow {
-    font-size: 7px;
-  }
   .touch-stick {
     left: 35px;
     bottom: 145px;
@@ -3246,14 +3160,7 @@ kbd {
   .hud-bottom-center {
     bottom: 20px;
   }
-  .interaction {
-    top: 57%;
-    padding: 7px 12px;
-  }
-  .interaction > span {
-    font-size: 10px;
-  }
-  .hud-objective {
+  .hud-feedback {
     max-width: 200px;
   }
   .hud-tools {
@@ -3291,26 +3198,14 @@ kbd {
     margin-top: 20px;
     min-height: 44px;
   }
-  #toast-container {
-    bottom: 65px;
-  }
-  .toast {
-    padding: 10px 18px;
-  }
-  .toast strong {
-    font-size: 10px;
-  }
-  .toast p {
-    font-size: 9px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
+  #toast-container.visible {
+    animation: none;
+  }
   .menu-art,
   .embers i,
   .signal i {
-    animation: none;
-  }
-  .announcement.visible {
     animation: none;
   }
   button {
@@ -3367,7 +3262,7 @@ kbd {
     margin: 0;
     gap: 6px;
   }
-  .touch-mode .hud-objective {
+  .touch-mode .hud-feedback {
     right: 122px;
     max-width: min(200px, calc(100vw - 340px));
   }

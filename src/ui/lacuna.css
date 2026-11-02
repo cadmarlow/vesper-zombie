@@ -1,11 +1,8 @@
 .lacuna-status {
-  position: fixed;
+  position: relative;
   z-index: 21;
-  top: 94px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(310px, 40vw);
-  padding: 11px 14px 9px;
+  width: 100%;
+  padding: 7px 10px;
   color: #eee0bd;
   border: 1px solid #d7bb7f48;
   border-top: 2px solid #c3a66e;
@@ -39,11 +36,6 @@
 .lacuna-close:focus-visible {
   background: #ffffff18;
 }
-body:not(.in-game) .lacuna-status {
-  top: 16px;
-  left: 16px;
-  transform: none;
-}
 .lacuna-status-head {
   display: flex;
   justify-content: space-between;
@@ -69,7 +61,7 @@ body:not(.in-game) .lacuna-status {
 .lacuna-status strong {
   display: block;
   margin: 7px 0 4px;
-  font-size: 15px;
+  font-size: 11px;
   letter-spacing: 0.25px;
   font-weight: 500;
 }
@@ -117,12 +109,10 @@ body:not(.in-game) .lacuna-status {
   border-color: #ffb37b;
 }
 .touch-mode .lacuna-status {
-  top: calc(var(--safe-top) + 72px);
-  width: 248px;
   padding: 7px 10px 6px;
 }
 .touch-mode .lacuna-status strong {
-  font-size: 13px;
+  font-size: 10px;
   margin: 5px 0 3px;
 }
 .touch-mode .lacuna-status-head {

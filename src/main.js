@@ -118,7 +118,7 @@ const menuArt = $("#menu-art");
 menuArt.style.backgroundImage = "url(/art/abbey.webp)";
 const formatTime = (s) =>
   `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
-let toastTimer, announceTimer, hitTimer, damageTimer, panelReturnFocus;
+let toastTimer, hitTimer, damageTimer, panelReturnFocus;
 
 // A red arc points at the attacker; claw blows leave fading scratches.
 function showDamageDirection(payload) {
@@ -146,36 +146,48 @@ function showDamageDirection(payload) {
   while (layer.querySelectorAll(".claw-marks").length > 2)
     layer.querySelector(".claw-marks").remove();
 }
-function toast({ title, text, duration = 4300 }) {
+function toast({ title, text, duration = 2100 }) {
   const root = $("#toast-container");
+  // Repeated interaction failures must not keep the same notice on screen.
+  if (
+    root.classList.contains("visible") &&
+    root.querySelector("strong")?.textContent === title &&
+    root.querySelector("p")?.textContent === (text || "")
+  )
+    return;
   root.innerHTML = `<div class="toast"><div class="toast-icon">${icon("eclipse")}</div><div><strong></strong><p></p></div></div>`;
   $(".toast strong").textContent = title;
   $(".toast p").textContent = text || "";
   root.classList.add("visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => root.classList.remove("visible"), duration);
-}
-function announce(a) {
-  const root = $("#announcement");
-  root.querySelector(".eyebrow").textContent = a.eyebrow;
-  root.querySelector("h2").textContent = a.title;
-  root.querySelector("p").textContent = a.subtitle;
-  root.classList.remove("visible");
-  void root.offsetWidth;
-  root.classList.add("visible");
-  clearTimeout(announceTimer);
-  announceTimer = setTimeout(
+  toastTimer = setTimeout(
     () => root.classList.remove("visible"),
-    a.duration || 3500,
+    Math.min(duration, 2600),
   );
 }
+function announce(a) {
+  toast({
+    title: a.title,
+    text: [a.eyebrow, a.subtitle].filter(Boolean).join(" · "),
+    duration: a.duration || 2600,
+  });
+}
 function state(s) {
+  if (s !== currentScreen) {
+    clearTimeout(toastTimer);
+    $("#toast-container").classList.remove("visible");
+  }
   currentScreen = s;
+  // One flowing column keeps prompts and notices clear of the objective.
+  (["playing", "paused"].includes(s) ? $(".hud-feedback") : $("#app")).append(
+    $("#toast-container"),
+  );
   renderUpdateStatus();
   for (const [id, show] of [
     ["menu", s === "menu"],
     ["loading", s === "loading"],
     ["hud", ["playing", "paused"].includes(s)],
+    ["hud-feedback", ["playing", "paused"].includes(s)],
     ["pause", s === "paused"],
     ["gameover", s === "gameover"],
   ])
@@ -743,6 +755,8 @@ const touchControls = new TouchControls(
   () => game?.inputPort,
   () => settings,
 );
+// The contextual touch action shares the HUD column with keyboard prompts.
+touchControls.bind($("#mobile-interact"), "interact");
 const launcher = createLauncher({
   sound,
   net,

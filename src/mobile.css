@@ -360,30 +360,30 @@
   border-bottom: 2px solid #e9b685;
 }
 .mobile-interact {
-  position: absolute;
-  top: 49%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  max-width: min(290px, 42vw);
-  min-height: 48px;
-  padding: 9px 15px;
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 9px;
   background: #0b1b22eb;
   border: 1px solid #e6b280a1;
   border-radius: 7px;
-  display: flex;
+  display: none;
   align-items: center;
   gap: 10px;
   pointer-events: auto;
   touch-action: none;
   z-index: 3;
   font:
-    500 12px "Barlow",
+    500 10px "Barlow",
     sans-serif;
   color: #eadcc6;
 }
+.touch-mode.in-game .mobile-interact {
+  display: flex;
+}
 .mobile-interact .icon {
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   flex: none;
 }
 .mobile-interact.pressed {
@@ -453,10 +453,12 @@
   width: 12px;
   height: 12px;
 }
-.touch-mode .hud-objective {
+.touch-mode .hud-feedback {
   top: calc(var(--safe-top) + 16px);
   right: calc(var(--safe-right) + 77px);
-  max-width: 210px;
+  width: min(230px, 36vw);
+  max-width: 230px;
+  gap: 5px;
 }
 .touch-mode #power-state {
   font-size: 7px;
@@ -574,28 +576,6 @@
 .touch-mode #powerup-row {
   font-size: 7px;
 }
-.touch-mode .announcement {
-  top: 21%;
-  pointer-events: none;
-}
-.touch-mode .announcement h2 {
-  font-size: 28px;
-  margin: 6px 0;
-}
-.touch-mode .announcement .eyebrow {
-  font-size: 6px;
-  letter-spacing: 2px;
-}
-.touch-mode .announcement p {
-  font-size: 8px;
-}
-.touch-mode #toast-container {
-  bottom: auto;
-  top: calc(var(--safe-top) + 68px);
-  left: 50%;
-  width: min(300px, 40vw);
-  pointer-events: none;
-}
 .touch-mode .toast {
   padding: 8px 12px;
   background: #0b1c24dc;
@@ -658,9 +638,6 @@
 @media (max-height: 340px) and (orientation: landscape) {
   .touch-mode .enemy-counter {
     display: none;
-  }
-  .touch-mode .announcement h2 {
-    font-size: 23px;
   }
   .mobile-aim,
   .mobile-jump {

@@ -6,7 +6,7 @@ const browser = await chromium.launch({
   args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.goto(process.env.VESPER_URL || "http://localhost:5173");
+await page.goto(process.env.VESPER_URL || "http://localhost:5180");
 await page.click("#play-button");
 await page.waitForFunction(() => window.__vesper?.state === "playing");
 await page.evaluate(() => {

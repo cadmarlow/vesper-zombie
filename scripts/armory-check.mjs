@@ -4,7 +4,7 @@
 // as specified, the scope and recoil respond, and nothing throws. Writes a
 // report and screenshots to artifacts/armory-*/.
 //
-//   node scripts/armory-check.mjs          (dev server on 5173)
+//   node scripts/armory-check.mjs          (dev server on 5180)
 //   VESPER_URL=http://localhost:4173 node scripts/armory-check.mjs
 import { chromiumOptions } from "./browser.mjs";
 import { chromium } from "@playwright/test";

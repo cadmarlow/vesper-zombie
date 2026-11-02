@@ -18,7 +18,7 @@ export function createLacunaHUD(onDismiss = () => {}) {
     onDismiss();
   };
   panel.append(close);
-  document.body.append(panel);
+  document.querySelector(".hud-feedback").append(panel);
   const title = panel.querySelector("strong"),
     route = panel.querySelector(".lacuna-route"),
     meter = panel.querySelector(".lacuna-meter i"),

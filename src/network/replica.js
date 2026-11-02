@@ -21,6 +21,7 @@ import {
   enemyActionPresentation,
   enemySpeed,
   enemyVariation,
+  isWaveCleanup,
   riseRate,
 } from "../game/enemy-actions.js";
 import { hordeGait } from "../content/horde.js";
@@ -266,7 +267,9 @@ export class WorldReplica {
     }
     const clock = this.renderTime ?? g.run.time;
     const removed = [];
+    const cleanup = isWaveCleanup(g.run);
     for (const e of g.run.enemies) {
+      e.hurrying = cleanup;
       e.age += dt;
       if (e.dead) {
         animateDeath(e, dt);
@@ -345,6 +348,7 @@ export class WorldReplica {
       motion.clock = clock;
       motion.isGrounded = m.position.y >= -0.001;
       motion.expectedSpeed = enemySpeed(e, g.run.wave);
+      motion.hurrying = e.hurrying;
       motion.viewer = g.view?.camera?.position;
       // Crossing a low obstacle: derived from the position, as on the host.
       if (g.run.world) vaultWorld(g.run.world);

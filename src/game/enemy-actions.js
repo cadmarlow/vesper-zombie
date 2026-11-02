@@ -5,13 +5,23 @@ export { EMERGE_DEPTH };
 /** Rise speed out of the ground: slower climb for motion-captured bodies. */
 export const riseRate = (model) =>
   model.userData.horde ? EMERGE_DEPTH / (EMERGE_TIME * 0.85) : 2.5;
+/** Only the actual end of a wave: queued spawns still count as enemies. */
+export function isWaveCleanup(run) {
+  if (run.phase !== "wave" || run.remaining !== 0) return false;
+  let alive = 0;
+  for (const enemy of run.enemies) {
+    if (!enemy.dead && ++alive > 2) return false;
+  }
+  return alive > 0;
+}
 /** Navigation speed of an enemy at a wave, including its individual gait. */
 export function enemySpeed(e, wave) {
-  return (
-    ENEMIES[e.type].speed *
-    (1 + Math.min(wave, 20) * 0.022) *
-    (e.speedFactor ?? 1)
-  );
+  const scaling = 1 + Math.min(wave, 20) * 0.022;
+  const speed = ENEMIES[e.type].speed * scaling * (e.speedFactor ?? 1);
+  // Keep bosses and legless crawlers in their own movement rules.
+  return e.hurrying && !e.crawler && !ENEMIES[e.type].boss
+    ? Math.max(speed, ENEMIES.runner.speed * scaling)
+    : speed;
 }
 
 // These markers drive both the visual pose and the authoritative contact.
