@@ -57,6 +57,7 @@ try {
           "menu-check",
           "updates-check",
           "smoke",
+          "input-check",
           "pacing-check",
           "assault-check",
           "armory-check",

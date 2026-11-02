@@ -1,9 +1,12 @@
 import { clamp } from "../logic.js";
+const WHEEL_THRESHOLD = 12; // CSS pixels; also accepts one line-mode notch.
+const WHEEL_QUIET = 180; // A quiet gap separates gestures from an inertia tail.
 /** Keyboard and mouse produce the same commands as TouchControls. */
 export class DesktopControls {
   constructor(run, view, input, commands) {
     Object.assign(this, { run, view, input, commands });
     this.abort = new AbortController();
+    this.wheelGesture = null;
     this.bind();
   }
   bind() {
@@ -82,16 +85,19 @@ export class DesktopControls {
     });
     listen(window, "keyup", (e) => this.input.keys.delete(e.code));
     listen(window, "blur", () => {
+      this.wheelGesture = null;
       this.input.keys.clear();
       if (this.run.state === "playing") this.commands.pause();
     });
     listen(document, "visibilitychange", () => {
+      if (document.hidden) this.wheelGesture = null;
       if (document.hidden && this.run.state === "playing")
         this.commands.pause();
       if (!document.hidden) this.view.needsRender = true;
       this.commands.requestFrame();
     });
     listen(document, "pointerlockchange", () => {
+      this.wheelGesture = null;
       if (
         document.pointerLockElement !== this.view.canvas &&
         this.run.state === "playing" &&
@@ -128,20 +134,56 @@ export class DesktopControls {
       if (e.button === 2) this.input.mouse.aim = false;
     });
     listen(this.view.canvas, "contextmenu", (e) => e.preventDefault());
-    listen(
-      this.view.canvas,
-      "wheel",
-      (e) => {
-        if (this.run.state === "playing") {
-          e.preventDefault();
-          this.commands.switchWeapon(1 - this.run.slot);
-        }
-      },
-      { passive: false },
-    );
+    listen(this.view.canvas, "wheel", (e) => this.wheelWeapon(e), {
+      passive: false,
+    });
+  }
+  wheelWeapon(e) {
+    if (
+      this.run.state !== "playing" ||
+      document.pointerLockElement !== this.view.canvas
+    ) {
+      this.wheelGesture = null;
+      return;
+    }
+    e.preventDefault();
+    const mode = e.deltaMode,
+      x = e.deltaX,
+      y = e.deltaY;
+    if (
+      e.ctrlKey ||
+      !Number.isFinite(y) ||
+      !Number.isFinite(x) ||
+      Math.abs(y) <= Math.abs(x)
+    )
+      return;
+    const scale =
+      mode === 1 ? 16 : mode === 2 ? this.view.canvas.clientHeight : 1;
+    const amount = y * scale;
+    const now = e.timeStamp;
+    let gesture = this.wheelGesture;
+    if (!gesture || now - gesture.at > WHEEL_QUIET || now < gesture.at)
+      gesture = this.wheelGesture = {
+        at: now,
+        amount: 0,
+        direction: Math.sign(amount),
+        consumed: false,
+      };
+    gesture.at = now;
+    if (gesture.consumed) return;
+    if (gesture.direction !== Math.sign(amount)) {
+      gesture.amount = 0;
+      gesture.direction = Math.sign(amount);
+    }
+    gesture.amount += Math.abs(amount);
+    if (gesture.amount < WHEEL_THRESHOLD) return;
+    // A physical notch can deliver many events. Its tail must never swap back.
+    gesture.consumed = true;
+    this.commands.switchWeapon(1 - this.run.slot);
   }
   dispose() {
     this.abort.abort();
+    this.wheelGesture = null;
     this.input.keys.clear();
     this.input.mouse.fire = this.input.mouse.aim = false;
   }

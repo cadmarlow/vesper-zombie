@@ -3,6 +3,24 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.2.1",
+    date: "2026-11-02",
+    title: "Une molette plus fiable",
+    tagline: "Gardez la bonne arme en main.",
+    art: "/art/abbey.webp",
+    highlights: ["Changement d’arme à la molette plus fiable sur ordinateur"],
+    sections: [
+      {
+        title: "Commandes à la souris",
+        items: [
+          "Les petits mouvements parasites, défilements horizontaux et gestes de zoom sont filtrés avant de changer d’arme.",
+          "Un geste de molette sélectionne une seule arme, même s’il produit plusieurs événements ou une traînée d’inertie. Un nouveau geste permet de revenir à l’autre arme.",
+          "La molette commande les armes lorsque la souris est capturée dans la partie, en marchant comme en courant.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.2.0",
     date: "2026-11-02",
     title: "La Horde vivante",

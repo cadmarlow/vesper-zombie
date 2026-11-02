@@ -2,6 +2,14 @@
 
 Les rapports et captures mentionnés dans l’historique sont des fichiers de travail locaux, exclus de Git. Les scripts conservés dans `scripts/` permettent de générer de nouveaux rapports dans `artifacts/`.
 
+## Version 5.2.1 — changement d’arme à la molette
+
+Signalement sur Mac avec une souris Logitech : changement occasionnel d’arme en marchant avec deux armes. L’ancien gestionnaire basculait le slot à chaque événement `wheel`, sans vérifier axe, amplitude ou capture de la souris. Reproduction sur Chrome installé sur ce Mac, avec des événements natifs envoyés par Playwright : une impulsion verticale de 1 pixel changeait d’arme, un défilement horizontal aussi, et une séquence verticale suivie de sa traînée de six événements provoquait six changements. La marche seule n’a produit aucun changement. Ces essais identifient un défaut reproductible du jeu ; ils ne mesurent pas les événements émis par la souris physique de l’utilisateur.
+
+Le correctif accumule les mouvements verticaux cohérents jusqu’à 12 pixels CSS, normalise les modes lignes/pages et écarte les gestes horizontaux ou de zoom. Un geste sélectionne une seule arme ; 180 ms sans défilement vertical séparent deux gestes. Les changements de focus et de capture effacent l’accumulation. Les commandes sont vérifiées en marchant et en courant, avec les deux sens de défilement et les touches 1/2.
+
+Les cinq tests unitaires de régression échouent sur l’ancien code et passent sur le correctif ; l’audit navigateur passe de sept échecs à **15 contrôles réussis**. **140 tests unitaires/réseau réussis**, formatage et architecture valides, build de production réussi, **41 contrôles de combat**, **78 tactiles Chrome/WebKit** et **34 de mise à jour/version** réussis. Rapports avant/après : `artifacts/input-1793656199177/report.json` et `artifacts/input-1793656327979/report.json` ; passe complète : `artifacts/upgrade-1793656433721.json`. Pour reproduire : `npm run verify -- input-check smoke touch-native-check updates-check`. Correctif local, sans essai avec la souris Logitech physique ni déploiement.
+
 ## Version 5.2.0 — La Horde vivante
 
 Vérification locale du 2 novembre 2026, sous Node.js 25.5.0. Le directeur compose les renforts en fronts, pinces et harcèlement, avec des arrivées groupées et de courtes respirations. Les quotas de vague et les statistiques des ennemis sont conservés. Les intentions ajoutent interceptions bornées, détours latéraux, appuis temporaires, cibles stables et budgets de bonds/crachats. L’hôte prend les décisions ; les invités présentent leurs avertissements avec le champ facultatif `ai` du protocole 4. Les portes, le carillon, les rampants et les deux derniers zombies gardent leurs règles propres.

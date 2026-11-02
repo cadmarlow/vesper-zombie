@@ -1,6 +1,6 @@
 {
   "name": "vesper-survival",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -25,6 +25,7 @@
     "test:zombies": "node scripts/zombie-check.mjs",
     "test:pacing": "node scripts/pacing-check.mjs",
     "test:assaults": "node scripts/assault-check.mjs",
+    "test:input": "node scripts/input-check.mjs",
     "test:locomotion": "node scripts/locomotion-check.mjs",
     "test:abyss": "node scripts/abyss-check.mjs",
     "test:remaster": "node scripts/remaster-check.mjs",
