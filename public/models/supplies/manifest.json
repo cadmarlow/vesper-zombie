@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "assets": {
+    "pickup-health": {
+      "triangles": 3436,
+      "meshes": 4,
+      "bytes": 85820,
+      "mobileTriangles": 2696,
+      "mobileBytes": 74080
+    },
+    "pickup-ammo": {
+      "triangles": 3612,
+      "meshes": 4,
+      "bytes": 105072,
+      "mobileTriangles": 3596,
+      "mobileBytes": 104648
+    },
+    "pickup-double": {
+      "triangles": 13832,
+      "meshes": 3,
+      "bytes": 266232,
+      "mobileTriangles": 6974,
+      "mobileBytes": 159904
+    },
+    "pickup-insta": {
+      "triangles": 10800,
+      "meshes": 5,
+      "bytes": 214516,
+      "mobileTriangles": 8728,
+      "mobileBytes": 193216
+    },
+    "machine-health": {
+      "triangles": 20948,
+      "meshes": 7,
+      "bytes": 526376,
+      "mobileTriangles": 17376,
+      "mobileBytes": 466536
+    },
+    "machine-speed": {
+      "triangles": 21740,
+      "meshes": 7,
+      "bytes": 541208,
+      "mobileTriangles": 17304,
+      "mobileBytes": 467568
+    },
+    "machine-rate": {
+      "triangles": 29796,
+      "meshes": 6,
+      "bytes": 709848,
+      "mobileTriangles": 22588,
+      "mobileBytes": 591072
+    },
+    "machine-focus": {
+      "triangles": 22244,
+      "meshes": 8,
+      "bytes": 526260,
+      "mobileTriangles": 16152,
+      "mobileBytes": 430516
+    }
+  }
+}

@@ -16,6 +16,7 @@ import {
 // game already has and streams compact snapshots; peers own their movement,
 // aim and health, detect their own hits and ask the host to apply them.
 import * as T from "three";
+import { animatePickup } from "./supplies.js";
 
 import { ENEMIES, WEAPONS } from "./config.js";
 import { Navigation } from "./logic.js";
@@ -260,10 +261,8 @@ export class Session {
       // acid follows the zombie's delayed release pose in WorldReplica.
       for (const p of this.remoteProjectiles.values())
         if (p.target) p.mesh.position.lerp(p.target, Math.min(1, dt * 14));
-      for (const p of this.remotePickups.values()) {
-        p.mesh.rotation.y += dt * 1.5;
-        p.mesh.position.y = 0.65 + Math.sin(g.run.time * 3) * 0.15;
-      }
+      for (const p of this.remotePickups.values())
+        animatePickup(p.mesh, g.run.time);
     }
   }
   myState() {

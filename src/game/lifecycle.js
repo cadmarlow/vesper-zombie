@@ -21,6 +21,7 @@ import { ViewModel } from "../armory/viewmodel.js";
 import { ViewEffects } from "../armory/effects.js";
 import { RIGS } from "../armory/catalog.js";
 import { WeaponAudio } from "../armory/audio.js";
+import { prepareSupplies, createPickup, supplyTextures } from "../supplies.js";
 /** Owns one run's resources: prepare, attach, cancel, release. */
 export class RunLifecycle {
   constructor(
@@ -106,6 +107,7 @@ export class RunLifecycle {
       this.prepareArmory(touch),
       prepareSurfaces(touch, mapDefinition(map).theme),
       prepareHorde(touch),
+      prepareSupplies(touch),
       (this.sound.horde ||= new HordeAudio(this.sound, touch))
         .load()
         .catch((error) => console.warn("Horde sounds unavailable", error)),
@@ -148,16 +150,29 @@ export class RunLifecycle {
       this.view.scene.add(model);
       setSurfaceQuality(model, this.run.settings.quality);
     });
+    const drops = ["health", "ammo", "double", "insta"].map((type) =>
+      createPickup(type),
+    );
+    for (const model of drops) {
+      this.view.scene.add(model);
+      setSurfaceQuality(model, this.run.settings.quality);
+    }
     try {
       await this.view.renderer.compileAsync(this.view.scene, this.view.camera);
       // Upload every body's maps now: a new face mid-wave must not stall a frame.
       for (const texture of hordeTextures())
+        this.view.renderer.initTexture(texture);
+      for (const texture of supplyTextures())
         this.view.renderer.initTexture(texture);
     } finally {
       warmup.forEach((model) => {
         this.view.scene.remove(model);
         releaseZombie(model);
       });
+      for (const model of drops) {
+        this.view.scene.remove(model);
+        disposeModel(model);
+      }
     }
     checkpoint();
     this.view.mapEnvironment = captureEnvironment(

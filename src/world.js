@@ -21,6 +21,7 @@ import {
 import { rng } from "./logic.js";
 import { PERKS, UPGRADE } from "./config.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
+import { createPerkMachine } from "./supplies.js";
 
 export class World {
   constructor(scene, id, quality) {
@@ -399,7 +400,27 @@ export class World {
             extract: 0,
           }[kind],
       };
-      if (kind === "box") {
+      if (PERKS[kind]) {
+        const machine = createPerkMachine(kind);
+        g.add(machine.root);
+        info.screen = machine.screen;
+        info.powered = true;
+        const light = new T.PointLight(PERKS[kind].color, 0, 3.2, 2);
+        light.position.set(
+          x + Math.sin(direction) * 1.0,
+          1.2,
+          z + Math.cos(direction) * 1.0,
+        );
+        this.root.add(light);
+        this.lights.push({
+          light,
+          bulb: machine.bulb,
+          halo: machine.halo,
+          powered: true,
+          base: 3,
+          phase: Object.keys(PERKS).indexOf(kind) * 1.7,
+        });
+      } else if (kind === "box") {
         box(g, m.wood, 0, 0.62, 0, 2.6, 1.05, 1.05);
         for (let sx of [-1.1, 1.1]) {
           box(g, m.gold, sx, 0.63, 0, 0.1, 1.15, 1.1);
@@ -543,15 +564,17 @@ export class World {
         1.5,
         kind === "box" ? 1.3 : 2.7,
       );
-      const tag = label(
-        info.name.toUpperCase(),
-        kind === "box" ? "#e8b67c" : "#a5bfbc",
-        kind === "box" ? 3.1 : 2.6,
-        0.45,
-      );
-      tag.position.set(0, kind === "box" ? 2.5 : 3.2, 0);
-      g.add(tag);
-      info.tag = tag;
+      if (!PERKS[kind]) {
+        const tag = label(
+          info.name.toUpperCase(),
+          kind === "box" ? "#e8b67c" : "#a5bfbc",
+          kind === "box" ? 3.1 : 2.6,
+          0.45,
+        );
+        tag.position.set(0, kind === "box" ? 2.5 : 3.2, 0);
+        g.add(tag);
+        info.tag = tag;
+      }
       this.interactions.push(info);
     }
   }
@@ -805,6 +828,7 @@ export class World {
       for (const value of Object.values(i))
         if (value?.isMesh || value?.isSprite) preserve.add(value);
     const merge = (group) => {
+      if (group.userData.supplyModel) return;
       for (const child of [...group.children]) if (child.isGroup) merge(child);
       const buckets = new Map();
       for (const o of [...group.children]) {

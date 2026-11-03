@@ -1,6 +1,6 @@
 import * as T from "three";
 import { disposeModel } from "../resources.js";
-import { glowSprite, glow, mesh } from "../assets.js";
+import { createPickup, animatePickup } from "../supplies.js";
 import { reserveCapacity, canStand } from "../logic.js";
 
 /** effects owns its rules; commands are the explicit cross-system operations. */
@@ -20,21 +20,13 @@ export class EffectsSystem {
             : r < 0.82
               ? "double"
               : "insta");
-    const color = {
-      health: 0xff6560,
-      ammo: 0xeac786,
-      double: 0xecb648,
-      insta: 0x9cfaf3,
-    }[type];
-    const model = new T.Group();
-    mesh(new T.OctahedronGeometry(0.22), glow(color, 2), model);
-    const halo = glowSprite(color, 1.5);
-    model.add(halo);
+    const id = this.run.nextPickupId++;
+    const model = createPickup(type, id);
     model.position.copy(position);
-    model.position.y = 0.5;
+    model.position.y = 0.65;
     this.view.scene.add(model);
     this.run.pickups.push({
-      id: this.run.nextPickupId++,
+      id,
       mesh: model,
       type,
       life: 24,
@@ -146,8 +138,7 @@ export class EffectsSystem {
     }
     for (const p of this.run.pickups) {
       p.life -= dt;
-      p.mesh.rotation.y += dt * 1.5;
-      p.mesh.position.y = 0.65 + Math.sin(this.run.time * 3) * 0.15;
+      animatePickup(p.mesh, this.run.time);
       if (
         !this.run.downed &&
         p.mesh.position.distanceTo(this.run.player.position) < 1.8

@@ -3,6 +3,34 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.3.0",
+    date: "2026-11-03",
+    title: "Reliques et Toniques",
+    tagline: "Des objets à reconnaître. Des machines à découvrir.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Quatre bonus remodelés en véritables objets 3D",
+      "Quatre distributeurs d’atouts avec leur propre identité",
+    ],
+    sections: [
+      {
+        title: "Des reliques dans la nuit",
+        items: [
+          "La vitalité prend la forme d’une trousse médicale ; les munitions, d’une caisse chargée de cartouches. Les essences doubles deviennent des médaillons ×2 et la mort instantanée, un crâne dans son reliquaire.",
+          "Métaux, fermoirs, gravures et surfaces patinées remplacent les losanges. Une lévitation lente et une empreinte lumineuse au sol permettent de repérer chaque bonus.",
+        ],
+      },
+      {
+        title: "Les Toniques de Vesper",
+        items: [
+          "Sang de fer adopte une carrosserie médicale rouge et crème ; Nerfs d’acier, une pompe à tonique ambrée ; Main de fer, un distributeur balistique à tambours ; l’Œil du Veilleur, une console optique turquoise.",
+          "Bouteilles, manomètres, monnayeurs, grilles et plaques de prix sont intégrés aux façades. Les emblèmes et témoins s’allument progressivement lorsque le courant revient.",
+          "Les modèles sont préparés avant le combat et disposent de versions allégées sur mobile. Les bonus sont également visibles sous leur nouvelle forme en coopération.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.2.1",
     date: "2026-11-02",
     title: "Une molette plus fiable",

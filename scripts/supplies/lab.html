@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VESPER · Reliques et Toniques</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #101412;
+        color: #ded8c8;
+        font:
+          14px "Barlow Condensed",
+          sans-serif;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      header,
+      aside,
+      footer {
+        position: fixed;
+        z-index: 1;
+      }
+      header {
+        top: 30px;
+        left: 34px;
+        pointer-events: none;
+      }
+      small {
+        font-size: 11px;
+        letter-spacing: 4px;
+        color: #b8a57e;
+      }
+      h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        margin: 7px 0;
+      }
+      aside {
+        top: 30px;
+        right: 28px;
+        width: 210px;
+        padding: 16px;
+        border: 1px solid #80705455;
+        background: #111815e8;
+        backdrop-filter: blur(14px);
+      }
+      h2 {
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 3px;
+        color: #b8a57e;
+        margin: 9px 0;
+      }
+      button {
+        display: block;
+        width: 100%;
+        border: 1px solid transparent;
+        background: transparent;
+        text-align: left;
+        color: #d0ccbf;
+        padding: 10px 12px;
+        font:
+          16px "Barlow Condensed",
+          sans-serif;
+        cursor: pointer;
+      }
+      button.active {
+        border-color: #aa895855;
+        background: #d9b46a16;
+        color: #f4daa7;
+      }
+      button:hover {
+        background: #c4b58b18;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid #b19a6533;
+        margin: 16px 0;
+      }
+      footer {
+        bottom: 24px;
+        left: 34px;
+        pointer-events: none;
+      }
+      #caption {
+        font-size: 21px;
+        letter-spacing: 0.7px;
+        margin: 0 0 7px;
+      }
+      #hint {
+        color: #929f94;
+        font-size: 13px;
+        letter-spacing: 1px;
+      }
+      #status {
+        color: #d2b980;
+        font-size: 12px;
+        min-height: 17px;
+      }
+      @media (max-width: 700px) {
+        header {
+          top: 18px;
+          left: 18px;
+        }
+        h1 {
+          font-size: 20px;
+        }
+        aside {
+          top: 16px;
+          right: 12px;
+          width: 160px;
+          padding: 10px;
+        }
+        button {
+          padding: 6px 8px;
+          font-size: 14px;
+        }
+        footer {
+          left: 18px;
+          bottom: 16px;
+          max-width: 50%;
+        }
+        #caption {
+          font-size: 16px;
+        }
+        #hint {
+          font-size: 11px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <small>VESPER · ATELIER</small>
+      <h1>Reliques et Toniques</h1>
+      <div id="status">Préparation des modèles…</div>
+    </header>
+    <aside>
+      <h2>BONUS</h2>
+      <button data-id="pickup-health">Vitalité</button
+      ><button data-id="pickup-ammo">Munitions maximales</button
+      ><button data-id="pickup-double">Essences doubles</button
+      ><button data-id="pickup-insta">Mort instantanée</button>
+      <h2>TONIQUES</h2>
+      <button data-id="machine-health">Sang de fer</button
+      ><button data-id="machine-speed">Nerfs d’acier</button
+      ><button data-id="machine-rate">Main de fer</button
+      ><button data-id="machine-focus">Œil du Veilleur</button>
+      <hr />
+      <button id="power">Courant · activé</button
+      ><button id="light">Lumière · atelier</button>
+    </aside>
+    <footer>
+      <p id="caption"></p>
+      <span id="hint">Glisser pour tourner · Molette pour rapprocher</span>
+    </footer>
+    <script type="module" src="./lab.js"></script>
+  </body>
+</html>

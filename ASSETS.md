@@ -2,6 +2,12 @@
 
 Apart from the third-party assets documented below (surface scans, horde characters, motion capture and sound recordings), gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. No Call of Duty asset, map, logo or audio sample is included.
 
+## Version 5.3.0 — relics and tonic dispensers
+
+The four pickup objects (medical case, ammunition can, double-essence medallions and reliquary skull) and the four perk dispensers are original models authored for Vesper in `scripts/supplies/build.py`. The source uses the project's Blender modelling kit for filleted housings, lathes, sweeps, exact orbital cuts, hardware and weighted bevels. No external model, commercial game icon or texture sheet was used for these designs.
+
+`npm run supplies:build` exports full and simplified mobile GLBs in `public/models/supplies/`, with meshopt compression and Cycles-baked occlusion, cavity and edge-wear atlases. The wear maps use 1024/512 px for dispensers and 512/256 px for pickups. Runtime finishes combine these bakes with the already credited metal surface normal map. The enamel signage is original Canvas drawing and typesetting using the bundled Barlow Condensed font. Names, serial markings, symbols and machine layouts are original. All resources are bundled locally; no external service is called in game.
+
 ## Version 5.0.0 — the armory
 
 The six first-person weapons, their arms, surfaces and sounds are rebuilt from scripted modelling and open assets. Nothing is generated at runtime and the game calls no external service.

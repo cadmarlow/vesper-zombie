@@ -15,7 +15,8 @@ import {
 } from "../creatures.js";
 import { setSurfaceQuality } from "../surfaces.js";
 import { disposeModel } from "../resources.js";
-import { glow, glowSprite, mesh } from "../assets.js";
+import { glow } from "../assets.js";
+import { createPickup } from "../supplies.js";
 import {
   EMERGE_DEPTH,
   enemyActionFromSnapshot,
@@ -208,16 +209,8 @@ export class WorldReplica {
       pickupsSeen.add(id);
       if (!this.remotePickups.has(id)) {
         const type = PICKUP_TYPES[typeIndex] || "health";
-        const color = {
-          health: 0xff6560,
-          ammo: 0xeac786,
-          double: 0xecb648,
-          insta: 0x9cfaf3,
-        }[type];
-        const model = new T.Group();
-        mesh(new T.OctahedronGeometry(0.22), glow(color, 2), model);
-        model.add(glowSprite(color, 1.5));
-        model.position.set(x, 0.5, z);
+        const model = createPickup(type, id);
+        model.position.set(x, 0.65, z);
         g.view.scene.add(model);
         this.remotePickups.set(id, { mesh: model, type });
       }

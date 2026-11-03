@@ -235,6 +235,66 @@ check(
   "Power state reaches the peer",
   await peer.evaluate(() => window.__vesper.world.power),
 );
+// Every relic is instantiated by the guest and collected through the host.
+await host.evaluate(() => {
+  const g = window.__vesper;
+  for (const p of g.pickups) p.life = 0;
+  g.updateEffects(0);
+  for (const [index, type] of ["health", "ammo", "double", "insta"].entries())
+    g.drop(g.player.position.clone().set(-10 + index * 3, 0, 26), type);
+});
+await peer.waitForFunction(
+  () => window.__vesper.session.remotePickups.size === 4,
+);
+const relics = await peer.evaluate(() =>
+  [...window.__vesper.session.remotePickups.values()].map((p) => [
+    p.type,
+    p.mesh.userData.pickup?.type,
+  ]),
+);
+check(
+  "All four physical pickup models are replicated",
+  relics.length === 4 && relics.every(([type, model]) => type === model),
+  JSON.stringify(relics),
+);
+await peer.evaluate(() => {
+  const g = window.__vesper;
+  window.__beforePickup = {
+    position: g.player.position.clone(),
+    health: g.player.health,
+    invulnerable: g.player.invulnerable,
+    lastHurt: g.player.lastHurt,
+  };
+  g.player.health = 25;
+  g.player.lastHurt = g.time;
+  g.player.invulnerable = 1e9;
+  g.player.position.set(-10, 1.7, 26);
+});
+await peer.waitForFunction(() => window.__vesper.player.health >= 75);
+await peer.waitForFunction(
+  () =>
+    ![...window.__vesper.session.remotePickups.values()].some(
+      (p) => p.type === "health",
+    ),
+);
+check(
+  "A guest collects the host's relic once, with its real effect",
+  await peer.evaluate(() => window.__vesper.player.health === 75),
+);
+await peer.evaluate(() => {
+  const g = window.__vesper,
+    before = window.__beforePickup;
+  g.player.position.copy(before.position);
+  g.player.health = before.health;
+  g.player.invulnerable = before.invulnerable;
+  g.player.lastHurt = before.lastHurt;
+});
+await host.evaluate(() => {
+  for (const p of window.__vesper.pickups) p.life = 0.01;
+});
+await peer.waitForFunction(
+  () => window.__vesper.session.remotePickups.size === 0,
+);
 // Zombie attacks the peer: host sends damage
 await host.evaluate(() => {
   const g = window.__vesper;

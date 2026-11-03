@@ -40,7 +40,9 @@ Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon
 
 Le guide intégré décrit les commandes tactiles. Les réglages et records sont enregistrés dans le navigateur. Armes, atouts et essences appartiennent à chaque joueur ; portes, courant, Reliquaire et extraction sont partagés. Un joueur à terre revient à la vague suivante ; la partie se termine si toute l’équipe tombe.
 
-## Version 5.2 — La Horde vivante
+## Version 5.3 — Reliques et Toniques
+
+Les quatre bonus au sol sont des objets 3D : trousse médicale, caisse de cartouches, médaillons ×2 et crâne dans son reliquaire. Chaque distributeur d’atout possède sa carrosserie, son emblème, ses instruments et ses plaques de prix. Les vitrines et témoins suivent le courant. Les modèles disposent de versions allégées sur mobile et sont également utilisés en coopération.
 
 Les assauts arrivent par groupes, avec des poussées frontales, des pinces et du harcèlement à partir de la manche 4. Certains Affamés anticipent brièvement votre trajectoire : changer de direction peut les tromper. Les Rémanents débordent et les Porte-peste prennent temporairement position. Les bonds et crachats s’espacent, les cibles sont plus stables en coopération et les nouvelles actions spéciales laissent un court répit après des dégâts ou une mise à terre.
 
@@ -66,6 +68,8 @@ npm run verify:full
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 
 `npm run test:input` vérifie la molette et le changement d’arme dans une vraie partie Chrome sur le dernier build de `dist/`, avec un serveur temporaire si `VESPER_URL` n’est pas défini. Il couvre les petites impulsions, le défilement horizontal, l’inertie, les gestes précis et les crans en lignes/pages, en marchant et en courant. La molette demande une souris capturée dans la partie ; les touches 1 et 2 restent disponibles.
+
+`npm run test:supplies` vérifie les nouveaux objets, leurs effets, leur expiration et la stabilité des ressources avec 24 bonus simultanés. Pour examiner les huit modèles sans attendre une partie, ouvrir `http://localhost:5180/scripts/supplies/lab.html` avec le serveur de développement : rotation, zoom, éclairage d’atelier/nuit et activation du courant. `npm run supplies:build` reconstruit les ressources avec Blender ; `-- --reuse` réutilise les fichiers de travail déjà cuits.
 
 La CI utilise `npm run verify -- menu-check waves-check` : formatage, architecture, tests unitaires et réseau, build, menus et vagues simulées. Les essais de commandes en temps réel, de coopération dans le navigateur et de rendu nécessitent une machine graphique ; exécuter `npm run verify` sur cette machine avant une livraison. Les rapports et captures sont produits dans `artifacts/`, exclu de Git. Les résultats et limites des vérifications sont consignés dans [VERIFICATION.md](VERIFICATION.md).
 

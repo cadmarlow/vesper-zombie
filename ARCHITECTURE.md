@@ -21,6 +21,7 @@ La base reste une application JavaScript avec Three.js et un relais WebSocket. C
 | Contacts d'attaque et volumes touchables      | `src/game/enemy-actions.js`, `enemy-hitboxes.js`                                 |
 | Vagues, récompenses de transition, extraction | `src/game/survival.js`                                                           |
 | Achats et machines                            | `src/game/interactions.js`, `interaction-rules.js`                               |
+| Objets des bonus et distributeurs d’atouts    | `src/supplies.js`, `scripts/supplies/`, `public/models/supplies/`                |
 | Statistiques, réglages par défaut             | `src/content/`                                                                   |
 | Métadonnées et géométrie d’une carte          | `src/maps/<carte>/`                                                              |
 | Monde commun, matériaux, modèles procéduraux  | `src/world.js`, `assets.js`, `creatures.js`, `weapons.js`                        |
@@ -91,6 +92,16 @@ Les détours utilisent une recherche bornée sur le graphe de navigation existan
 L’hôte seul décide. Le champ facultatif `ai` des instantanés contient `[id, rôle, séquence, instant]` ; les invités présentent l’intention et son avertissement spatial sur leur horloge retardée, sans exécuter le directeur. Le protocole reste en version 4 et les instantanés sans `ai` sont acceptés.
 
 `npm run test:assaults` utilise le build de `dist/` avec son propre serveur temporaire : poursuite de 28 ennemis sur les quatre cartes, Chrome ordinateur/mobile et WebKit mobile, intentions, budgets d’attaques et quotas. `VESPER_BASELINE_DIR` peut désigner un autre checkout déjà construit pour comparer la même population et le même trajet. Les tests unitaires couvrent notamment l’annulation des détours, le carillon, les portes, les entrées encombrées, l’aggro et le répit ; `coop-check` vérifie les intentions à travers le vrai relais.
+
+## Reliques et distributeurs
+
+`supplies.js` prépare les huit modèles derrière le chargement, puis fournit `createPickup`, `animatePickup` et `createPerkMachine`. Les modèles complets et mobiles viennent de `scripts/supplies/build.py` et du kit Blender de l’armurerie. Le build conserve les noms des finitions et les deux jeux d’UV : le premier reçoit l’atlas d’usure et le second les micro-normales. Les plaques partagent une texture Canvas à quatre zones, composée avec la police du jeu. L’audit des fichiers vérifie ces attributs, les budgets et les dimensions compatibles avec les collisions existantes.
+
+Les géométries et finitions des modèles sont partagées, comme les textures. `disposeModel` ne les libère pas lors du ramassage d’un exemplaire ; les halos et empreintes de cet exemplaire sont libérés. Les badges lumineux des machines ont leur propre matériau pour suivre le courant sans modifier un autre exemplaire. Leurs petites sources lumineuses passent par le budget de lumières du monde. Les modèles des distributeurs, déjà regroupés par finition hors ligne, évitent un second regroupement dans `batchProps`.
+
+`RunLifecycle` compile les quatre bonus et initialise leurs textures avant de terminer le chargement. `EffectsSystem` conserve les effets et la durée des bonus ; leur lévitation se joue à l’intérieur du groupe, dont le point de ramassage reste stable. `WorldReplica` et `Multiplayer` utilisent le même modèle et la même animation. Le tuple réseau des bonus reste `[id, type, x, z]` et le protocole reste en version 4.
+
+`npm run test:supplies` couvre les quatre cartes avec Chrome ordinateur/mobile et l’Abbaye/LACUNA avec WebKit mobile, les quatre effets, l’expiration, 24 bonus simultanés et les ressources partagées. `coop-check` vérifie aussi le ramassage d’un bonus de l’hôte par l’invité. Le laboratoire de développement est dans `scripts/supplies/lab.html`.
 
 ## L’armurerie
 
