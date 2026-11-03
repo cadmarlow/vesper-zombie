@@ -7,7 +7,8 @@ import {
   prepareSupplies,
   createPickup,
   animatePickup,
-  createPerkMachine,
+  createMachine,
+  updateMachine,
 } from "../../src/supplies.js";
 import { disposeModel } from "../../src/resources.js";
 
@@ -91,7 +92,7 @@ function choose(next) {
     controls.target.set(0, 0.8, 0);
     camera.position.set(1.05, 1.4, 1.9);
   } else {
-    active = createPerkMachine(kind);
+    active = createMachine(kind);
     controls.target.set(0, 1.3, 0);
     camera.position.set(2.2, 2.15, 4.65);
   }
@@ -119,11 +120,18 @@ choose(new URL(location.href).searchParams.get("id") || id);
 const started = performance.now();
 function frame() {
   const t = (performance.now() - started) / 1000;
+  const lit = power || id === "machine-ammo";
   if (active.root.userData.pickup) animatePickup(active.root, t);
-  if (active.screen)
+  if (
+    id.startsWith("machine-") &&
+    ["power", "ammo", "upgrade"].includes(id.split("-")[1])
+  )
+    updateMachine(active, id.split("-")[1], 1 / 60, power ? 1 : 0);
+  else if (active.screen)
     active.screen.material.emissiveIntensity = power ? 3 : 0.015;
-  if (active.bulb) active.bulb.emissiveIntensity = power ? 3 : 0.03;
-  if (active.halo) active.halo.material.opacity = power ? 0.25 : 0.03;
+  if (active.parts?.lever) active.parts.lever.rotation.x = power ? 0.6 : -0.5;
+  if (active.bulb) active.bulb.emissiveIntensity = lit ? 3 : 0.03;
+  if (active.halo) active.halo.material.opacity = lit ? 0.25 : 0.03;
   key.intensity = night ? 0.6 : 4.5;
   fill.intensity = night ? 0.3 : 1.8;
   rim.intensity = night ? 0.8 : 3;

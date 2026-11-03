@@ -27,6 +27,7 @@ export class RunLifecycle {
   constructor(
     context,
     {
+      cancelTonic,
       resize,
       updateNavigation,
       setGun,
@@ -54,6 +55,7 @@ export class RunLifecycle {
   ) {
     Object.assign(this, context);
     this.commands = {
+      cancelTonic,
       resize,
       updateNavigation,
       setGun,
@@ -123,6 +125,7 @@ export class RunLifecycle {
         ),
       ),
     ]);
+    this.view.viewModel?.prepareTonics();
     checkpoint();
     this.run.map = map;
     this.sound.armory?.setRoom(mapDefinition(map).theme);
@@ -260,6 +263,7 @@ export class RunLifecycle {
     this.run.spawnTimer = 0;
     this.run.assault = null;
     this.run.enemyTactics = null;
+    this.run.tonic = null;
     this.run.reloadTime = 0;
     this.run.reloadDuration = 0;
     this.run.shotTimer = 0;
@@ -293,11 +297,17 @@ export class RunLifecycle {
       this.view.scene,
     );
     checkpoint();
+    const tonics = this.view.viewModel?.tonicView;
+    if (tonics) {
+      tonics.root.visible = true;
+      for (const model of tonics.cache.values()) model.root.visible = true;
+    }
     await this.view.renderer.compileAsync(
       this.view.viewScene,
       this.view.viewCamera,
     );
     checkpoint();
+    tonics?.stop();
     this.run.mapGameplay = createMapGameplay(
       {
         run: this.run,
@@ -426,6 +436,7 @@ export class RunLifecycle {
     this.warmupTimer = setTimeout(() => step(0), 400);
   }
   cleanup() {
+    this.commands.cancelTonic?.();
     this.run.assault = null;
     this.run.enemyTactics = null;
     this.run.mapGameplay?.dispose();

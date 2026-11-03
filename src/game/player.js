@@ -8,10 +8,17 @@ const dir = new T.Vector3();
 export class PlayerSystem {
   constructor(
     { run, view, input, sound, emit },
-    { end, updateHUD, obstacleDistance, updateKnife, shoot },
+    { end, updateHUD, obstacleDistance, updateKnife, shoot, cancelTonic },
   ) {
     Object.assign(this, { run, view, input, sound, emit });
-    this.commands = { end, updateHUD, obstacleDistance, updateKnife, shoot };
+    this.commands = {
+      end,
+      updateHUD,
+      obstacleDistance,
+      updateKnife,
+      shoot,
+      cancelTonic,
+    };
   }
   /** source: world position of the attacker, when known (claws, bites). */
   hurt(amount, source = null) {
@@ -54,6 +61,7 @@ export class PlayerSystem {
   }
   down() {
     if (this.run.downed) return;
+    this.commands.cancelTonic?.();
     this.run.downed = true;
     this.run.eliminated = false;
     this.input.keys.clear();
@@ -341,6 +349,7 @@ export class PlayerSystem {
     const aim =
       this.input.mouse.aim &&
       !rescuing &&
+      !this.run.tonic &&
       !this.run.reloadTime &&
       !sprint &&
       !this.run.meleeTimer &&
@@ -368,9 +377,10 @@ export class PlayerSystem {
       9,
       dt,
     );
-    if (armory)
+    if (armory || (this.run.tonic && this.view.viewModel?.arms)) {
+      if (!armory) this.view.gun.visible = false;
       this.updateViewModel(dt, { aim, sprint, length, mx, definition });
-    else this.updateLegacyGun(dt, { aim, sprint, length, bob, definition });
+    } else this.updateLegacyGun(dt, { aim, sprint, length, bob, definition });
     this.view.weaponAmbient.intensity =
       1.1 + (this.run.world?.powerLevel || 0) * 0.25;
     this.view.weaponKey.position.set(
@@ -511,6 +521,7 @@ export class PlayerSystem {
       : 0;
     vm.update({
       dt,
+      tonic: this.run.tonic,
       time: this.run.time,
       aim,
       sprint,

@@ -56,6 +56,34 @@
       "bytes": 526260,
       "mobileTriangles": 16152,
       "mobileBytes": 430516
+    },
+    "machine-power": {
+      "triangles": 32398,
+      "meshes": 9,
+      "bytes": 801788,
+      "mobileTriangles": 27310,
+      "mobileBytes": 719424
+    },
+    "machine-ammo": {
+      "triangles": 17678,
+      "meshes": 7,
+      "bytes": 453728,
+      "mobileTriangles": 15188,
+      "mobileBytes": 416656
+    },
+    "machine-upgrade": {
+      "triangles": 34182,
+      "meshes": 9,
+      "bytes": 820592,
+      "mobileTriangles": 27222,
+      "mobileBytes": 706540
+    },
+    "tonic-bottle": {
+      "triangles": 8976,
+      "meshes": 4,
+      "bytes": 200988,
+      "mobileTriangles": 8960,
+      "mobileBytes": 200596
     }
   }
 }

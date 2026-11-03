@@ -83,8 +83,6 @@ try {
             g.world.openDoor(d);
             d.bars.position.y = 6.3;
           }
-          g.world.setPower();
-          g.world.powerTime = 4;
           g.world.update(0, 12);
           g.viewModel.hide();
           g.hudTimer = 0;
@@ -92,7 +90,77 @@ try {
         },
         { map, touch: profile !== "desktop" },
       );
-      for (const kind of ["health", "speed", "rate", "focus"]) {
+      const services = await page.evaluate(() => {
+        const g = window.__vesper;
+        const find = (kind) =>
+          g.world.interactions.find((i) => i.kind === kind);
+        const standby = [
+          "health",
+          "speed",
+          "rate",
+          "focus",
+          "power",
+          "upgrade",
+        ].every((kind) => find(kind).screen.material.emissiveIntensity < 0.05);
+        const ammoReady = find("ammo").screen.material.emissiveIntensity > 1;
+        const use = (kind) => {
+          const i = find(kind),
+            front = i.position
+              .clone()
+              .set(0, 0, 1)
+              .applyQuaternion(i.root.quaternion);
+          g.player.position.copy(i.position).addScaledVector(front, 1.8);
+          g.interact();
+          g.world.update(0.1, 12);
+          return i;
+        };
+        g.state = "playing";
+        g.player.points = 100000;
+        const initial = find("power").lever.rotation.x;
+        const generator = use("power");
+        const lever =
+          generator.lever.rotation.x !== initial &&
+          generator.lever.rotation.x === 0.6;
+        g.world.powerTime = 4;
+        g.world.update(0.1, 12);
+        g.weapon.reserve = 0;
+        g.player.grenades = 0;
+        const beforeAmmo = g.player.points,
+          ammo = use("ammo");
+        const refilled =
+          g.weapon.reserve > 0 &&
+          g.player.grenades === 3 &&
+          g.player.points === beforeAmmo - 350;
+        const tray =
+          ammo.machine.parts.tray.position.z > ammo.machine.rest.tray.z;
+        const beforeUpgrade = g.player.points,
+          upgrade = use("upgrade");
+        const upgraded =
+          g.weapon.level === 1 &&
+          g.player.points === beforeUpgrade - 3000 &&
+          upgrade.machine.parts.tray.position.z > upgrade.machine.rest.tray.z;
+        const rotor =
+          Math.abs(upgrade.machine.parts.rotor.rotation.z) > 0.01 &&
+          Math.abs(generator.machine.parts.rotor.rotation.z) > 0.01;
+        g.state = "audit";
+        g.viewModel.hide();
+        return { standby, ammoReady, lever, refilled, tray, upgraded, rotor };
+      });
+      if (!captureOnly)
+        check(
+          `${profile}/${map}: service mechanisms follow actual purchases and power`,
+          Object.values(services).every(Boolean),
+          services,
+        );
+      for (const kind of [
+        "health",
+        "speed",
+        "rate",
+        "focus",
+        "power",
+        "ammo",
+        "upgrade",
+      ]) {
         const view = await page.evaluate(
           ({ kind }) => {
             const g = window.__vesper,
@@ -147,7 +215,9 @@ try {
         if (!captureOnly)
           check(
             `${profile}/${map}/${kind}: physical machine is powered`,
-            view.power > 2.9 && view.triangles > 2000 && view.meshes < 14,
+            view.power > (kind === "ammo" ? 1 : 2.9) &&
+              view.triangles > 2000 &&
+              view.meshes < 14,
             view,
           );
       }

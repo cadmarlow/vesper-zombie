@@ -1,4 +1,4 @@
-"""Original Vesper pickups and perk dispensers. Coordinates are game metres.
+"""Original Vesper relics, machines and tonic bottle. Coordinates are game metres.
 Run through build.mjs; reuse the armory's bevel, atlas and Cycles wear baker.
 """
 import bpy, sys, os, math, json
@@ -12,6 +12,7 @@ asset, output = sys.argv[sys.argv.index("--") + 1:][:2]
 k.reset()
 root = k.empty(asset, extras={"supply": asset})
 is_machine = asset.startswith("machine-")
+is_tonic = asset.startswith("tonic-")
 kind = asset.split("-")[1]
 labels = []
 
@@ -106,6 +107,115 @@ def bottle(x,y,z,h=.34):
     k.lathe("dose-flacon",[(0,y),(.057,y),(.068,y+.025),(.068,y+h*.68),(.03,y+h*.8),(.027,y+h),(0,y+h)],(x,z),20,"ivory",root,"y")
     cyl("flacon-cap",(x,y+h,z),.033,.035,"metal","y",16)
     block("flacon-label",(x,y+h*.4,z+.065),(.073,.105,.005),"paint",.002)
+
+def part(name,objects,pivot):
+    node=k.empty("part-"+name,pivot,root,{"supplyPart":name})
+    for ob in objects:
+        k.move(ob,-pivot[0],-pivot[1],-pivot[2]);ob.parent=node
+    return node
+
+def service(kind):
+    feet(.66)
+    if kind=="power":
+        block("electrical-cabinet",(0,1.12,-.07),(1.4,1.77,1.02),"paint",.07)
+        block("distribution-board",(0,1.25,.47),(1.16,1.19,.065),"ivory",.04)
+        for x in [-.43,.43]:
+            cyl("transformer-spine",(x,2.05,-.04),.10,.73,"metal","y",20)
+            for j in range(6): cyl("ceramic-insulator",(x,1.85+j*.085,-.04),.155,.043,"ivory","y",20)
+            cyl("conductor-terminal",(x,2.39,-.04),.07,.07,"metal","y",16)
+        wire("high-voltage-conductor",[(-.43,2.4,-.04),(-.43,2.55,-.04),(.43,2.55,-.04),(.43,2.4,-.04)],.023,"metal")
+        block("header-housing",(0,1.91,.37),(1.12,.31,.22),"dark",.025)
+        decal("generator-name",(0,1.91,.49),(1.06,.25),0)
+        for x in [-.34,0,.34]: gauge(x,1.58,.53,.115)
+        block("isolator-recess",(.3,1.16,.52),(.31,.43,.06),"dark",.02)
+        pivot=(.3,1.17,.56)
+        handle=block("isolator-handle",(.3,1.31,.56),(.065,.28,.065),"metal",.008)
+        knob=block("insulated-grip",(.3,1.45,.56),(.23,.065,.075),"paint",.02)
+        lever=part("lever",[handle,knob],pivot);lever.rotation_euler.x=-.5
+        cyl("fan-recess",(-.28,1.10,.52),.215,.035,"dark",sides=32)
+        ring("fan-guard",(-.28,1.1,.56),.226,.204,.03,"metal")
+        blades=[]
+        for j in range(6):
+            blade=block("rotor-blade",(-.28,1.19,.54),(.065,.16,.018),"metal",.009)
+            k.rotate(blade,j*60,axis="z",pivot=(-.28,1.1,.54));blades.append(blade)
+        part("rotor",blades,(-.28,1.1,.54))
+        symbol("bolt",(0,.67,.53),.21,"light")
+        for x in [-.48,.48]: vent(x,.68,.51,.19,6)
+        decal("switch-instructions",(0,.47,.55),(.92,.15),1)
+    elif kind=="ammo":
+        block("armory-locker",(0,1.28,-.08),(1.42,2.07,1.01),"paint",.06)
+        block("armory-header",(0,2.38,-.06),(1.45,.25,1.02),"dark",.03)
+        decal("armory-name",(0,2.38,.46),(1.19,.21),0)
+        block("upper-rack-well",(0,1.93,.44),(1.13,.48,.035),"dark",.025)
+        for i in range(10): bullet("rack-cartridge",-.46+i*.102,1.76,.46,.31)
+        for y in [1.68,2.14]: block("rack-rail",(0,y,.50),(1.17,.035,.06),"metal",.006)
+        for x in [-.57,.57]: block("protective-upright",(x,1.22,.5),(.05,1.31,.06),"metal",.009)
+        block("cargo-well",(0,1.25,.4),(1.08,.57,.06),"dark",.025)
+        for x in [-.28,.28]:
+            block("reserve-box",(x,1.22,.43),(.45,.39,.32),"ivory",.025)
+            for rib in [-.13,.13]: block("box-binding",(x+rib,1.22,.601),(.026,.38,.013),"metal",.004)
+            block("calibre-mark",(x,1.22,.602),(.15,.15,.012),"paint",.009)
+        tray=block("retractable-supply-tray",(0,.83,.43),(1.18,.085,.43),"metal",.018)
+        part("tray",[tray],(0,.83,.43))
+        for x in [-.32,0,.32]:
+            orb("fragmentation-casing",(x,.68,.45),(.075,.105,.075),"paint",20)
+            block("grenade-spoon",(x,.78,.46),(.045,.10,.038),"metal",.005)
+        ring("status-bezel",(.48,.49,.53),.07,.055,.018,"metal",sides=24)
+        cyl("supply-indicator",(.48,.49,.54),.05,.018,"light",sides=20)
+        vent(0,.43,.49,.66,4)
+        decal("cargo-notice",(0,1.52,.51),(.96,.12),1)
+    else:
+        block("transfiguration-engine",(0,.58,-.08),(1.41,.69,1.1),"paint",.06)
+        block("worktop",(0,.97,-.05),(1.49,.12,1.21),"metal",.025)
+        block("reactor-backplane",(0,1.62,-.37),(1.40,1.19,.19),"paint",.045)
+        for x in [-.60,.60]:
+            block("gantry-column",(x,1.61,.16),(.13,1.27,.39),"metal",.025)
+            cyl("induction-core",(x,1.7,.20),.077,.93,"metal","y",20)
+            for j in range(7): ring("induction-turn",(x,1.32+j*.125,.20),.128,.098,.035,"light","y",24)
+        block("arched-reactor-header",(0,2.32,-.03),(1.47,.30,.94),"paint",.065)
+        decal("transfiguration-name",(0,2.32,.46),(1.22,.24),0)
+        block("chamber-darkness",(0,1.65,-.252),(.88,.84,.025),"dark",.035)
+        ring("refractor-frame",(0,1.66,-.22),.337,.298,.035,"metal")
+        ring("anomaly-field",(0,1.66,-.195),.278,.260,.012,"light")
+        rotor=[]
+        for j in range(8):
+            vane=block("refractor-vane",(0,1.84,-.18),(.065,.145,.018),"metal",.007)
+            k.rotate(vane,j*45,axis="z",pivot=(0,1.66,-.18));rotor.append(vane)
+        part("rotor",rotor,(0,1.66,-.18))
+        block("containment-glass",(0,1.59,.40),(.93,.88,.008),"glass",.015)
+        for x in [-.32,.32]: block("weapon-feed-rail",(x,1.05,.18),(.065,.07,.70),"dark",.009)
+        bed=block("weapon-carriage",(0,1.10,.19),(.67,.08,.66),"metal",.018)
+        part("tray",[bed],(0,1.10,.19))
+        gauge(-.4,.71,.5,.105);gauge(.4,.71,.5,.105)
+        decal("reactor-notice",(0,.71,.52),(.51,.13),1)
+        for x in [-.54,.54]: vent(x,.45,.52,.23,4)
+    vent(0,1.10,-.61,.71,8)
+    for y in [.34,2.1]: bolts(y,-.61,.55)
+    decal("service-price",(0,.30,.58),(1.12,.13),2)
+
+def tonic():
+    # Continue down the inside wall: the removed capsule reveals a real opening.
+    profile=[(0,0),(.029,0),(.036,.008),(.037,.024),(.037,.145),(.032,.165),(.014,.194),(.014,.226),(.018,.23),(.018,.235),(.0105,.235),(.0105,.197),(.028,.165),(.033,.145),(.033,.024),(.025,.007),(0,.007)]
+    k.lathe("tinted-glass-flacon",profile,(0,0),48,"glass",root,"y")
+    liquid=k.lathe("tonic-concentrate",[(0,.009),(.031,.009),(.032,.025),(.032,.14),(.027,.154),(0,.154)],(0,0),32,"liquid",root,"y")
+    part("liquid",[liquid],(0,0,0))
+    cap=cyl("knurled-metal-capsule",(0,.24,0),.0185,.017,"metal","y",32)
+    parts=[cap]
+    for j in range(24):
+        a=j*math.pi/12
+        parts.append(block("capsule-ridge",(math.cos(a)*.0185,.24,math.sin(a)*.0185),(.0013,.013,.0013),"metal",.0003))
+    part("cap",parts,(0,.24,0))
+    # Original wraparound paper label, four-fifths of the circumference.
+    verts=[];faces=[];uv=[];steps=40
+    for j in range(steps+1):
+        a=-math.pi*.84+j/steps*math.pi*1.68
+        for y in [.035,.137]: verts.append(k.B(math.sin(a)*.0378,y,math.cos(a)*.0378))
+    for j in range(steps): faces.append((j*2,j*2+2,j*2+3,j*2+1))
+    me=bpy.data.meshes.new("tonic-label");me.from_pydata(verts,[],faces);me.update();layer=me.uv_layers.new(name="atlas")
+    for polygon in me.polygons:
+        for li in polygon.loop_indices:
+            v=me.loops[li].vertex_index;layer.data[li].uv=((v//2)/steps,v%2)
+    ob=bpy.data.objects.new("tonic-label",me);bpy.context.scene.collection.objects.link(ob);ob.parent=root;k.set_material(ob,"print");labels.append(ob)
 
 def dispense(y=.58,z=.49):
     block("recessed-delivery-bay",(0,y,z),(1.02,.26,.08),"dark",.025)
@@ -270,7 +380,9 @@ def pickup(kind):
         ring("anomaly-seal",(0,.04,-.147),.293,.287,.009,"light")
         for x in [-.19,.19]: wire("reliquary-clamp",[(x,-.19,0),(x*1.25,-.07,-.12),(x,.22,-.12)],.013,"metal")
 
-if is_machine: machine(kind)
+if is_tonic: tonic()
+elif kind in ["power","ammo","upgrade"] and is_machine: service(kind)
+elif is_machine: machine(kind)
 else: pickup(kind)
 
 # Apply the chamfers before UV packing, then merge static pieces by finish.
@@ -278,14 +390,24 @@ for ob in list(bpy.context.scene.objects):
     if ob.type!="MESH": continue
     bpy.context.view_layer.objects.active=ob
     for mod in list(ob.modifiers): bpy.ops.object.modifier_apply(modifier=mod.name)
-groups={}
+groups={}; moving=[]
+def dynamic(ob):
+    while ob is not None and ob is not root:
+        if ob.get("supplyPart"): return True
+        ob=ob.parent
+    return False
 for ob in list(bpy.context.scene.objects):
     if ob.type=="MESH" and ob not in labels:
+        if dynamic(ob): moving.append(ob);continue
         material=ob.data.materials[0].name
         groups.setdefault(material,[]).append(ob)
 meshes=[]
 for material, parts in groups.items():
     ob=k.join(parts,f"finish-{material}"); ob.parent=root; meshes.append(ob)
+moving_groups={}
+for ob in moving: moving_groups.setdefault((ob.parent,ob.data.materials[0].name),[]).append(ob)
+for (parent,material),parts in moving_groups.items():
+    ob=k.join(parts,"moving-"+material);ob.parent=parent;meshes.append(ob)
 for ob in labels: ob.parent=root
 k.unwrap(meshes,margin=.004)
 maps=k.bake_wear(meshes,output,size=1024 if is_machine else 512,

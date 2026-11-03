@@ -2,6 +2,7 @@ import * as T from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { PERKS } from "./content/rules.js";
+import { SERVICES } from "./content/services.js";
 import { rng } from "./logic.js";
 
 // Original mid-poly props built offline in scripts/supplies/. Templates and
@@ -10,6 +11,7 @@ const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const templates = new Map(),
   finishes = new Map(),
   textures = new Map();
+const sources = new Map();
 const PICKUPS = {
   health: { color: 0xf86b5c, paint: 0x8e2e2c },
   ammo: { color: 0xf0c578, paint: 0x485844 },
@@ -71,6 +73,8 @@ export async function prepareSupplies(touch = false) {
   const ids = [
     ...Object.keys(PICKUPS).map((k) => `pickup-${k}`),
     ...Object.keys(CABINETS).map((k) => `machine-${k}`),
+    ...Object.keys(SERVICES).map((k) => `machine-${k}`),
+    "tonic-bottle",
   ];
   await Promise.all(
     ids.map(async (id) => {
@@ -95,11 +99,12 @@ export async function prepareSupplies(touch = false) {
                 `/textures/metal-normal-${touch ? 512 : 1024}.webp`,
               ).catch(() => null),
             ]);
+            sources.set(key, { wear, normal });
             gltf.scene.traverse((o) => {
               if (!o.isMesh) return;
               shared(o.geometry);
               o.material = finish(
-                id,
+                id === "tonic-bottle" ? "tonic-health" : id,
                 o.material.name.split(".")[0],
                 wear,
                 normal,
@@ -130,10 +135,12 @@ function finish(id, name, wear, normal, touch) {
   const key = `${id}:${name}:${touch}`;
   if (finishes.has(key)) return finishes.get(key);
   const [category, kind] = id.split("-");
-  const paint =
-    category === "machine" ? CABINETS[kind].paint : PICKUPS[kind].paint;
+  const definition = CABINETS[kind] || SERVICES[kind];
+  const paint = category === "pickup" ? PICKUPS[kind].paint : definition.paint;
   const color =
-    category === "machine" ? PERKS[kind].color : PICKUPS[kind].color;
+    category === "pickup"
+      ? PICKUPS[kind].color
+      : (PERKS[kind] || SERVICES[kind]).color;
   const options = {
     paint: {
       color: paint,
@@ -148,12 +155,19 @@ function finish(id, name, wear, normal, touch) {
     },
     ivory: { color: 0xd2c6a8, roughness: 0.43, metalness: 0.12 },
     glass: {
-      color: 0x99c9bf,
+      color: category === "tonic" ? 0x638c7b : 0x99c9bf,
       roughness: 0.12,
       metalness: 0.25,
       transparent: true,
-      opacity: 0.18,
+      opacity: category === "tonic" ? 0.55 : 0.18,
       depthWrite: false,
+    },
+    liquid: {
+      color,
+      roughness: 0.28,
+      metalness: 0.12,
+      emissive: color,
+      emissiveIntensity: 0.1,
     },
     lens: { color: 0x264e5e, roughness: 0.095, metalness: 0.82 },
     light: {
@@ -165,14 +179,15 @@ function finish(id, name, wear, normal, touch) {
     },
     print: {
       color: 0xffffff,
-      map: signage(kind, touch),
+      map:
+        category === "tonic" ? tonicLabel(kind, touch) : signage(kind, touch),
       roughness: 0.64,
       metalness: 0.1,
     },
   };
   const material = new T.MeshStandardMaterial(options[name] || options.dark);
   material.name = name;
-  if (!["print", "glass", "light", "lens"].includes(name)) {
+  if (!["print", "glass", "light", "lens", "liquid"].includes(name)) {
     if (normal) {
       normal.wrapS = normal.wrapT = T.RepeatWrapping;
       normal.channel = 1;
@@ -230,7 +245,9 @@ function finish(id, name, wear, normal, touch) {
 
 const signs = new Map();
 function signage(kind, touch) {
-  if (!PERKS[kind]) return null;
+  const info = PERKS[kind] || SERVICES[kind];
+  const cabinet = CABINETS[kind] || SERVICES[kind];
+  if (!info) return null;
   const key = `${kind}:${touch}`;
   if (signs.has(key)) return signs.get(key);
   const canvas = document.createElement("canvas");
@@ -238,7 +255,7 @@ function signage(kind, touch) {
   const c = canvas.getContext("2d"),
     random = rng(448 + Object.keys(PERKS).indexOf(kind));
   c.scale(canvas.width / 1024, canvas.height / 1024);
-  const accent = `#${new T.Color(PERKS[kind].color).getHexString()}`;
+  const accent = `#${new T.Color(info.color).getHexString()}`;
   const text = (value, y, size, color = "#252a26") => {
     c.fillStyle = color;
     c.font = `600 ${size}px "Barlow Condensed", sans-serif`;
@@ -260,22 +277,46 @@ function signage(kind, touch) {
     c.lineTo(984, 232);
     c.stroke();
     if (tile === 0) {
-      text("V E S P E R  /  T O N I Q U E S", 49, 29);
-      text(PERKS[kind].title, 151, 97);
-      text("FORMULE ORIGINALE · SÉRIE NOCTURNE", 205, 26);
+      text(
+        SERVICES[kind]
+          ? "V E S P E R  /  A P P A R E I L L A G E S"
+          : "V E S P E R  /  T O N I Q U E S",
+        49,
+        29,
+      );
+      text(info.title, 151, 97);
+      text(
+        SERVICES[kind]
+          ? "CONSTRUIT POUR LA DERNIÈRE NUIT"
+          : "FORMULE ORIGINALE · SÉRIE NOCTURNE",
+        205,
+        26,
+      );
     } else if (tile === 1) {
-      text(CABINETS[kind].notice, 113, 78);
-      text("UN DOSAGE. UNE NOUVELLE CHANCE.", 192, 35);
+      text(cabinet.notice, 113, 78);
+      text(
+        SERVICES[kind]
+          ? "MAINTENANCE · SÉCURITÉ · SURVIE"
+          : "UN DOSAGE. UNE NOUVELLE CHANCE.",
+        192,
+        35,
+      );
     } else if (tile === 2) {
       text(
-        String(PERKS[kind].cost).replace(/(\d)(\d{3})$/, "$1 $2") +
-          "  ESSENCES",
+        SERVICES[kind]?.price ||
+          String(info.cost).replace(/(\d)(\d{3})$/, "$1 $2") + "  ESSENCES",
         155,
         103,
       );
-      text("INSÉREZ · RECUEILLEZ · SURVIVEZ", 208, 27);
+      text(
+        kind === "upgrade"
+          ? "PALIERS I · II · III / ESSENCES"
+          : "INSÉREZ · RECUEILLEZ · SURVIVEZ",
+        208,
+        27,
+      );
     } else {
-      text(CABINETS[kind].serial, 102, 65);
+      text(cabinet.serial, 102, 65);
       text("MAINTENANCE HORS TENSION UNIQUEMENT", 174, 33);
     }
     for (let i = 0; i < 180; i++) {
@@ -303,6 +344,54 @@ function instance(id) {
   // A failed download still leaves a physical, identifiable prop in the world.
   const group = new T.Group();
   const kind = id.split("-")[1];
+  if (id === "tonic-bottle") {
+    const glass = new T.MeshStandardMaterial({
+      name: "glass",
+      color: 0x638c7b,
+      roughness: 0.2,
+      transparent: true,
+      opacity: 0.65,
+    });
+    const body = new T.Mesh(
+      new T.CylinderGeometry(0.036, 0.036, 0.15, 32),
+      glass,
+    );
+    body.position.y = 0.075;
+    const shoulder = new T.Mesh(
+      new T.CylinderGeometry(0.014, 0.036, 0.045, 32),
+      glass,
+    );
+    shoulder.position.y = 0.1725;
+    const neck = new T.Mesh(
+      new T.CylinderGeometry(0.014, 0.014, 0.04, 24),
+      glass,
+    );
+    neck.position.y = 0.215;
+    const label = new T.Mesh(
+      new T.CylinderGeometry(0.0364, 0.0364, 0.1, 32, 1, true),
+      new T.MeshStandardMaterial({
+        name: "print",
+        map: tonicLabel("health", mobile),
+      }),
+    );
+    label.position.y = 0.08;
+    const cap = new T.Group();
+    cap.userData.supplyPart = "cap";
+    cap.position.y = 0.24;
+    cap.add(
+      new T.Mesh(
+        new T.CylinderGeometry(0.018, 0.018, 0.017, 24),
+        new T.MeshStandardMaterial({
+          name: "metal",
+          color: 0xb3a188,
+          metalness: 0.85,
+          roughness: 0.28,
+        }),
+      ),
+    );
+    group.add(body, shoulder, neck, label, cap);
+    return group;
+  }
   const machine = id.startsWith("machine-");
   const geo = new T.BoxGeometry(
     machine ? 1.1 : 0.55,
@@ -310,7 +399,8 @@ function instance(id) {
     machine ? 0.8 : 0.3,
   );
   const material = new T.MeshStandardMaterial({
-    color: PERKS[kind]?.color || PICKUPS[kind].color,
+    color: (PERKS[kind] || SERVICES[kind] || PICKUPS[kind] || PERKS.health)
+      .color,
   });
   const mesh = new T.Mesh(geo, material);
   mesh.position.y = machine ? 1.1 : 0;
@@ -405,7 +495,8 @@ export function animatePickup(root, time) {
   p.ground.material.opacity = 0.5 + Math.sin(phase) * 0.075;
 }
 
-export function createPerkMachine(kind) {
+export function createMachine(kind) {
+  const info = PERKS[kind] || SERVICES[kind];
   const root = instance(`machine-${kind}`);
   root.userData.supplyModel = true;
   root.name = `perk-${kind}`;
@@ -420,8 +511,8 @@ export function createPerkMachine(kind) {
     screen = new T.Mesh(
       new T.PlaneGeometry(0.5, 0.2),
       new T.MeshStandardMaterial({
-        color: PERKS[kind].color,
-        emissive: PERKS[kind].color,
+        color: info.color,
+        emissive: info.color,
         emissiveIntensity: 0.015,
       }),
     );
@@ -429,8 +520,8 @@ export function createPerkMachine(kind) {
     root.add(screen);
   }
   const bulb = new T.MeshStandardMaterial({
-    color: PERKS[kind].color,
-    emissive: PERKS[kind].color,
+    color: info.color,
+    emissive: info.color,
     emissiveIntensity: 0.03,
   });
   const pilot = new T.Mesh(pilotGeometry, bulb);
@@ -438,7 +529,7 @@ export function createPerkMachine(kind) {
   const halo = new T.Sprite(
     new T.SpriteMaterial({
       map: auraTexture(false),
-      color: PERKS[kind].color,
+      color: info.color,
       transparent: true,
       blending: T.AdditiveBlending,
       opacity: 0.03,
@@ -449,5 +540,86 @@ export function createPerkMachine(kind) {
   halo.position.copy(pilot.position);
   halo.scale.setScalar(0.26);
   root.add(pilot, halo);
-  return { root, screen, bulb, halo };
+  const parts = {};
+  root.traverse((o) => {
+    if (o.userData.supplyPart) parts[o.userData.supplyPart] = o;
+  });
+  const rest = {};
+  for (const [name, part] of Object.entries(parts))
+    rest[name] = part.position.clone();
+  if (kind === "ammo") screen.material.emissiveIntensity = 1.1;
+  return { root, screen, bulb, halo, parts, rest };
+}
+
+function tonicLabel(kind, touch) {
+  const key = `tonic:${kind}:${touch}`;
+  if (signs.has(key)) return signs.get(key);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = touch ? 256 : 512;
+  const c = canvas.getContext("2d");
+  c.scale(canvas.width / 512, canvas.height / 512);
+  const color = `#${new T.Color(PERKS[kind].color).getHexString()}`;
+  c.fillStyle = "#d9ccac";
+  c.fillRect(0, 0, 512, 512);
+  c.fillStyle = color;
+  c.fillRect(0, 0, 512, 58);
+  c.fillRect(0, 454, 512, 58);
+  c.strokeStyle = "#4d4436";
+  c.lineWidth = 3;
+  c.strokeRect(20, 75, 472, 362);
+  c.textAlign = "center";
+  c.fillStyle = "#222923";
+  c.font = '600 28px "Barlow Condensed"';
+  c.fillText("V E S P E R", 256, 111);
+  c.font = '600 82px "Barlow Condensed"';
+  c.fillText(
+    { health: "FER", speed: "NERFS", rate: "MAIN", focus: "VEILLEUR" }[kind],
+    256,
+    263,
+    430,
+  );
+  c.font = '600 34px "Barlow Condensed"';
+  c.fillText(PERKS[kind].title, 256, 338, 435);
+  c.font = '400 23px "Barlow Condensed"';
+  c.fillText("TONIQUE · 25 cl", 256, 397);
+  const t = shared(new T.CanvasTexture(canvas));
+  t.colorSpace = T.SRGBColorSpace;
+  t.flipY = false;
+  t.anisotropy = 4;
+  signs.set(key, t);
+  return t;
+}
+
+export function createTonic(kind) {
+  const root = instance("tonic-bottle"),
+    source = sources.get(`tonic-bottle:${mobile}`),
+    parts = {};
+  root.traverse((o) => {
+    if (o.userData.supplyPart) parts[o.userData.supplyPart] = o;
+    if (!o.isMesh) return;
+    if (source)
+      o.material = finish(
+        `tonic-${kind}`,
+        o.material.name,
+        source.wear,
+        source.normal,
+        mobile,
+      );
+    else if (o.material.name === "print")
+      o.material.map = tonicLabel(kind, mobile);
+    o.castShadow = o.receiveShadow = false;
+    o.frustumCulled = false;
+    if (o.material.transparent) o.renderOrder = 2;
+  });
+  return { root, cap: parts.cap, liquid: parts.liquid };
+}
+
+export function updateMachine(machine, kind, dt, power, pulse = 0) {
+  const active = kind === "ammo" ? 1 : power;
+  machine.screen.material.emissiveIntensity =
+    0.015 + active * (kind === "ammo" ? 1.1 : 3) + pulse * 2.5;
+  if (machine.parts.rotor)
+    machine.parts.rotor.rotation.z += dt * active * (0.8 + pulse * 5);
+  if (machine.parts.tray)
+    machine.parts.tray.position.z = machine.rest.tray.z + pulse * 0.065;
 }

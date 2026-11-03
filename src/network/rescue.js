@@ -78,7 +78,8 @@ export class Rescue {
   }
   intent() {
     const g = this.session.context;
-    return (g.input.keys.has("KeyE") || g.input.touchInteract) &&
+    return !g.run.tonic &&
+      (g.input.keys.has("KeyE") || g.input.touchInteract) &&
       !g.input.mouse.fire
       ? this.nearby()?.id || 0
       : 0;

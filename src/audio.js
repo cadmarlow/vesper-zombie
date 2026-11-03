@@ -208,6 +208,18 @@ export class Sound {
       );
     this.noise(2, 0.11, 220);
   }
+  tonicCue(cue) {
+    if (cue === "take") this.noise(0.12, 0.075, 700);
+    else if (cue === "open") {
+      this.noise(0.07, 0.16, 4600);
+      this.tone(1300, 0.045, 0.045, "sine", 2200);
+      this.noise(0.16, 0.04, 2400, 0.04);
+    } else {
+      this.noise(0.15, 0.07, 650);
+      this.tone(190, 0.12, 0.035, "sine", 115, 0.025);
+      this.tone(280, 0.08, 0.02, "sine", 155, 0.11);
+    }
+  }
   purchase() {
     [440, 554, 660].forEach((f, i) =>
       this.tone(f, 0.25, 0.08, "sine", 0, i * 0.09),

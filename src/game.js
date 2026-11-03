@@ -1,3 +1,4 @@
+import { TonicSystem } from "./game/tonics.js";
 import { RunLifecycle } from "./game/lifecycle.js";
 import { FrameClock } from "./game/frame-clock.js";
 import { resolutionForFrameTime } from "./game/adaptive-quality.js";
@@ -61,7 +62,12 @@ export class Game {
       sound: this.sound,
       emit: (...args) => this.emit(...args),
     };
+    this.tonics = new TonicSystem(context, {
+      updateHUD: () => this.updateHUD(),
+      setGun: () => this.setGun(),
+    });
     this.lifecycle = new RunLifecycle(context, {
+      cancelTonic: () => this.tonics.cancel(),
       resize: (...args) => this.resize(...args),
       updateNavigation: (...args) => this.updateNavigation(...args),
       setGun: (...args) => this.setGun(...args),
@@ -95,6 +101,7 @@ export class Game {
       hurt: (...args) => this.hurt(...args),
     });
     this.player = new PlayerSystem(context, {
+      cancelTonic: () => this.tonics.cancel(),
       end: (...args) => this.end(...args),
       updateHUD: (...args) => this.updateHUD(...args),
       obstacleDistance: (...args) => this.obstacleDistance(...args),
@@ -106,6 +113,7 @@ export class Game {
       hurt: (...args) => this.hurt(...args),
     });
     this.interactions = new InteractionSystem(context, {
+      useTonic: (...args) => this.tonics.start(...args),
       updateHUD: (...args) => this.updateHUD(...args),
       updateNavigation: (...args) => this.updateNavigation(...args),
       burst: (...args) => this.burst(...args),
@@ -314,6 +322,7 @@ export class Game {
       if (this.run.reloadTime === 0)
         reloadWeapon(this.run.weapons[this.run.slot]);
     }
+    this.tonics.update(dt);
     this.updatePlayer(dt);
     this.run.mapGameplay?.update(dt);
     if (this.run.meleeSwing && this.run.meleeTimer <= MELEE_DURATION - 0.23) {
@@ -459,6 +468,7 @@ export class Game {
   }
   end(victory, remote = false) {
     if (this.run.saved) return;
+    this.tonics.cancel();
     this.run.saved = true;
     if (this.run.session?.host && !remote)
       this.run.session.broadcast({ k: "end", victory: !!victory });

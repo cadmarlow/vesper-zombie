@@ -1,4 +1,6 @@
 import * as T from "three";
+import { TonicView } from "./tonic.js";
+import { TONIC } from "../content/services.js";
 import { RIGS } from "./catalog.js";
 import { createWeapon, resetParts } from "./models.js";
 import { createArms } from "./arms.js";
@@ -127,6 +129,7 @@ export class ViewModel {
       this.knifeHolder.add(this.knife);
       this.knifeHolder.visible = false;
       this.root.add(this.knifeHolder);
+      this.tonicView = new TonicView(this);
       return arms;
     });
     return this.armsLoading;
@@ -232,7 +235,24 @@ export class ViewModel {
     return s.getWorldPosition(target);
   }
 
+  prepareTonics() {
+    this.tonicView?.prepare();
+  }
+  startTonic(state) {
+    this.stop();
+    this.fireAge = 1;
+    this.kickPos.reset();
+    this.kickRot.reset();
+    this.tonicView?.start(state);
+    this.holster(TONIC.lower);
+  }
+  finishTonic() {
+    const recover = this.tonicView?.request && !this.tonicView.recovered;
+    this.tonicView?.stop();
+    if (recover) this.draw(false);
+  }
   hide() {
+    this.tonicView?.stop();
     if (this.weapon) this.weapon.visible = false;
     if (this.arms) this.arms.root.visible = false;
     this.weapon = null;
@@ -302,12 +322,16 @@ export class ViewModel {
 
   /** True while an action forbids aiming (working a bolt, feeding shells). */
   get blocksAim() {
-    return !!(this.action?.def.unaim || this.pendingCycle?.unaim);
+    return !!(
+      this.tonicView?.request ||
+      this.action?.def.unaim ||
+      this.pendingCycle?.unaim
+    );
   }
 
   /** Name of the running action, if any. */
   get busy() {
-    return this.action?.name || null;
+    return this.tonicView?.request ? "tonic" : this.action?.name || null;
   }
 
   stop() {
@@ -323,7 +347,15 @@ export class ViewModel {
   update(s) {
     const dt = s.dt;
     tickArmory(s.time);
-    if (!this.weapon || !this.arms) return;
+    if (!this.arms) return;
+    if (s.tonic) {
+      if (this.tonicView.request !== s.tonic) this.startTonic(s.tonic);
+      if (this.tonicView.draw(s.tonic, s.hidden)) {
+        this.fireAge += dt;
+        return;
+      }
+    }
+    if (!this.weapon) return;
     const rig = this.rig;
     const a = this.weapon.userData.armory;
     // --- blends (kept running behind a scope or the knife)
@@ -813,6 +845,7 @@ export class ViewModel {
 
   dispose() {
     this.root.removeFromParent();
+    this.tonicView?.dispose();
     this.arms?.dispose();
     this.cache.clear();
   }

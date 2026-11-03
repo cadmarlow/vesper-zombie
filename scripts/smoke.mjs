@@ -245,11 +245,20 @@ try {
   await teleport(-14.6, -6);
   await page.keyboard.press("KeyE");
   check(
+    "Health perk waits for the drinking contact",
+    await evaluate(
+      () =>
+        window.__vesper.player.maxHealth === 100 && !!window.__vesper.run.tonic,
+    ),
+  );
+  await page.waitForFunction(() => !window.__vesper.run.tonic);
+  check(
     "Health perk changes maximum health",
     await evaluate(() => window.__vesper.player.maxHealth === 180),
   );
   await teleport(14.6, -3);
   await page.keyboard.press("KeyE");
+  await page.waitForFunction(() => !window.__vesper.run.tonic);
   check(
     "Speed perk is acquired",
     await evaluate(() => window.__vesper.player.perks.includes("speed")),

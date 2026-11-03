@@ -2,6 +2,12 @@
 
 Apart from the third-party assets documented below (surface scans, horde characters, motion capture and sound recordings), gameplay geometry, rigs, animations, particle systems, UI symbols, procedural skin/weapon texture patterns and audio synthesis are authored for this project. No Call of Duty asset, map, logo or audio sample is included.
 
+## Version 5.4.0 — service machines and drinking ritual
+
+The electrical generator, ammunition locker, weapon Transfiguration workbench and 25 cl tonic bottle are original models authored in `scripts/supplies/build.py`, exported through the same wear-baking and meshopt pipeline. Full/mobile geometry and baked atlases are bundled in `public/models/supplies/`. Moving parts retain semantic parent nodes. The four original wraparound tonic labels are typeset in Canvas using the bundled Barlow Condensed font.
+
+The first-person grasp, cap opening, drinking and weapon recovery are original animation tracks in `src/armory/tonic.js`, using the existing Rocketbox-derived arms and the project's IK/finger posing system (see the armory credits below). Tonic take, opening and sip sounds in `src/audio.js` are original Web Audio synthesis. No new third-party model, recording, trademark or service was used.
+
 ## Version 5.3.0 — relics and tonic dispensers
 
 The four pickup objects (medical case, ammunition can, double-essence medallions and reliquary skull) and the four perk dispensers are original models authored for Vesper in `scripts/supplies/build.py`. The source uses the project's Blender modelling kit for filleted housings, lathes, sweeps, exact orbital cuts, hardware and weighted bevels. No external model, commercial game icon or texture sheet was used for these designs.

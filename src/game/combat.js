@@ -104,6 +104,7 @@ export class CombatSystem {
     this.emit("weapon", this.run.weapons[this.run.slot]);
   }
   switchWeapon(slot) {
+    if (this.run.tonic) return;
     if (
       this.run.meleeTimer > 0 ||
       slot === this.run.slot ||
@@ -126,6 +127,7 @@ export class CombatSystem {
     this.commands.updateHUD();
   }
   reload() {
+    if (this.run.tonic) return;
     if (
       this.run.state !== "playing" ||
       this.run.downed ||
@@ -355,6 +357,7 @@ export class CombatSystem {
     return nearest;
   }
   shoot() {
+    if (this.run.tonic) return;
     if (this.view.viewModel?.busy === "inspect") this.view.viewModel.stop();
     if (this.run.shellReload && this.run.shellReload.weapon.ammo > 0) {
       this.interruptShellReload();
@@ -822,6 +825,7 @@ export class CombatSystem {
   }
   /** Look the weapon over (T); shooting, aiming or reloading cancels it. */
   inspectWeapon() {
+    if (this.run.tonic) return;
     const vm = this.view.gun?.userData.armory ? this.view.viewModel : null;
     if (
       !vm ||
@@ -837,6 +841,7 @@ export class CombatSystem {
     vm.play("inspect", 2.8, (cue) => this.sound.weaponCue(cue, w.id));
   }
   melee() {
+    if (this.run.tonic) return;
     if (
       this.run.meleeTimer > 0 ||
       this.run.state !== "playing" ||
@@ -904,6 +909,7 @@ export class CombatSystem {
     }
   }
   grenade() {
+    if (this.run.tonic) return;
     if (
       this.run.meleeTimer > 0 ||
       this.run.player.grenades <= 0 ||

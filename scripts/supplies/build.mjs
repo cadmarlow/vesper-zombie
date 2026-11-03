@@ -35,6 +35,10 @@ const assets = ids.length
       "machine-speed",
       "machine-rate",
       "machine-focus",
+      "machine-power",
+      "machine-ammo",
+      "machine-upgrade",
+      "tonic-bottle",
     ];
 await MeshoptEncoder.ready;
 const io = new NodeIO()

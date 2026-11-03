@@ -21,7 +21,8 @@ import {
 import { rng } from "./logic.js";
 import { PERKS, UPGRADE } from "./config.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
-import { createPerkMachine } from "./supplies.js";
+import { createMachine, updateMachine } from "./supplies.js";
+import { SERVICES } from "./content/services.js";
 
 export class World {
   constructor(scene, id, quality) {
@@ -400,12 +401,19 @@ export class World {
             extract: 0,
           }[kind],
       };
-      if (PERKS[kind]) {
-        const machine = createPerkMachine(kind);
+      if (PERKS[kind] || SERVICES[kind]) {
+        const machine = createMachine(kind);
         g.add(machine.root);
+        info.machine = machine;
         info.screen = machine.screen;
-        info.powered = true;
-        const light = new T.PointLight(PERKS[kind].color, 0, 3.2, 2);
+        info.powered = kind !== "ammo";
+        if (machine.parts.lever) info.lever = machine.parts.lever;
+        const light = new T.PointLight(
+          (PERKS[kind] || SERVICES[kind]).color,
+          0,
+          3.2,
+          2,
+        );
         light.position.set(
           x + Math.sin(direction) * 1.0,
           1.2,
@@ -416,9 +424,11 @@ export class World {
           light,
           bulb: machine.bulb,
           halo: machine.halo,
-          powered: true,
+          powered: info.powered,
           base: 3,
-          phase: Object.keys(PERKS).indexOf(kind) * 1.7,
+          phase:
+            Object.keys(PERKS).concat(Object.keys(SERVICES)).indexOf(kind) *
+            1.7,
         });
       } else if (kind === "box") {
         box(g, m.wood, 0, 0.62, 0, 2.6, 1.05, 1.05);
@@ -477,85 +487,6 @@ export class World {
         );
         ring.rotation.x = -Math.PI / 2;
         info.ring = ring;
-      } else {
-        const color =
-          PERKS[kind]?.color ??
-          (kind === "upgrade"
-            ? 0x8667d9
-            : kind === "power"
-              ? 0x92cf9c
-              : 0x8ac0c5);
-        const body = mat(color, 0.52, 0.55, { map: m.metal.map });
-        box(g, m.dark, 0, 0.1, 0, 1.65, 0.2, 1.15);
-        box(g, body, 0, 1.2, 0, 1.4, 2.25, 0.9);
-        box(g, m.dark, 0, 1.35, 0.47, 1.1, 1.5, 0.05);
-        const screen = box(
-          g,
-          glow(color, 0.8),
-          0,
-          1.77,
-          0.51,
-          0.85,
-          0.42,
-          0.02,
-        );
-        info.screen = screen;
-        info.powered = kind === "power" || kind === "upgrade" || !!PERKS[kind];
-        if (info.powered) screen.material.emissiveIntensity = 0.015;
-        const title = label(
-          PERKS[kind]?.title ||
-            { ammo: "MUNITIONS", power: "COURANT", upgrade: "TRANSCEND" }[kind],
-          `#${new T.Color(color).getHexString()}`,
-          1.2,
-          0.28,
-        );
-        title.position.set(0, 2.55, 0.15);
-        g.add(title);
-        for (let i = 0; i < 3; i++) {
-          box(g, m.metal, -0.3 + i * 0.3, 1.12, 0.52, 0.2, 0.09, 0.08);
-          sphere(
-            g,
-            i === 0 ? m.red : m.white,
-            -0.33 + i * 0.32,
-            1.44,
-            0.52,
-            0.036,
-          );
-        }
-        for (let i = 0; i < 6; i++)
-          box(g, m.metal, 0, 0.43 + i * 0.047, 0.51, 0.9, 0.018, 0.03);
-        if (kind === "upgrade") {
-          for (let s of [-1, 1]) {
-            const coil = cylinder(
-              g,
-              m.copper,
-              s * 0.79,
-              1.6,
-              0,
-              0.15,
-              1.4,
-              0.15,
-            );
-            for (let i = 0; i < 6; i++)
-              cylinder(
-                g,
-                m.cyan,
-                s * 0.79,
-                1.1 + i * 0.18,
-                0,
-                0.19,
-                0.033,
-                0.19,
-                12,
-              );
-          }
-          sphere(g, m.cyan, 0, 2.7, 0, 0.2);
-        }
-        if (kind === "power") {
-          const lever = box(g, m.gold, 0.32, 1.15, 0.68, 0.075, 0.5, 0.075);
-          lever.rotation.x = -0.5;
-          info.lever = lever;
-        }
       }
       this.obstacle(
         x,
@@ -564,7 +495,7 @@ export class World {
         1.5,
         kind === "box" ? 1.3 : 2.7,
       );
-      if (!PERKS[kind]) {
+      if (!PERKS[kind] && !SERVICES[kind]) {
         const tag = label(
           info.name.toUpperCase(),
           kind === "box" ? "#e8b67c" : "#a5bfbc",
@@ -942,9 +873,14 @@ export class World {
     this.scene.environmentIntensity = 0.32 + this.powerLevel * 0.13;
     this.materials.cyan.emissiveIntensity = 0.035 + glowLevel * 3;
     this.coreHalo.material.opacity = 0.045 + glowLevel * 0.46;
-    for (const i of this.interactions)
+    for (const i of this.interactions) {
       if (i.powered)
         i.screen.material.emissiveIntensity = 0.015 + this.powerLevel * 3;
+      if (i.machine && SERVICES[i.kind]) {
+        i.pulse = Math.max(0, (i.pulse || 0) - dt * 1.6);
+        updateMachine(i.machine, i.kind, dt, this.powerLevel, i.pulse);
+      }
+    }
     for (const l of this.lights) {
       l.light.intensity =
         l.base *

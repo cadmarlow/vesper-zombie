@@ -30,3 +30,7 @@ The avatar behind each pack, the motion-capture trials and all tools are listed 
 `armory/` holds the six first-person weapons (`<id>.glb` with baked wear maps `<id>-wear-{1024,512}.webp`) and the first-person arms (`arms.glb`, `arms.json` landmarks, colour, normal and roughness maps at 1024 and 512 px).
 
 The weapons are original models authored for this project by the Blender scripts in `scripts/armory/blender/`. The arms are a modified [Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox) avatar, Professions/Military_Male_01 (MIT license, © 2020 Microsoft; notice in `public/licenses/ROCKETBOX-MIT.txt`): sleeves and gloves only, textures recoloured by `scripts/armory/build-arms.mjs`. Keep these files part of the game; do not redistribute them as a standalone asset library.
+
+# Supply objects and service machines — versions 5.3.0 / 5.4.0
+
+`supplies/` holds four pickups, seven machines and a tonic bottle, each with full/mobile GLBs and baked wear maps. These are original Vesper designs authored in `scripts/supplies/build.py` and exported with the project’s Blender modelling kit. Labels and signs are original Canvas compositions using the bundled Barlow Condensed font. Runtime materials reuse the credited Poly Haven metal normal map. The first-person drinking animation uses the armory’s credited Rocketbox-derived hands; see the root `ASSETS.md`.

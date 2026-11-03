@@ -235,6 +235,70 @@ check(
   "Power state reaches the peer",
   await peer.evaluate(() => window.__vesper.world.power),
 );
+const tonicBefore = await peer.evaluate(() => {
+  const g = window.__vesper,
+    i = g.world.interactions.find((i) => i.kind === "speed");
+  const saved = {
+    position: g.player.position.toArray(),
+    points: g.player.points,
+  };
+  const front = i.position
+    .clone()
+    .set(0, 0, 1)
+    .applyQuaternion(i.root.quaternion);
+  g.player.points = 5000;
+  g.player.position.copy(i.position).addScaledVector(front, 1.8);
+  g.interact();
+  return {
+    ...saved,
+    started: g.run.tonic?.kind === "speed",
+    paid: g.player.points === 3500,
+    beforeSip: !g.player.perks.includes("speed"),
+  };
+});
+check(
+  "Guest buys a personal tonic and waits for its first sip",
+  tonicBefore.started && tonicBefore.paid && tonicBefore.beforeSip,
+);
+await peer.waitForFunction(
+  () =>
+    window.__vesper.run.tonic?.elapsed > 0.6 &&
+    window.__vesper.viewModel.tonicView.root.visible,
+);
+check(
+  "Guest holds the physical bottle with both articulated hands",
+  await peer.evaluate(() => {
+    const vm = window.__vesper.viewModel;
+    return (
+      vm.arms.root.visible &&
+      vm.tonicView.current.cap.visible &&
+      !vm.weapon.visible
+    );
+  }),
+);
+await peer.waitForFunction(
+  () =>
+    !window.__vesper.run.tonic &&
+    window.__vesper.player.perks.includes("speed"),
+);
+check(
+  "Guest consumes once and returns to their weapon",
+  await peer.evaluate(() => {
+    const g = window.__vesper;
+    return (
+      g.player.points === 3500 &&
+      g.player.perks.filter((p) => p === "speed").length === 1 &&
+      g.viewModel.weapon.visible &&
+      !g.viewModel.tonicView.root.visible
+    );
+  }),
+);
+await peer.evaluate((before) => {
+  const g = window.__vesper;
+  g.player.position.fromArray(before.position);
+  g.player.points = before.points;
+  g.player.perks = g.player.perks.filter((p) => p !== "speed");
+}, tonicBefore);
 // Every relic is instantiated by the guest and collected through the host.
 await host.evaluate(() => {
   const g = window.__vesper;
@@ -296,14 +360,29 @@ await peer.waitForFunction(
   () => window.__vesper.session.remotePickups.size === 0,
 );
 // Zombie attacks the peer: host sends damage
+const restoredPeer = await peer.evaluate(() =>
+  window.__vesper.player.position.toArray(),
+);
+await host.waitForFunction(([x, , z]) => {
+  const p = [...window.__vesper.session.players.values()][0];
+  return Math.hypot(p.model.position.x - x, p.model.position.z - z) < 0.1;
+}, restoredPeer);
 await host.evaluate(() => {
   const g = window.__vesper;
   const e = g.enemies.find((x) => x.type === "runner");
-  const p = [...g.session.players.values()][0];
+  const [id, p] = [...g.session.players.entries()][0];
   e.model.position.set(p.model.position.x + 0.8, 0, p.model.position.z);
+  e.model.rotation.y = -Math.PI / 2;
+  e.huntTarget = id;
+  e.huntUntil = g.time + 3;
+  e.action = null;
+  e.tactical = null;
+  e.nextTactic = g.time + 3;
   e.attack = 0;
 });
-await peer.waitForTimeout(900);
+await peer.waitForFunction(() => window.__vesper.player.health < 100, null, {
+  timeout: 3000,
+});
 const peerHealth = await peer.evaluate(() => window.__vesper.player.health);
 check(
   "Host-simulated attack damages the peer",

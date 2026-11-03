@@ -40,7 +40,11 @@ Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon
 
 Le guide intégré décrit les commandes tactiles. Les réglages et records sont enregistrés dans le navigateur. Armes, atouts et essences appartiennent à chaque joueur ; portes, courant, Reliquaire et extraction sont partagés. Un joueur à terre revient à la vague suivante ; la partie se termine si toute l’équipe tombe.
 
-## Version 5.3 — Reliques et Toniques
+## Version 5.4 — Ateliers et Rituels
+
+Le générateur, le ravitailleur et la Transfiguration possèdent désormais leurs propres modèles détaillés : cadrans, bobines, cartouches, leviers et pièces mobiles, avec une signalétique intégrée aux machines sur les quatre cartes.
+
+Acheter un atout déclenche un rituel de 2,75 secondes : arme abaissée, bouteille saisie, capsule ouverte, gorgées puis reprise de l’arme. Les quatre toniques ont leur étiquette. L’effet arrive à la première gorgée ; une interruption avant celle-ci rembourse les essences. Le joueur peut se déplacer et courir pendant la consommation. La pause suspend l’animation et les effets.
 
 Les quatre bonus au sol sont des objets 3D : trousse médicale, caisse de cartouches, médaillons ×2 et crâne dans son reliquaire. Chaque distributeur d’atout possède sa carrosserie, son emblème, ses instruments et ses plaques de prix. Les vitrines et témoins suivent le courant. Les modèles disposent de versions allégées sur mobile et sont également utilisés en coopération.
 
@@ -69,7 +73,7 @@ Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `t
 
 `npm run test:input` vérifie la molette et le changement d’arme dans une vraie partie Chrome sur le dernier build de `dist/`, avec un serveur temporaire si `VESPER_URL` n’est pas défini. Il couvre les petites impulsions, le défilement horizontal, l’inertie, les gestes précis et les crans en lignes/pages, en marchant et en courant. La molette demande une souris capturée dans la partie ; les touches 1 et 2 restent disponibles.
 
-`npm run test:supplies` vérifie les nouveaux objets, leurs effets, leur expiration et la stabilité des ressources avec 24 bonus simultanés. Pour examiner les huit modèles sans attendre une partie, ouvrir `http://localhost:5180/scripts/supplies/lab.html` avec le serveur de développement : rotation, zoom, éclairage d’atelier/nuit et activation du courant. `npm run supplies:build` reconstruit les ressources avec Blender ; `-- --reuse` réutilise les fichiers de travail déjà cuits.
+`npm run test:supplies` vérifie les nouveaux objets, leurs effets, leur expiration et la stabilité des ressources avec 24 bonus simultanés. Pour examiner les onze objets et machines sans attendre une partie, ouvrir `http://localhost:5180/scripts/supplies/lab.html` avec le serveur de développement : rotation, zoom, éclairage d’atelier/nuit et activation du courant. `npm run test:tonics` vérifie les quatre boissons et les six armes sur Chrome ordinateur/mobile et WebKit mobile : prises des mains, contact avec la bouche, effet à la gorgée, retour de l’arme, commandes et interruptions. `npm run supplies:build` reconstruit les ressources avec Blender ; `-- --reuse` réutilise les fichiers de travail déjà cuits.
 
 La CI utilise `npm run verify -- menu-check waves-check` : formatage, architecture, tests unitaires et réseau, build, menus et vagues simulées. Les essais de commandes en temps réel, de coopération dans le navigateur et de rendu nécessitent une machine graphique ; exécuter `npm run verify` sur cette machine avant une livraison. Les rapports et captures sont produits dans `artifacts/`, exclu de Git. Les résultats et limites des vérifications sont consignés dans [VERIFICATION.md](VERIFICATION.md).
 

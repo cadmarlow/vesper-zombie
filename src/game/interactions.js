@@ -20,19 +20,28 @@ import {
 export class InteractionSystem {
   constructor(
     { run, view, input, sound, emit },
-    { updateHUD, updateNavigation, burst, setGun, announce },
+    { updateHUD, updateNavigation, burst, setGun, announce, useTonic },
   ) {
     Object.assign(this, { run, view, input, sound, emit });
-    this.commands = { updateHUD, updateNavigation, burst, setGun, announce };
+    this.commands = {
+      updateHUD,
+      updateNavigation,
+      burst,
+      setGun,
+      announce,
+      useTonic,
+    };
   }
   interact() {
-    if (this.run.state !== "playing" || this.run.downed) return;
+    if (this.run.state !== "playing" || this.run.downed || this.run.tonic)
+      return;
     // A shared purchase is debited on acknowledgement. Do not spend the same
     // balance on a local machine while that confirmation is still in flight.
     if (this.run.session?.pendingPurchase) return;
     if (this.run.session?.rescue?.nearby()) return;
     const i = this.nearInteraction();
     if (!i) return;
+    if (PERKS[i.kind] && this.run.meleeTimer > 0) return;
     const actor = {
       id: this.run.session?.id ?? null,
       position: this.run.player.position,
@@ -131,6 +140,7 @@ export class InteractionSystem {
         });
         break;
       case "ammo":
+        i.pulse = 1;
         for (const w of this.run.weapons) w.reserve = reserveCapacity(w);
         this.run.player.grenades = Math.max(3, this.run.player.grenades);
         this.emit("toast", {
@@ -154,6 +164,7 @@ export class InteractionSystem {
         });
         break;
       case "upgrade": {
+        i.pulse = 1;
         this.run.weapons[this.run.slot].level =
           (this.run.weapons[this.run.slot].level || 0) + 1;
         this.run.weapons[this.run.slot].ammo = magazine(
@@ -175,17 +186,8 @@ export class InteractionSystem {
         break;
       }
       default:
-        if (PERKS[i.kind]) {
-          this.run.player.perks.push(i.kind);
-          if (i.kind === "health") {
-            this.run.player.maxHealth = 180;
-            this.run.player.health = 180;
-          }
-          this.emit("toast", {
-            title: PERKS[i.kind].name,
-            text: PERKS[i.kind].description,
-          });
-        }
+        if (PERKS[i.kind] && !this.commands.useTonic(i.kind, cost))
+          this.run.player.points += cost;
     }
     this.commands.updateHUD();
   }
@@ -204,6 +206,7 @@ export class InteractionSystem {
         break;
       case "power":
         this.run.world.setPower();
+        i.pulse = 1;
         this.sound.powerOn();
         break;
       case "box":

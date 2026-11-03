@@ -59,6 +59,7 @@ try {
           "smoke",
           "input-check",
           "supplies-check",
+          "tonic-check",
           "pacing-check",
           "assault-check",
           "armory-check",

@@ -3,6 +3,34 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.4.0",
+    date: "2026-11-03",
+    title: "Ateliers et Rituels",
+    tagline: "Rétablissez le courant. Armez-vous. Buvez à la survie.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Générateur, ravitailleur et Transfiguration entièrement remodelés",
+      "Prise en main, ouverture et consommation des toniques animées",
+    ],
+    sections: [
+      {
+        title: "Trois machines, trois métiers",
+        items: [
+          "Le générateur reçoit disjoncteur, bobines, cadrans et ventilation. Le ravitailleur expose cartouches, caisses et grenades dans une armoire blindée. La Transfiguration devient un établi à chambre de traitement et doubles bobines d’induction.",
+          "Carrosseries patinées, plaques de prix et témoins intégrés rejoignent le style des distributeurs d’atouts sur les quatre cartes. Le levier réagit à la mise sous tension ; les mécanismes du ravitailleur et de la Transfiguration répondent à l’utilisation.",
+        ],
+      },
+      {
+        title: "Un rituel entre deux assauts",
+        items: [
+          "Acheter un atout abaisse l’arme : la main saisit une bouteille à l’étiquette du tonique, l’autre ouvre la capsule, puis le joueur porte la bouteille à sa bouche et boit avant de reprendre son arme.",
+          "Les bruits de prise, d’ouverture et de gorgée suivent les gestes. L’effet arrive à la première gorgée. Vous pouvez continuer à vous déplacer ; les armes restent indisponibles pendant la consommation.",
+          "La pause suspend le rituel. Une interruption avant la première gorgée rembourse les essences. Les modèles complets et allégés sont préparés pendant le chargement, y compris en coopération.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.3.0",
     date: "2026-11-03",
     title: "Reliques et Toniques",

@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { NodeIO } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
-import { Box3, Vector3, Matrix4 } from "three";
+import { Box3, Vector3, Matrix4, Ray } from "three";
 
 const root = "public/models/supplies/";
 const manifest = JSON.parse(fs.readFileSync(root + "manifest.json"));
@@ -20,6 +20,10 @@ const ids = [
   "machine-speed",
   "machine-rate",
   "machine-focus",
+  "machine-power",
+  "machine-ammo",
+  "machine-upgrade",
+  "tonic-bottle",
 ];
 
 test("every pickup and dispenser ships full and mobile meshes with preserved semantic finishes and UVs", async () => {
@@ -32,7 +36,9 @@ test("every pickup and dispenser ships full and mobile meshes with preserved sem
           .listMaterials()
           .map((m) => m.getName()),
       );
-      for (const name of ["paint", "metal", "light"])
+      for (const name of id === "tonic-bottle"
+        ? ["glass", "metal", "liquid", "print"]
+        : ["paint", "metal", "light"])
         assert.ok(names.has(name), `${id}: ${name} must survive compression`);
       if (id.startsWith("machine-")) assert.ok(names.has("print"));
       assert.ok(
@@ -80,6 +86,53 @@ test("new machine geometry fits the existing collision footprints and pickups re
         `${id}: ${size.toArray()}`,
       );
       assert.ok(size.y > 2.2);
+    } else if (id === "tonic-bottle") {
+      assert.ok(
+        size.y > 0.24 && size.y < 0.27 && size.x < 0.09 && size.z < 0.09,
+      );
+      const parts = doc
+        .getRoot()
+        .listNodes()
+        .map((n) => n.getExtras().supplyPart);
+      assert.ok(parts.includes("cap") && parts.includes("liquid"));
+      // Once the metal cap is removed, the neck must lead into the bottle.
+      const ray = new Ray(new Vector3(0, 0.35, 0), new Vector3(0, -1, 0));
+      let topGlass = -Infinity;
+      for (const node of doc.getRoot().listNodes()) {
+        if (!node.getMesh()) continue;
+        const matrix = new Matrix4().fromArray(node.getWorldMatrix());
+        for (const p of node.getMesh().listPrimitives()) {
+          if (p.getMaterial().getName() !== "glass") continue;
+          const positions = p.getAttribute("POSITION"),
+            indices = p.getIndices();
+          for (
+            let n = 0;
+            n < (indices?.getCount() || positions.getCount());
+            n += 3
+          ) {
+            const vertices = [0, 1, 2].map((k) =>
+              new Vector3()
+                .fromArray(
+                  positions.getElement(
+                    indices ? indices.getScalar(n + k) : n + k,
+                    [],
+                  ),
+                )
+                .applyMatrix4(matrix),
+            );
+            const hit = ray.intersectTriangle(
+              ...vertices,
+              false,
+              new Vector3(),
+            );
+            if (hit) topGlass = Math.max(topGlass, hit.y);
+          }
+        }
+      }
+      assert.ok(
+        topGlass >= 0 && topGlass < 0.02,
+        `the bottle must be hollow under its mouth: ${topGlass}`,
+      );
     } else
       assert.ok(
         size.x > 0.4 &&
@@ -102,7 +155,7 @@ test("mobile variants reduce geometry, and each asset has both wear-map resoluti
       `${id}: mobile complexity`,
     );
     assert.ok(entry.triangles < (id.startsWith("machine-") ? 35000 : 16000));
-    assert.ok(entry.meshes <= (id === "machine-focus" ? 8 : 7));
+    assert.ok(entry.meshes <= 9);
     assert.equal(fs.statSync(`${root}${id}.glb`).size, entry.bytes);
     assert.equal(
       fs.statSync(`${root}${id}-mobile.glb`).size,
@@ -113,6 +166,6 @@ test("mobile variants reduce geometry, and each asset has both wear-map resoluti
     desktop += entry.bytes;
     mobile += entry.mobileBytes;
   }
-  assert.ok(desktop < 4 * 1024 * 1024);
-  assert.ok(mobile < 3 * 1024 * 1024);
+  assert.ok(desktop < 6 * 1024 * 1024);
+  assert.ok(mobile < 5 * 1024 * 1024);
 });
