@@ -224,6 +224,10 @@ function onEvent(type, payload) {
     case "state":
       state(payload);
       break;
+    case "gamepad-resume":
+      if (activePanel) closePanel();
+      else resumeGame(false);
+      break;
     case "hud":
       renderHUD(payload);
       break;
@@ -324,7 +328,7 @@ $$("[data-difficulty]").forEach(
     }),
 );
 $("#play-button").onclick = startGame;
-$("#resume-button").onclick = () => {
+function resumeGame(captureMouse = true) {
   if (
     game.touch &&
     innerWidth < (window.visualViewport?.height || innerHeight)
@@ -332,8 +336,9 @@ $("#resume-button").onclick = () => {
     $("#mobile-orientation").classList.remove("hidden");
     return;
   }
-  game.resume();
-};
+  game.resume(false, captureMouse);
+}
+$("#resume-button").onclick = () => resumeGame();
 $("#retry-button").onclick = (event) => {
   if (game?.run.session) {
     game.menu();
@@ -551,7 +556,23 @@ function openPanel(kind) {
       .map(([key, desc]) => `<div><kbd>${key}</kbd><span>${desc}</span></div>`)
       .join(
         "",
-      )}</div></section><section><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Suis l’objectif vers le générateur. À Néréide, l’Atelier des marées demande un second sas à 1 000 essences ; le Belvédère s’ouvre pour 1 250 essences.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. ${Object.values(
+      )}</div></section><section><h3>MANETTE XBOX</h3><div class="controls-list">${[
+      ["STICK G / D", "Se déplacer / regarder"],
+      ["LT / RT", "Viser / tirer"],
+      [
+        "CLIC STICK G",
+        "Sprinter / maintenir en lunette pour retenir son souffle",
+      ],
+      ["A / B", "Sauter / s’accroupir"],
+      ["X / Y", "Recharger ou interagir / changer d’arme"],
+      ["CLIC STICK D / RB", "Coup de couteau / grenade"],
+      ["↑ / ← / →", "Vague suivante / inspecter / lampe torche"],
+      ["MENU ☰", "Pause / reprendre"],
+    ]
+      .map(([key, desc]) => `<div><kbd>${key}</kbd><span>${desc}</span></div>`)
+      .join(
+        "",
+      )}</div><h3>LE PLAN POUR RENTRER</h3><ol class="survival-steps"><li><b>Faites compter chaque balle.</b><p>Les tirs à la tête infligent davantage de dégâts et rapportent plus d’essences. Le couteau permet d’économiser vos munitions.</p></li><li><b>Équipez-vous.</b><p>Le Reliquaire coûte 950 essences. Vous pouvez porter deux armes. Récupérez le résultat avec E ou X avant sa disparition.</p></li><li><b>Ouvrez la voie.</b><p>Déverrouillez la grille pour 750 essences. Suis l’objectif vers le générateur. À Néréide, l’Atelier des marées demande un second sas à 1 000 essences ; le Belvédère s’ouvre pour 1 250 essences.</p></li><li><b>Rétablissez le courant.</b><p>Activez les atouts et la Transfiguration. ${Object.values(
       PERKS,
     )
       .map(

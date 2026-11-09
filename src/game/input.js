@@ -1,6 +1,9 @@
 import { clamp } from "../logic.js";
 const WHEEL_THRESHOLD = 12; // CSS pixels; also accepts one line-mode notch.
 const WHEEL_QUIET = 180; // A quiet gap separates gestures from an inertia tail.
+export const aimHeld = (input) => input.mouse.aim || !!input.gamepad?.aim;
+export const fireHeld = (input) => input.mouse.fire || !!input.gamepad?.fire;
+
 /** Keyboard and mouse produce the same commands as TouchControls. */
 export class DesktopControls {
   constructor(run, view, input, commands) {
@@ -36,6 +39,7 @@ export class DesktopControls {
       this.input.keys.add(e.code);
       if (e.repeat) return;
       if (this.run.state === "playing") {
+        if (this.input.gamepad) this.input.gamepad.active = false;
         switch (e.code) {
           case "KeyR":
             this.commands.reload();
@@ -57,7 +61,7 @@ export class DesktopControls {
             this.run.player.crouched = false;
             break;
           case "KeyF":
-            this.view.flashlight.visible = !this.view.flashlight.visible;
+            this.commands.toggleLight();
             break;
           case "Digit1":
             this.commands.switchWeapon(0);
@@ -69,8 +73,7 @@ export class DesktopControls {
             this.commands.inspectWeapon?.();
             break;
           case "KeyN":
-            if (this.run.phase === "rest" && !this.run.session?.peer)
-              this.run.phaseTimer = Math.min(this.run.phaseTimer, 0.2);
+            this.commands.nextWave();
             break;
           case "Escape":
             this.commands.pause();
@@ -108,6 +111,8 @@ export class DesktopControls {
     listen(document, "mousemove", (e) => {
       if (this.run.state !== "playing") return;
       if (document.pointerLockElement === this.view.canvas) {
+        if (this.input.gamepad && (e.movementX || e.movementY))
+          this.input.gamepad.active = false;
         this.input.yaw -= e.movementX * 0.0018 * this.run.settings.sensitivity;
         this.input.pitch = clamp(
           this.input.pitch -
@@ -119,6 +124,7 @@ export class DesktopControls {
     });
     listen(this.view.canvas, "mousedown", (e) => {
       if (this.run.state !== "playing") return;
+      if (this.input.gamepad) this.input.gamepad.active = false;
       if (document.pointerLockElement !== this.view.canvas && !this.run.touch) {
         this.commands.lock();
         return;
@@ -179,6 +185,7 @@ export class DesktopControls {
     if (gesture.amount < WHEEL_THRESHOLD) return;
     // A physical notch can deliver many events. Its tail must never swap back.
     gesture.consumed = true;
+    if (this.input.gamepad) this.input.gamepad.active = false;
     this.commands.switchWeapon(1 - this.run.slot);
   }
   dispose() {

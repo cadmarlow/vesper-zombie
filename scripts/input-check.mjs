@@ -46,6 +46,34 @@ const synthetic = (events) =>
         new WheelEvent("wheel", { bubbles: true, cancelable: true, ...init }),
       );
   }, events);
+const controller = (down = [], axes = [0, 0, 0, 0]) =>
+  page.evaluate(
+    ({ down, axes }) => {
+      const pad = {
+        connected: true,
+        index: 2,
+        mapping: "standard",
+        axes,
+        buttons: Array.from({ length: 17 }, (_, i) => ({
+          pressed: down.includes(i) && i !== 6 && i !== 7,
+          value: down.includes(i) ? 0.8 : 0,
+        })),
+      };
+      Object.defineProperty(navigator, "getGamepads", {
+        configurable: true,
+        value: () => [null, null, pad],
+      });
+    },
+    { down, axes },
+  );
+const advance = async (seconds) => {
+  const time = await page.evaluate(() => window.__vesper.time);
+  await page.waitForFunction(
+    (target) => window.__vesper.time >= target,
+    time + seconds,
+  );
+};
+const shots = () => page.evaluate(() => window.__vesper.player.shots);
 try {
   await openGameAudit(page);
   await page.click("#play-button");
@@ -179,6 +207,107 @@ try {
     "Paused gameplay ignores the wheel",
     (await observed()).changes.length === 0,
   );
+  const beforeResume = await shots();
+  await controller([7, 9], [0.04, -0.05, 0.06, -0.03]);
+  await page.waitForFunction(() => window.__vesper.state === "playing");
+  const atRest = () =>
+    page.evaluate(() => {
+      const g = window.__vesper;
+      return [g.player.position.x, g.player.position.z, g.yaw, g.pitch];
+    });
+  const resting = await atRest();
+  await controller([7], [0.04, -0.05, 0.06, -0.03]);
+  await advance(0.3);
+  check(
+    "Menu resumes without pointer lock, stick drift or a held trigger firing",
+    (await shots()) === beforeResume &&
+      JSON.stringify(await atRest()) === JSON.stringify(resting) &&
+      !(await page.evaluate(() => !!document.pointerLockElement)),
+  );
+  await controller([10], [0, -0.8, 0.6, -0.35]);
+  await page.waitForFunction(() => window.__vesper.player.sprinting);
+  await controller([], [0, -0.8, 0.6, -0.35]);
+  await advance(0.15);
+  const moved = await atRest();
+  check(
+    "Both sticks move the player and camera, and LS starts sprinting with a click",
+    Math.hypot(moved[0] - resting[0], moved[1] - resting[1]) > 0.1 &&
+      moved[2] < resting[2] &&
+      moved[3] > resting[3] &&
+      (await page.evaluate(() => window.__vesper.player.sprinting)),
+  );
+  await controller([3]);
+  await page.waitForFunction(() => window.__vesper.slot === 0);
+  await advance(0.65);
+  check("Holding Y switches once", (await observed()).slot === 0);
+  await controller([6]);
+  await page.waitForFunction(() => window.__vesper.run.aiming);
+  await controller([6, 7]);
+  await advance(0.5);
+  check(
+    "LT aims and held RT shoots the pistol once",
+    (await shots()) === beforeResume + 1,
+  );
+  await controller();
+  await page.waitForFunction(() => !window.__vesper.run.aiming);
+  await page.evaluate(() => {
+    const g = window.__vesper;
+    g.player.position.copy(g.world.spawn);
+  });
+  await controller([2]);
+  await page.waitForFunction(() => window.__vesper.reloadTime > 0);
+  check("X reloads away from an interaction", true);
+  await controller();
+  await page.evaluate(() => {
+    const g = window.__vesper;
+    const gate = g.world.interactions.find((i) => i.kind === "door");
+    g.player.points = 2000;
+    g.player.position.copy(gate.position).setY(g.world.spawn.y);
+  });
+  await advance(0.07);
+  await controller([2]);
+  await page.waitForFunction(() =>
+    window.__vesper.world.doors.some((d) => d.open),
+  );
+  check("X uses a nearby interaction", true);
+  await controller([3]);
+  await page.waitForFunction(() => window.__vesper.slot === 1);
+  await advance(0.65);
+  const beforeAuto = await shots();
+  await controller([7]);
+  await page.waitForFunction(
+    (before) => window.__vesper.player.shots >= before + 3,
+    beforeAuto,
+  );
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "getGamepads", { value: () => [] });
+  });
+  await page.waitForFunction(() => !window.__vesper.input.gamepad.fire);
+  const disconnected = await shots();
+  await advance(0.3);
+  check(
+    "RT sustains automatic fire and disconnect stops it",
+    (await shots()) === disconnected,
+  );
+  await controller([1]);
+  await page.waitForFunction(() => window.__vesper.player.crouched);
+  await controller([0]);
+  await page.waitForFunction(
+    () => !window.__vesper.player.grounded && !window.__vesper.player.crouched,
+  );
+  check("B crouches and A jumps", true);
+  const grenades = await page.evaluate(() => window.__vesper.player.grenades);
+  await controller([5]);
+  await page.waitForFunction(
+    (before) => window.__vesper.player.grenades === before - 1,
+    grenades,
+  );
+  await controller([11]);
+  await page.waitForFunction(() => window.__vesper.meleeTimer > 0);
+  check("RB throws a grenade and RS uses the knife", true);
+  await controller([9]);
+  await page.waitForFunction(() => window.__vesper.state === "paused");
+  check("Menu pauses the game without a mouse", true);
   check("No browser errors", report.errors.length === 0, report.errors);
   assert(
     report.checks.every((c) => c.passed),

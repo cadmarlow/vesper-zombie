@@ -13,6 +13,7 @@ import {
 import { enemyVariation } from "./enemy-actions.js";
 import { deathDuration } from "./enemy-presentation.js";
 import { maimAfterHit } from "./crawlers.js";
+import { aimHeld } from "./input.js";
 
 import { glowSprite, mat } from "../assets.js";
 import { WEAPONS, ENEMIES } from "../config.js";
@@ -390,12 +391,13 @@ export class CombatSystem {
     w.ammo--;
     this.run.player.shots++;
     const steady = this.run.player.perks.includes("rate");
+    const aimed = aimHeld(this.input);
     this.run.shotTimer = d.rate * (steady ? 0.8 : 1);
     this.run.recoil = Math.min(
       0.22,
       this.run.recoil + d.recoil * (steady ? 0.68 : 1),
     );
-    this.kickRecoil(d, this.input.mouse.aim, steady);
+    this.kickRecoil(d, aimed, steady);
     this.sound.shot(d, { level: w.level || 0, aimed: !!this.run.aiming });
     this.run.flashTimer = 0.05;
     this.view.flash.intensity = 12;
@@ -405,7 +407,7 @@ export class CombatSystem {
     const armory = this.view.gun.userData.armory;
     if (armory) {
       const vm = this.view.viewModel;
-      vm.fire({ aim: this.input.mouse.aim, empty: w.ammo === 0 });
+      vm.fire({ aim: aimed, empty: w.ammo === 0 });
       // Brass leaves the real port; bolt and pump guns eject on their cycle.
       if (!d.energy && !armory.rig.ejectOnCycle) this.ejectCasing();
       const muzzle = vm.socket("muzzle", new T.Vector3());
@@ -434,7 +436,6 @@ export class CombatSystem {
           ),
       );
     }
-    const aimed = this.input.mouse.aim;
     const p = this.run.player;
     // Hip fire opens with sustained fire and movement; aiming stays tight.
     const bloom = p.bloom || 0,
@@ -834,7 +835,7 @@ export class CombatSystem {
       this.run.downed ||
       this.run.reloadTime > 0 ||
       this.run.meleeTimer > 0 ||
-      this.input.mouse.aim
+      aimHeld(this.input)
     )
       return;
     const w = this.run.weapons[this.run.slot];

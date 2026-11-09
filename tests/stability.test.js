@@ -92,6 +92,18 @@ test("releasing, shooting, leaving range or being hurt interrupts rescue", () =>
     assert.equal(f.other.flags, 8);
   }
 });
+test("controller interact can revive a teammate, and firing interrupts it", () => {
+  const f = fixture();
+  f.input.gamepad = { interact: true, fire: false };
+  f.step(1);
+  assert.ok(f.rescue.status(2).progress > 0.3);
+  f.input.gamepad.fire = true;
+  f.step(0.1);
+  assert.equal(f.rescue.status(2).progress, 0);
+  f.input.gamepad.fire = false;
+  f.step(3.1);
+  assert.equal(f.other.flags, 0);
+});
 test("rescue cannot cross a wall and touch release cancels it", () => {
   const f = fixture();
   f.input.touchInteract = true;

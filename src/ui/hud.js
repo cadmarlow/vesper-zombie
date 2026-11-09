@@ -22,7 +22,7 @@ export function createHUD({ onDismissMapHints } = {}) {
       : MAPS.find((m) => m.id === h.map).short;
     $("#wave-status").textContent =
       h.phase === "rest"
-        ? `PROCHAINE DANS ${h.timer} S${h.touch || h.peer ? "" : " · [N]"}`
+        ? `PROCHAINE DANS ${h.timer} S${h.touch || h.peer ? "" : h.gamepad ? " · [↑]" : " · [N]"}`
         : "SURVIVEZ À LA HORDE";
     $("#downed").classList.toggle("hidden", !h.downed);
     if (h.downed) {
@@ -120,7 +120,7 @@ export function createHUD({ onDismissMapHints } = {}) {
       );
       $("#crosshair").style.setProperty("--gap", gap.toFixed(1) + "px");
     }
-    // A magnified sight tells the keyboard player how to steady it.
+    // A magnified sight shows the current input for steadying the aim.
     const breath = h.scoped && !h.touch ? h.breath : null;
     const hint = $("#breath-hint");
     hint.classList.toggle("hidden", !breath);
@@ -132,7 +132,7 @@ export function createHUD({ onDismissMapHints } = {}) {
           ? "SOUFFLE RETENU"
           : breath === "out"
             ? "À BOUT DE SOUFFLE"
-            : "<kbd>ESPACE</kbd> RETENIR SON SOUFFLE",
+            : `<kbd>${h.gamepad ? "STICK G" : "ESPACE"}</kbd> RETENIR SON SOUFFLE`,
       );
     const boss = h.boss?.[0];
     $("#boss-bar").classList.toggle("hidden", !boss);
@@ -145,6 +145,7 @@ export function createHUD({ onDismissMapHints } = {}) {
         `${(h.boss.reduce((a, b) => a + b.health, 0) / h.boss.reduce((a, b) => a + b.max, 0)) * 100}%`;
     }
     $("#interaction").classList.toggle("hidden", !h.interaction);
+    $("#interaction kbd").textContent = h.gamepad ? "X" : "E";
     $("#interaction span").textContent = h.interaction || "";
     $("#reload-bar").classList.toggle("hidden", h.reload === null);
     $("#reload-bar i").style.width = (h.reload || 0) * 100 + "%";
@@ -165,8 +166,33 @@ export function createHUD({ onDismissMapHints } = {}) {
       ].join(""),
     );
     $("#quick-controls").classList.toggle("faded", h.time > 35);
-    $("#quick-controls kbd").textContent =
-      h.settings.layout === "azerty" ? "ZQSD" : "WASD";
+    const move = h.settings.layout === "azerty" ? "ZQSD" : "WASD";
+    setHtml(
+      "#quick-controls",
+      (h.gamepad
+        ? [
+            ["STICK G", "DÉPLACEMENT"],
+            ["LT", "VISER"],
+            ["RT", "TIRER"],
+            ["X", "RECHARGER / INTERAGIR"],
+            ["Y", "CHANGER D’ARME"],
+            ["RB", "GRENADE"],
+            ["MENU", "PAUSE"],
+          ]
+        : [
+            [move, "DÉPLACEMENT"],
+            ["ESPACE", "COURIR"],
+            ["C", "S’ACCROUPIR"],
+            ["R", "RECHARGER"],
+            ["V", "COUTEAU"],
+            ["G", "GRENADE"],
+            ["ÉCHAP", "PAUSE"],
+          ]
+      )
+        .map(([key, action]) => `<span><kbd>${key}</kbd> ${action}</span>`)
+        .join(""),
+    );
+    $(".grenade-row kbd").textContent = h.gamepad ? "RB" : "G";
     let title, sub;
     if (h.extraction !== null) {
       title = `Extraction · ${h.extraction} s`;

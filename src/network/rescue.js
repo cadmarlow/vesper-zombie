@@ -1,5 +1,6 @@
 import * as T from "three";
 import { PLAYER_FLAGS } from "../../server/protocol.js";
+import { fireHeld } from "../game/input.js";
 
 export const REVIVE_SECONDS = 3;
 export const BLEEDOUT_SECONDS = 45;
@@ -79,15 +80,18 @@ export class Rescue {
   intent() {
     const g = this.session.context;
     return !g.run.tonic &&
-      (g.input.keys.has("KeyE") || g.input.touchInteract) &&
-      !g.input.mouse.fire
+      (g.input.keys.has("KeyE") ||
+        g.input.touchInteract ||
+        g.input.gamepad?.interact) &&
+      !fireHeld(g.input)
       ? this.nearby()?.id || 0
       : 0;
   }
   prompt() {
     const p = this.nearby();
+    const { run, input } = this.session.context;
     return p
-      ? `Maintenir ${this.session.context.run.touch ? "pour réanimer" : "E · Réanimer"} ${p.name}`
+      ? `Maintenir ${run.touch ? "pour réanimer" : input.gamepad?.active ? "X · Réanimer" : "E · Réanimer"} ${p.name}`
       : null;
   }
   update(dt) {

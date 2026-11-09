@@ -2,6 +2,7 @@ import * as T from "three";
 import { animateWeapon } from "../weapons.js";
 import { ENEMIES, WEAPONS } from "../config.js";
 import { clamp, moveSlide } from "../logic.js";
+import { aimHeld, fireHeld } from "./input.js";
 const dir = new T.Vector3();
 
 /** player owns its rules; commands are the explicit cross-system operations. */
@@ -196,7 +197,11 @@ export class PlayerSystem {
   updatePlayer(dt) {
     const p = this.run.player;
     const definition = WEAPONS[this.run.weapons[this.run.slot].id];
+    const gamepad = this.input.gamepad;
     if (this.run.meleeTimer > 0) this.input.mouse.aim = false;
+    const aiming =
+      aimHeld(this.input) && !this.run.meleeTimer && !this.run.tonic;
+    const firing = fireHeld(this.input);
     const forward =
       (this.input.keys.has("KeyW") || this.input.keys.has("ArrowUp") ? 1 : 0) -
       (this.input.keys.has("KeyS") || this.input.keys.has("ArrowDown") ? 1 : 0);
@@ -206,27 +211,27 @@ export class PlayerSystem {
         : 0) -
       (this.input.keys.has("KeyA") || this.input.keys.has("ArrowLeft") ? 1 : 0);
     const touch = this.input.touchMove || { x: 0, y: 0 };
-    const mx = this.run.downed ? 0 : right + touch.x,
-      mz = this.run.downed ? 0 : forward + touch.y,
+    const mx = this.run.downed ? 0 : right + touch.x + (gamepad?.x ?? 0),
+      mz = this.run.downed ? 0 : forward + touch.y + (gamepad?.y ?? 0),
       length = Math.hypot(mx, mz);
     const sprint =
       !!(
         this.input.keys.has("Space") ||
         this.input.touchSprint ||
-        this.input.touchRun
+        this.input.touchRun ||
+        gamepad?.sprint
       ) &&
       length > 0.1 &&
       !p.exhausted &&
       p.stamina > 0 &&
       !p.crouched &&
-      !this.input.mouse.aim &&
-      !this.input.mouse.fire &&
+      !aiming &&
+      !firing &&
       !this.run.reloadTime &&
       !this.run.meleeTimer;
     p.sprinting = sprint;
     const speed =
-      (p.crouched ? 1.8 : sprint ? 7.15 : 3.65) *
-      (this.input.mouse.aim ? 0.62 : 1);
+      (p.crouched ? 1.8 : sprint ? 7.15 : 3.65) * (aiming ? 0.62 : 1);
     p.crouchAmount = T.MathUtils.damp(
       p.crouchAmount,
       p.crouched ? 1 : 0,
@@ -347,12 +352,10 @@ export class PlayerSystem {
     // reloads, sprinting, the knife and working a bolt all lower the sights.
     const armory = !!this.view.gun?.userData.armory;
     const aim =
-      this.input.mouse.aim &&
+      aiming &&
       !rescuing &&
-      !this.run.tonic &&
       !this.run.reloadTime &&
       !sprint &&
-      !this.run.meleeTimer &&
       !(armory && this.view.viewModel.blocksAim);
     this.run.aiming = aim;
     // A scope only magnifies once it reaches the eye.
@@ -412,8 +415,9 @@ export class PlayerSystem {
       .copy(this.view.camera.position)
       .add(this.view.camera.getWorldDirection(dir).multiplyScalar(15));
     if (
-      this.input.mouse.fire &&
-      (WEAPONS[this.run.weapons[this.run.slot].id].automatic || this.run.touch)
+      gamepad?.firePressed ||
+      (firing && definition.automatic) ||
+      (this.input.mouse.fire && this.run.touch)
     )
       this.commands.shoot();
   }
@@ -453,15 +457,17 @@ export class PlayerSystem {
       (p.perks.includes("focus") ? 0.55 : 1);
   }
   /**
-   * A magnified sight shows the shooter's breathing. Shift holds the breath
+   * A magnified sight shows the shooter's breathing. Space or LS steadies it
    * while stamina lasts; running out forces a shaky exhale.
    */
   scopeSway(dt, scoped) {
     const p = this.run.player;
-    const keys = this.input.keys;
     p.breathOut = Math.max(0, (p.breathOut || 0) - dt);
     const holding =
-      scoped && keys.has("Space") && p.stamina > 4 && p.breathOut === 0;
+      scoped &&
+      (this.input.keys.has("Space") || this.input.gamepad?.steady) &&
+      p.stamina > 4 &&
+      p.breathOut === 0;
     if (holding) {
       p.stamina = Math.max(0, p.stamina - dt * 24);
       if (p.stamina <= 4) p.breathOut = 2.4;

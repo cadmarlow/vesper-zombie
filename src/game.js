@@ -18,7 +18,8 @@ import {
 } from "./config.js";
 import { clamp, reloadWeapon } from "./logic.js";
 import { Presentation } from "./game/presentation.js";
-import { DesktopControls, createInputPort } from "./game/input.js";
+import { DesktopControls, aimHeld, createInputPort } from "./game/input.js";
+import { GamepadControls } from "./game/gamepad.js";
 import { CombatSystem } from "./game/combat.js";
 import { PlayerSystem } from "./game/player.js";
 import { EnemySystem } from "./game/enemies.js";
@@ -90,7 +91,9 @@ export class Game {
       end: (...args) => this.end(...args),
       throwGrenade: (...args) => this.throwGrenade(...args),
       applySharedInteraction: (...args) => this.applySharedInteraction(...args),
-      lock: (...args) => this.lock(...args),
+      lock: () => {
+        if (!this.input.gamepad.active) this.lock();
+      },
     });
     this.combat = new CombatSystem(context, {
       updateHUD: (...args) => this.updateHUD(...args),
@@ -130,7 +133,7 @@ export class Game {
       spawnEnemy: (...args) => this.spawnEnemy(...args),
       end: (...args) => this.end(...args),
     });
-    this.controls = new DesktopControls(this.run, this.view, this.input, {
+    const commands = {
       requestFrame: () => this.requestFrame(),
       resize: (...args) => this.resize(...args),
       reload: (...args) => this.reload(...args),
@@ -142,10 +145,30 @@ export class Game {
       inspectWeapon: (...args) => this.inspectWeapon(...args),
       pause: (...args) => this.pause(...args),
       jump: (...args) => this.jump(...args),
-      resume: (...args) => this.resume(...args),
+      resume: () => this.resume(false, true),
       lock: (...args) => this.lock(...args),
       shoot: (...args) => this.shoot(...args),
-    });
+      useOrReload: () => {
+        if (this.run.session?.rescue?.nearby() || this.nearInteraction())
+          this.interact();
+        else this.reload();
+      },
+      nextWave: () => {
+        if (this.run.phase === "rest" && !this.run.session?.peer)
+          this.run.phaseTimer = Math.min(this.run.phaseTimer, 0.2);
+      },
+      toggleLight: () => {
+        this.view.flashlight.visible = !this.view.flashlight.visible;
+      },
+      resumeWithGamepad: () => this.emit("gamepad-resume"),
+    };
+    this.controls = new DesktopControls(
+      this.run,
+      this.view,
+      this.input,
+      commands,
+    );
+    this.gamepadControls = new GamepadControls(this.run, this.input, commands);
     this.inputPort = createInputPort(this.run, this.input, {
       shoot: (...args) => this.shoot(...args),
       reload: (...args) => this.reload(...args),
@@ -257,12 +280,13 @@ export class Game {
     this.input.touchRun = false;
     this.input.touchInteract = false;
     this.input.mouse.fire = this.input.mouse.aim = false;
+    this.gamepadControls.reset();
     if (document.pointerLockElement) document.exitPointerLock();
     this.emit("state", "paused");
     this.view.needsRender = true;
     this.requestFrame();
   }
-  resume(remote = false) {
+  resume(remote = false, captureMouse = !this.input.gamepad.active) {
     if (this.run.state !== "paused") return;
     if (!remote && this.run.session) {
       if (this.run.session.peer)
@@ -275,7 +299,7 @@ export class Game {
     this.frameClock.reset();
     this.emit("state", "playing");
     this.sound.init();
-    if (!this.run.touch) this.lock();
+    if (!this.run.touch && captureMouse) this.lock();
     this.requestFrame();
   }
   menu() {
@@ -284,6 +308,7 @@ export class Game {
     if (document.pointerLockElement) document.exitPointerLock();
     this.input.keys.clear();
     this.input.mouse.fire = this.input.mouse.aim = false;
+    this.gamepadControls.reset();
     this.cleanup();
     this.emit("state", "menu");
     this.requestFrame();
@@ -450,7 +475,8 @@ export class Game {
       slots: this.run.weapons.map((w) => ({ ...w })),
       slot: this.run.slot,
       touch: this.run.touch,
-      aim: this.run.aiming ?? this.input.mouse.aim,
+      gamepad: this.input.gamepad.active,
+      aim: this.run.aiming ?? aimHeld(this.input),
       scoped: !!this.run.scoped,
       breath: this.run.holdingBreath
         ? "hold"
@@ -476,6 +502,7 @@ export class Game {
     this.run.mapGameplay?.setPaused(true);
     if (document.pointerLockElement) document.exitPointerLock();
     this.input.mouse.fire = this.input.mouse.aim = false;
+    this.gamepadControls.reset();
     this.sound.death();
     const record = {
       map: this.run.map,
@@ -515,9 +542,11 @@ export class Game {
     else {
       // A light idle tick updates music volume while the frozen image
       // requires no new GPU submissions.
+      const controllerPause =
+        this.run.state === "paused" && this.input.gamepad.active;
       this.idleFrame = setTimeout(
         () => this.loop(performance.now()),
-        visible ? 100 : 1000,
+        visible ? (controllerPause ? 33 : 100) : 1000,
       );
     }
   }
@@ -535,6 +564,9 @@ export class Game {
     const elapsed = (now - this.run.last) / 1000;
     const delta = Math.min(elapsed, 0.05);
     this.run.last = now;
+    const state = this.run.state;
+    this.gamepadControls.update(delta);
+    if (state !== this.run.state) return;
     this.sound.music({
       map: this.run.world?.theme || this.run.map,
       phase: this.run.phase,

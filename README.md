@@ -26,19 +26,23 @@ Le relais écoute sur le port 8787. Ouvrir **Jouer entre amis**, créer un salon
 
 ## Commandes
 
-| Action                          | Ordinateur                                          |
-| ------------------------------- | --------------------------------------------------- |
-| Déplacement                     | ZQSD / WASD, selon la position physique des touches |
-| Tir / visée                     | Clic gauche / droit                                 |
-| Course / accroupissement / saut | Maj / C / Espace                                    |
-| Recharger / interagir           | R / E                                               |
-| Changer d’arme                  | 1, 2 ou molette                                     |
-| Couteau / grenade               | V / G                                               |
-| Inspecter l’arme                | T                                                   |
-| Retenir son souffle (lunette)   | Maj maintenu en visée                               |
-| Lampe / vague suivante / pause  | F / N / Échap                                       |
+| Action                          | Clavier et souris        | Manette Xbox                       |
+| ------------------------------- | ------------------------ | ---------------------------------- |
+| Déplacement / caméra            | ZQSD ou WASD / souris    | Stick gauche / stick droit         |
+| Visée / tir                     | Clic droit / clic gauche | LT / RT                            |
+| Course / accroupissement / saut | Espace / C / Maj         | Clic stick gauche / B / A          |
+| Recharger / interagir           | R / E                    | X selon le contexte                |
+| Réanimer un allié               | Maintenir E              | Maintenir X                        |
+| Changer d’arme                  | 1, 2 ou molette          | Y                                  |
+| Couteau / grenade               | V / G                    | Clic stick droit / RB              |
+| Inspecter l’arme                | T                        | Croix directionnelle gauche        |
+| Retenir son souffle (lunette)   | Maintenir Espace         | Maintenir le clic du stick gauche  |
+| Lampe / vague suivante          | F / N                    | Croix directionnelle droite / haut |
+| Pause / reprise                 | Échap                    | Menu ☰                            |
 
-Le guide intégré décrit les commandes tactiles. Les réglages et records sont enregistrés dans le navigateur. Armes, atouts et essences appartiennent à chaque joueur ; portes, courant, Reliquaire et extraction sont partagés. Un joueur à terre revient à la vague suivante ; la partie se termine si toute l’équipe tombe.
+Pour jouer à la manette, connectez-la au Mac, lancez une partie puis appuyez sur un bouton avec l’onglet du jeu au premier plan. Le guide intégré détaille aussi les commandes tactiles.
+
+Les réglages et records sont enregistrés dans le navigateur. Chaque joueur a ses armes, atouts et essences. L’équipe partage les portes, le courant, le Reliquaire et l’extraction. Un joueur à terre revient à la vague suivante. La partie se termine si toute l’équipe tombe.
 
 ## Version 5.4 — Ateliers et Rituels
 
@@ -71,7 +75,7 @@ npm run verify:full
 
 Commandes rapides : `npm test`, `npm run lint`, `npm run format`. Les scripts `test:*` permettent de cibler un audit sur un serveur déjà lancé ; définir `VESPER_URL` vers le build et, au besoin, `VESPER_RELAY` vers un relais de test. `CHROME_PATH` permet de choisir Chrome. Sur Linux, installer aussi les bibliothèques système avec `npx playwright install --with-deps chromium webkit`.
 
-`npm run test:input` vérifie la molette et le changement d’arme dans une vraie partie Chrome sur le dernier build de `dist/`, avec un serveur temporaire si `VESPER_URL` n’est pas défini. Il couvre les petites impulsions, le défilement horizontal, l’inertie, les gestes précis et les crans en lignes/pages, en marchant et en courant. La molette demande une souris capturée dans la partie ; les touches 1 et 2 restent disponibles.
+`npm run test:input` vérifie la molette et le changement d’arme dans une vraie partie Chrome sur le dernier build de `dist/`, avec un serveur temporaire si `VESPER_URL` n’est pas défini. Il couvre les petites impulsions, le défilement horizontal, l’inertie, les gestes précis et les crans en lignes/pages, en marchant et en courant. Il couvre aussi les sticks, les gâchettes et les boutons d’une manette simulée, avec une reprise sans capture de la souris.
 
 `npm run test:supplies` vérifie les nouveaux objets, leurs effets, leur expiration et la stabilité des ressources avec 24 bonus simultanés. Pour examiner les onze objets et machines sans attendre une partie, ouvrir `http://localhost:5180/scripts/supplies/lab.html` avec le serveur de développement : rotation, zoom, éclairage d’atelier/nuit et activation du courant. `npm run test:tonics` vérifie les quatre boissons et les six armes sur Chrome ordinateur/mobile et WebKit mobile : prises des mains, contact avec la bouche, effet à la gorgée, retour de l’arme, commandes et interruptions. `npm run supplies:build` reconstruit les ressources avec Blender ; `-- --reuse` réutilise les fichiers de travail déjà cuits.
 
