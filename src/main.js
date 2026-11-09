@@ -387,7 +387,7 @@ $("#sound-button").onclick = async () => {
     ? "SON ACTIVÉ"
     : "SON COUPÉ";
 };
-$("#fullscreen-button").onclick = async () => {
+async function toggleFullscreen() {
   try {
     if (!document.fullscreenElement)
       await document.documentElement.requestFullscreen();
@@ -398,7 +398,18 @@ $("#fullscreen-button").onclick = async () => {
       text: "Utilisez le mode plein écran de votre navigateur.",
     });
   }
-};
+}
+const menuFullscreen = $("#fullscreen-button");
+const pauseFullscreen = $("#pause-fullscreen");
+menuFullscreen.onclick = pauseFullscreen.onclick = toggleFullscreen;
+document.addEventListener("fullscreenchange", () => {
+  const fullscreen = !!document.fullscreenElement;
+  menuFullscreen.setAttribute(
+    "aria-label",
+    fullscreen ? "Quitter le plein écran" : "Plein écran",
+  );
+  pauseFullscreen.textContent = fullscreen ? "MODE FENÊTRÉ" : "PLEIN ÉCRAN";
+});
 function persistSettings() {
   try {
     localStorage.setItem("vesper-settings", JSON.stringify(settings));

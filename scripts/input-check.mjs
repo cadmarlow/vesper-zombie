@@ -76,6 +76,13 @@ const advance = async (seconds) => {
 const shots = () => page.evaluate(() => window.__vesper.player.shots);
 try {
   await openGameAudit(page);
+  await page.click("#fullscreen-button");
+  await page.waitForFunction(
+    () => document.fullscreenElement === document.documentElement,
+  );
+  await page.click("#fullscreen-button");
+  await page.waitForFunction(() => !document.fullscreenElement);
+  check("The main menu can enter and exit fullscreen", true);
   await page.click("#play-button");
   await page.waitForFunction(() => window.__vesper?.state === "playing", null, {
     timeout: 90000,
@@ -201,6 +208,26 @@ try {
   );
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => window.__vesper.state === "paused");
+  const pausedTime = await page.evaluate(() => window.__vesper.time);
+  await page.getByRole("button", { name: "PLEIN ÉCRAN", exact: true }).click();
+  await page.waitForFunction(
+    () => document.fullscreenElement === document.documentElement,
+  );
+  await page
+    .getByRole("button", { name: "MODE FENÊTRÉ", exact: true })
+    .waitFor();
+  await page.evaluate(() => document.exitFullscreen());
+  await page
+    .getByRole("button", { name: "PLEIN ÉCRAN", exact: true })
+    .waitFor();
+  check(
+    "Pause restores fullscreen and updates after the browser exits it",
+    await page.evaluate(
+      (time) =>
+        window.__vesper.state === "paused" && window.__vesper.time === time,
+      pausedTime,
+    ),
+  );
   await clear();
   await synthetic([{ deltaY: 100 }]);
   check(

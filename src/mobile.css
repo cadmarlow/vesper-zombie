@@ -749,8 +749,7 @@
   .touch-mode .pause-content > .eyebrow,
   .touch-mode .pause-content > h2,
   .touch-mode .pause-content > p,
-  .touch-mode #resume-button,
-  .touch-mode #quit-button {
+  .touch-mode #resume-button {
     grid-column: 1 / -1;
   }
   .touch-mode .pause-content h2 {
