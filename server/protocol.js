@@ -200,6 +200,13 @@ export function validSnapshot(s) {
       2,
       (r) => typeof r[0] === "string" && integer(r[1], 0, 1),
     ) &&
+    (s.relic === undefined ||
+      (Array.isArray(s.relic) &&
+        s.relic.length === 4 &&
+        finite(s.relic[0], 0, 10) &&
+        finite(s.relic[1], 0, 30) &&
+        integer(s.relic[2], 0) &&
+        integer(s.relic[3], 0, 2))) &&
     (s.box === null ||
       (Array.isArray(s.box) &&
         s.box.length === 3 &&

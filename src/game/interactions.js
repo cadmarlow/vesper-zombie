@@ -1,4 +1,9 @@
 import {
+  RELIQUARY,
+  reliquaryCycle,
+  reliquaryPhase,
+} from "../content/reliquary.js";
+import {
   interactionDistance,
   sharedInteractionCost,
 } from "./interaction-rules.js";
@@ -120,7 +125,7 @@ export class InteractionSystem {
       if (!this.applySharedInteraction(i, actor)) return;
     }
     this.run.player.points -= cost;
-    this.sound.purchase();
+    if (i.kind !== "box") this.sound.purchase();
     switch (i.kind) {
       case "map":
         break;
@@ -135,8 +140,8 @@ export class InteractionSystem {
         break;
       case "box":
         this.emit("toast", {
-          title: "Le Reliquaire choisit…",
-          text: "Revenez prendre votre arme une fois le tirage terminé.",
+          title: "Le pacte est scellé",
+          text: "Le Reliquaire s’éveille. Gardez un œil sur la horde.",
         });
         break;
       case "ammo":
@@ -212,6 +217,9 @@ export class InteractionSystem {
       case "box":
         if (take) {
           weapon = i.offered;
+          this.boxCue(i, "take");
+          i.outcome = 1;
+          i.offerTimer = 0;
           i.busy = false;
           i.offered = null;
           i.timer = 0;
@@ -219,9 +227,14 @@ export class InteractionSystem {
           i.display = null;
         } else {
           i.busy = true;
-          i.timer = 3.2;
+          i.timer = RELIQUARY.drawDuration;
           i.offerTimer = 0;
-          this.sound.box();
+          i.offered = null;
+          i.cycle = -1;
+          i.sequence = (i.sequence || 0) + 1;
+          i.outcome = 0;
+          i.warningSecond = 0;
+          this.boxCue(i, "open");
         }
         break;
       case "extract":
@@ -287,8 +300,8 @@ export class InteractionSystem {
       action = `${i.read ? "Relire" : "Lire"} · ${i.name}`;
     if (i.kind === "box" && i.busy)
       action = i.offered
-        ? `Prendre ${WEAPONS[i.offered].name}`
-        : "Le Reliquaire choisit…";
+        ? `Prendre ${WEAPONS[i.offered].name} · ${Math.ceil(i.offerTimer || 0)} s`
+        : "Tirage en cours…";
     if (i.kind === "power" && this.run.world.power) action = "Courant rétabli";
     if (i.kind === "extract")
       action = this.run.extraction
@@ -306,37 +319,70 @@ export class InteractionSystem {
       action = `${i.name} · Palier ultime atteint`;
     return action;
   }
+  boxCue(box, cue) {
+    const distance = interactionDistance(box, this.run.player.position);
+    const gain = Math.max(0, 1 - distance / 22) ** 2;
+    this.sound.reliquary?.(cue, gain, WEAPONS[box.offered]?.rarity, box.cycle);
+  }
+  reliquaryHUD() {
+    const b = this.nearInteraction();
+    if (b?.kind !== "box" || this.run.downed) return null;
+    return {
+      phase: reliquaryPhase(b),
+      progress: b.offered
+        ? Math.max(0, b.offerTimer / RELIQUARY.offerDuration)
+        : b.busy
+          ? 1 - b.timer / RELIQUARY.drawDuration
+          : 0,
+      remaining: Math.ceil(b.offerTimer || 0),
+      weapon: b.offered || null,
+      cost: b.cost,
+      affordable: this.run.player.points >= b.cost,
+      replaces:
+        this.run.weapons.length >= 2
+          ? this.run.weapons[this.run.slot].id
+          : null,
+    };
+  }
   update(dt) {
     const b = this.run.world.interactions.find((i) => i.kind === "box");
-    if (b?.busy) {
-      if (b.timer > 0) {
-        b.timer -= dt;
-        if (Math.floor(b.timer * 8) !== b.cycle) {
-          b.cycle = Math.floor(b.timer * 8);
-          this.run.world.showBoxWeapon(mysteryWeapon());
-        }
-        if (b.timer <= 0) {
-          b.offered = mysteryWeapon();
-          this.run.world.showBoxWeapon(b.offered);
-          b.offerTimer = 18;
-          this.sound.pickup();
-          this.emit("toast", {
-            title: `${WEAPONS[b.offered].rarity} · ${WEAPONS[b.offered].name}`,
-            text: this.run.touch
-              ? "Approche du Reliquaire et touche le bouton pour récupérer ton arme."
-              : "Appuyez sur E devant le Reliquaire pour prendre votre arme.",
-          });
-        }
-      } else {
-        b.offerTimer -= dt;
-        if (b.offerTimer <= 0) {
-          b.offered = null;
-          b.busy = false;
-          if (b.display) {
-            b.root.remove(b.display);
-            b.display = null;
-          }
-        }
+    if (!b?.busy) return;
+    if (b.timer > 0) {
+      b.timer = Math.max(0, b.timer - dt);
+      const cycle = reliquaryCycle(RELIQUARY.drawDuration - b.timer);
+      if (cycle >= 0 && cycle !== b.cycle && b.timer > 0) {
+        b.cycle = cycle;
+        // Preview order is independent of the weighted final reward.
+        const pool = Object.keys(WEAPONS).filter((id) => WEAPONS[id].boxBelow);
+        const id = pool[(cycle + (b.sequence || 0)) % pool.length];
+        this.run.world.showBoxWeapon(id);
+        this.boxCue(b, "tick");
+      }
+      if (b.timer === 0) {
+        b.offered = mysteryWeapon();
+        this.run.world.showBoxWeapon(b.offered);
+        b.offerTimer = RELIQUARY.offerDuration;
+        this.boxCue(b, "reveal");
+        this.emit("toast", {
+          title: `${WEAPONS[b.offered].rarity} · ${WEAPONS[b.offered].name}`,
+          text: "Le Reliquaire a répondu. 18 secondes pour réclamer votre arme.",
+          duration: 2800,
+        });
+      }
+    } else {
+      b.offerTimer = Math.max(0, b.offerTimer - dt);
+      const second = Math.ceil(b.offerTimer);
+      if (second > 0 && second <= 5 && second !== b.warningSecond) {
+        b.warningSecond = second;
+        this.boxCue(b, "warning");
+      }
+      if (b.offerTimer === 0) {
+        this.boxCue(b, "expire");
+        b.outcome = 2;
+        b.offered = null;
+        b.busy = false;
+        b.display?.removeFromParent();
+        b.display = null;
       }
     }
   }

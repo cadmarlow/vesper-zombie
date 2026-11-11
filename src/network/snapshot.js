@@ -25,6 +25,17 @@ export function snapshot(context, players, id, tick, me) {
           box.display?.userData.weaponId || null,
         ]
       : null,
+    // Optional extension leaves the original three-field box tuple compatible.
+    ...(box
+      ? {
+          relic: [
+            +(box.timer || 0).toFixed(3),
+            +(box.offerTimer || 0).toFixed(3),
+            box.sequence || 0,
+            box.outcome || 0,
+          ],
+        }
+      : {}),
     extraction: g.run.extraction ? Math.ceil(g.run.extractionTimer) : -1,
     // Crawlers (legs lost). Optional: older peers ignore it.
     c: g.run.enemies.filter((e) => e.crawler).map((e) => e.id),

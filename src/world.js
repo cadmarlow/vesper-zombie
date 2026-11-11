@@ -1,7 +1,7 @@
 import { mapDefinition } from "./maps/catalog.js";
 import { buildMap, validateWorld } from "./maps/builders.js";
 import { weaponModel } from "./weapons.js";
-import { createWeaponSync } from "./armory/models.js";
+import { createWeaponSync, weaponLoaded } from "./armory/models.js";
 import { WEAPONS } from "./content/weapons.js";
 import { disposeModel } from "./resources.js";
 export { disposeModel } from "./resources.js";
@@ -23,6 +23,7 @@ import { PERKS, UPGRADE } from "./config.js";
 import { projectSurfaceUV, setSurfaceQuality } from "./surfaces.js";
 import { createMachine, updateMachine } from "./supplies.js";
 import { SERVICES } from "./content/services.js";
+import { createReliquary, updateReliquary } from "./reliquary.js";
 
 export class World {
   constructor(scene, id, quality) {
@@ -431,46 +432,13 @@ export class World {
             1.7,
         });
       } else if (kind === "box") {
-        box(g, m.wood, 0, 0.62, 0, 2.6, 1.05, 1.05);
-        for (let sx of [-1.1, 1.1]) {
-          box(g, m.gold, sx, 0.63, 0, 0.1, 1.15, 1.1);
-          box(g, m.black, sx, 0.14, 0, 0.2, 0.28, 1.18);
-        }
-        const lid = new T.Group();
-        lid.position.set(0, 1.14, -0.53);
-        g.add(lid);
-        box(lid, m.wood, 0, 0.08, 0.53, 2.67, 0.16, 1.1);
-        for (let sx of [-1.1, 1.1])
-          box(lid, m.gold, sx, 0.09, 0.53, 0.12, 0.19, 1.14);
-        info.lid = lid;
-        box(g, m.gold, 0, 0.8, 0.55, 0.21, 0.26, 0.06);
-        const sig = label("◇   ?   ◇", "#efbf80", 1.3, 0.34);
-        sig.position.set(0, 0.65, 0.535);
-        g.add(sig);
-        const beam = cylinder(
-          g,
-          mat(0xeab16a, 0.5, 0, {
-            emissive: 0xf6aa56,
-            emissiveIntensity: 0.9,
-            transparent: true,
-            opacity: 0.07,
-            depthWrite: false,
-            side: T.DoubleSide,
-          }),
-          0,
-          9,
-          0,
-          0.4,
-          17,
-          1.4,
-          16,
-        );
-        info.beam = beam;
-        const s = glowSprite(0xffbd6a, 3);
-        s.position.y = 1.4;
-        s.material.opacity = 0.26;
-        g.add(s);
-        info.halo = s;
+        info.reliquary = createReliquary(g);
+        info.lid = info.reliquary.lid;
+        g.userData.reliquary = true;
+        // Participate in the world's existing light budget, in world coordinates.
+        g.updateMatrixWorld(true);
+        this.root.attach(info.reliquary.light);
+        this.lights.push({ light: info.reliquary.light, dynamic: true });
       } else if (kind === "extract") {
         cylinder(g, m.dark, 0, 0.12, 0, 0.85, 0.24, 1, 12);
         cylinder(g, m.metal, 0, 0.62, 0, 0.12, 0.9, 0.09, 8);
@@ -491,11 +459,17 @@ export class World {
       this.obstacle(
         x,
         z,
-        kind === "box" ? 2.8 : 1.6,
-        1.5,
+        kind === "box"
+          ? Math.abs(Math.cos(direction)) * 2.9 +
+              Math.abs(Math.sin(direction)) * 1.4
+          : 1.6,
+        kind === "box"
+          ? Math.abs(Math.sin(direction)) * 2.9 +
+              Math.abs(Math.cos(direction)) * 1.4
+          : 1.5,
         kind === "box" ? 1.3 : 2.7,
       );
-      if (!PERKS[kind] && !SERVICES[kind]) {
+      if (!PERKS[kind] && !SERVICES[kind] && kind !== "box") {
         const tag = label(
           info.name.toUpperCase(),
           kind === "box" ? "#e8b67c" : "#a5bfbc",
@@ -759,7 +733,7 @@ export class World {
       for (const value of Object.values(i))
         if (value?.isMesh || value?.isSprite) preserve.add(value);
     const merge = (group) => {
-      if (group.userData.supplyModel) return;
+      if (group.userData.supplyModel || group.userData.reliquary) return;
       for (const child of [...group.children]) if (child.isGroup) merge(child);
       const buckets = new Map();
       for (const o of [...group.children]) {
@@ -882,6 +856,7 @@ export class World {
       }
     }
     for (const l of this.lights) {
+      if (l.dynamic) continue;
       l.light.intensity =
         l.base *
         (l.powered ? 0.03 + glowLevel * 0.97 : 1) *
@@ -949,15 +924,14 @@ export class World {
       if (d.open)
         d.bars.position.y = T.MathUtils.lerp(d.bars.position.y, 6.3, dt * 2);
     const relic = this.interactions.find((i) => i.kind === "box");
-    if (relic?.lid)
-      relic.lid.rotation.x = T.MathUtils.lerp(
-        relic.lid.rotation.x,
-        relic.busy ? -1.6 : 0,
-        dt * 4,
-      );
-    if (relic?.display) {
-      relic.display.rotation.y = time * 1.7;
-      relic.display.position.y = 1.8 + Math.sin(time * 3) * 0.1;
+    if (relic) {
+      if (
+        relic.offered &&
+        relic.display?.userData.fallback &&
+        weaponLoaded(WEAPONS[relic.offered].look || relic.offered)
+      )
+        this.showBoxWeapon(relic.offered);
+      updateReliquary(relic, dt, time, this.quality);
     }
   }
   setPower() {
@@ -1006,39 +980,41 @@ export class World {
   }
   showBoxWeapon(id) {
     const b = this.interactions.find((i) => i.kind === "box");
-    if (!b) return;
-    if (b.display) b.root.remove(b.display);
-    // The draw cycles through weapons eight times a second: build each display
-    // model once per session instead of rebuilding it on every tick.
+    if (!b || !WEAPONS[id]) return;
     this.boxDisplays ??= new Map();
+    const cached = this.boxDisplays.get(id);
+    const promote =
+      cached?.userData.fallback && weaponLoaded(WEAPONS[id].look || id);
+    if (b.display?.userData.weaponId === id && !promote) return;
+    b.display?.removeFromParent();
+    if (promote) {
+      cached.removeFromParent();
+      disposeModel(cached);
+      this.boxDisplays.delete(id);
+    }
+    // Keep one display per weapon; replace a stand-in once its GLB has streamed.
     if (!this.boxDisplays.has(id)) {
-      // The real model when it has streamed in, centred over the box.
-      const real = createWeaponSync(WEAPONS[id]?.look || id);
-      const display = real || weaponModel(id);
-      if (real) {
-        const box = new T.Box3().setFromObject(real);
-        const center = box.getCenter(new T.Vector3());
-        const size = box.getSize(new T.Vector3());
-        const holder = new T.Group();
-        real.position.sub(center);
-        real.scale.setScalar(1);
-        holder.add(real);
-        // Larger than life over the Reliquary: every weapon reads at the
-        // same size, a pistol as well as a rifle.
-        const length = Math.max(size.x, size.y, size.z) || 1;
-        holder.scale.setScalar(T.MathUtils.clamp(1.6 / length, 1.3, 3.2));
-        holder.position.y = 1.8;
-        this.boxDisplays.set(id, holder);
-      } else {
-        display.scale.setScalar(1.4);
-        display.position.y = 1.8;
-        this.boxDisplays.set(id, display);
-      }
+      const real = createWeaponSync(WEAPONS[id].look || id);
+      const model = real || weaponModel(id);
+      const bounds = new T.Box3().setFromObject(model);
+      const center = bounds.getCenter(new T.Vector3());
+      const size = bounds.getSize(new T.Vector3());
+      const holder = new T.Group();
+      model.position.sub(center);
+      holder.add(model);
+      holder.scale.setScalar(1.85 / (Math.max(size.x, size.y, size.z) || 1));
+      holder.name = `weapon-${id}`;
+      holder.userData.weaponId = id;
+      holder.userData.fallback = !real;
+      this.boxDisplays.set(id, holder);
     }
     b.display = this.boxDisplays.get(id);
-    b.display.userData.weaponId = id;
+    b.display.position.set(0, 1.85, 0.08);
+    b.display.rotation.set(0, Math.PI / 2, 0);
+    b.display.visible = true;
     b.root.add(b.display);
   }
+
   dispose() {
     // Render targets (including their depth texture) belong to the old light.
     // Removing its meshes alone does not release the shadow allocation.

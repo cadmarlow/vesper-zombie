@@ -3,6 +3,34 @@
 // are also published in version.json so an open game can announce them.
 export const RELEASES = [
   {
+    version: "5.5.0",
+    date: "2026-11-11",
+    title: "Le Reliquaire — Projet IX",
+    tagline: "Un pacte avec le hasard. Une chance de renverser la nuit.",
+    art: "/art/abbey.webp",
+    highlights: [
+      "Coffre détaillé, mécanismes animés et révélation selon la rareté",
+      "Fiche de récompense, compte à rebours et tirage synchronisé en coopération",
+    ],
+    sections: [
+      {
+        title: "Une machine qui s’éveille",
+        items: [
+          "Le Reliquaire devient un coffre creux en bois patiné, renforcé de ferrures, avec couvercle voûté, doubles verrous, plaque gravée et chambre d’induction.",
+          "Le tirage de 4,8 secondes passe par la rupture des sceaux, la convergence et un ralentissement final. Les armes réelles lévitent au-dessus du coffre ; la lumière, les particules et les accords sonores suivent leur rareté.",
+        ],
+      },
+      {
+        title: "Réclamez votre arme",
+        items: [
+          "La fiche contextuelle affiche la rareté, les dégâts, les munitions et l’arme qui sera remplacée. Les commandes tactiles restent dégagées sur mobile.",
+          "Vous disposez de 18 secondes pour récupérer le résultat. Le sceau au sol se vide, une alerte sonore marque les dernières secondes et l’arme redescend avant la fermeture. Le prix reste de 950 essences.",
+          "En coopération, les joueurs partagent le tirage, la récompense et le compte à rebours. La pause fige le mécanisme ; la récupération ne facture pas une seconde fois.",
+        ],
+      },
+    ],
+  },
+  {
     version: "5.4.0",
     date: "2026-11-03",
     title: "Ateliers et Rituels",

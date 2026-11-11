@@ -225,16 +225,53 @@ export class Sound {
       this.tone(f, 0.25, 0.08, "sine", 0, i * 0.09),
     );
   }
-  box() {
-    for (let i = 0; i < 16; i++)
-      this.tone(
-        260 + Math.sin(i * 2.5) * 120 + i * 24,
-        0.12,
-        0.05,
-        "triangle",
-        0,
-        i * 0.17,
+  reliquary(cue, gain = 1, rarity = "RARE", cycle = 0) {
+    if (gain < 0.005) return;
+    const tone = (f, d, v, type = "sine", end = 0, delay = 0) =>
+      this.tone(f, d, v * gain, type, end, delay);
+    const noise = (d, v, cutoff, delay = 0, pan = 0) =>
+      this.noise(d, v * gain, cutoff, delay, pan);
+    if (cue === "open") {
+      // Two heavy locks, timber strain, then the resonant chamber wakes.
+      noise(0.18, 0.16, 1600, 0, -0.25);
+      noise(0.14, 0.12, 2200, 0.12, 0.25);
+      tone(78, 0.55, 0.15, "triangle", 32);
+      noise(0.65, 0.07, 480, 0.18);
+      tone(146.83, 0.8, 0.055, "sine", 73.42, 0.25);
+      tone(220, 0.7, 0.025, "sine", 293.66, 0.32);
+    } else if (cue === "tick") {
+      const notes = [293.66, 349.23, 440, 523.25, 587.33];
+      const f = notes[Math.max(0, cycle) % notes.length];
+      noise(0.04, 0.045, 2600);
+      tone(f, 0.16 + Math.max(0, cycle - 10) * 0.04, 0.043, "triangle");
+      tone(f * 2.01, 0.12, 0.012);
+      tone(55 + cycle * 3, 0.17, 0.035, "sine", 40);
+    } else if (cue === "reveal") {
+      const legendary = rarity === "LÉGENDAIRE";
+      tone(56, 0.9, 0.2, "sine", 28);
+      noise(0.75, 0.14, 1300);
+      const chord = legendary
+        ? [293.66, 440, 587.33, 739.99, 880]
+        : rarity === "ÉPIQUE"
+          ? [293.66, 440, 698.46]
+          : [293.66, 440, 587.33];
+      chord.forEach((f, i) => {
+        tone(f, legendary ? 1.45 : 0.9, 0.055, "sine", 0, i * 0.075);
+        tone(f * 2.003, 0.65, 0.012, "sine", 0, i * 0.075);
+      });
+    } else if (cue === "take") {
+      noise(0.22, 0.1, 2400);
+      [440, 587.33, 880].forEach((f, i) =>
+        tone(f, 0.25, 0.065, "sine", 0, i * 0.055),
       );
+      tone(65, 0.3, 0.1, "triangle", 30, 0.15);
+    } else if (cue === "warning") {
+      tone(880, 0.09, 0.035, "sine", 660);
+    } else if (cue === "expire") {
+      tone(220, 0.6, 0.06, "triangle", 55);
+      noise(0.3, 0.12, 650, 0.2);
+      tone(48, 0.3, 0.09, "sine", 25, 0.25);
+    }
   }
   pickup() {
     this.tone(650, 0.12, 0.08);

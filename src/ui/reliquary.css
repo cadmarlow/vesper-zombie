@@ -1,0 +1,250 @@
+.reliquary-card {
+  --relic-color: #d3ba8a;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--relic-color) 32%, transparent);
+  border-left: 2px solid var(--relic-color);
+  background: linear-gradient(125deg, #17252aee, #080f14f2 75%);
+  box-shadow:
+    0 12px 36px #0005,
+    inset 0 1px #fff04;
+  color: #e4e7e1;
+  text-align: left;
+  pointer-events: none;
+  animation: reliquary-enter 240ms ease-out both;
+}
+.reliquary-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px 11px;
+  border-bottom: 1px solid #d3ba8a20;
+}
+.reliquary-emblem {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 31px;
+  border: 1px solid var(--relic-color);
+  border-radius: 50%;
+  color: var(--relic-color);
+  font:
+    15px Georgia,
+    serif;
+  box-shadow: inset 0 0 0 3px #111d22;
+}
+.reliquary-heading div {
+  display: grid;
+  gap: 4px;
+}
+.reliquary-heading div > span {
+  color: #98a7a5;
+  font: 6px var(--mono);
+  letter-spacing: 1.3px;
+}
+.reliquary-heading b {
+  font: 500 13px var(--display);
+  letter-spacing: 2.7px;
+}
+.reliquary-index {
+  margin-left: auto;
+  color: #6f817f;
+  font: 7px var(--mono);
+  letter-spacing: 0.6px;
+}
+.reliquary-content {
+  padding: 15px 16px 12px;
+}
+.reliquary-rarity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--relic-color);
+  font: 8px var(--mono);
+  letter-spacing: 1.4px;
+}
+.reliquary-rarity > i {
+  width: 4px;
+  height: 4px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.reliquary-rarity > span {
+  margin-left: auto;
+  font-size: 6px;
+  letter-spacing: 0.6px;
+  color: #9eacac;
+}
+.reliquary-card h3 {
+  margin: 8px 0 5px;
+  font: 500 27px/0.98 var(--display);
+  letter-spacing: 0.1px;
+}
+.reliquary-card p {
+  margin: 0;
+  color: #9caeb0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.reliquary-odds {
+  display: flex;
+  gap: 15px;
+  margin-top: 16px;
+  font: 6px var(--mono);
+  letter-spacing: 1.1px;
+}
+.reliquary-odds span:nth-child(1) {
+  color: #81d9eb;
+}
+.reliquary-odds span:nth-child(2) {
+  color: #bda0ff;
+}
+.reliquary-odds span:nth-child(3) {
+  color: #ffc678;
+}
+.reliquary-specs {
+  display: flex;
+  gap: 26px;
+  margin: 14px 0 12px;
+}
+.reliquary-specs > span {
+  display: grid;
+  gap: 5px;
+  font: 6px var(--mono);
+  letter-spacing: 1px;
+  color: #819795;
+}
+.reliquary-specs b {
+  font: 18px var(--mono);
+  letter-spacing: 0;
+  color: #dce7e2;
+}
+.reliquary-exchange {
+  padding-top: 9px;
+  border-top: 1px solid #ffffff12;
+  font-size: 9px;
+  color: #9eacac;
+}
+.reliquary-exchange b {
+  font-weight: 500;
+  color: #e0e5dc;
+}
+.reliquary-meter {
+  height: 2px;
+  background: #ffffff0a;
+}
+.reliquary-meter i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: var(--relic-color);
+  transition: transform 100ms linear;
+}
+.reliquary-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 15px;
+  gap: 12px;
+  font: 7px var(--mono);
+  letter-spacing: 1px;
+  color: #95a6a4;
+}
+.reliquary-footer b {
+  color: var(--relic-color);
+  font-weight: 500;
+  letter-spacing: 0.4px;
+}
+.reliquary-stages {
+  display: flex;
+  gap: 5px;
+  margin-top: 16px;
+}
+.reliquary-stages i {
+  height: 3px;
+  flex: 1;
+  background: #d3ba8a15;
+}
+.reliquary-stages i.lit {
+  background: var(--relic-color);
+  opacity: 0.6;
+}
+.reliquary-card.is-expiring .reliquary-footer {
+  color: #ffb98e;
+}
+@keyframes reliquary-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-height: 560px), (max-width: 650px) {
+  .touch-mode .hud-feedback.has-reliquary {
+    right: calc(var(--safe-right) + 105px);
+  }
+  .touch-mode .reliquary-heading {
+    display: none;
+  }
+  .reliquary-heading {
+    padding: 7px 10px;
+    gap: 8px;
+  }
+  .reliquary-emblem {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+    font-size: 11px;
+  }
+  .reliquary-heading div > span,
+  .reliquary-index {
+    display: none;
+  }
+  .reliquary-heading b {
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+  .reliquary-content {
+    padding: 9px 10px 8px;
+  }
+  .reliquary-card h3 {
+    font-size: 21px;
+    margin: 6px 0 0;
+  }
+  .reliquary-card p,
+  .reliquary-specs,
+  .reliquary-odds,
+  .reliquary-stages {
+    display: none;
+  }
+  .reliquary-rarity {
+    font-size: 6px;
+    letter-spacing: 1px;
+  }
+  .reliquary-rarity > span {
+    display: none;
+  }
+  .reliquary-exchange {
+    border: 0;
+    padding-top: 6px;
+    font-size: 8px;
+  }
+  .reliquary-footer {
+    padding: 6px 10px;
+    font-size: 6px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reliquary-card {
+    animation: none;
+  }
+  .reliquary-meter i {
+    transition: none;
+  }
+}

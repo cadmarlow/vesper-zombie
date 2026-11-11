@@ -82,6 +82,91 @@ check(
     roles[0].players === 1 &&
     roles[1].players === 1,
 );
+// The host pays; the guest sees the same draw and can claim it exactly once.
+for (const page of [host, peer]) {
+  await page.evaluate(() => {
+    const g = window.__vesper;
+    g.phaseTimer = 3600;
+    g.player.points = 5000;
+    g.player.invulnerable = 1e9;
+    const box = g.world.interactions.find((i) => i.kind === "box");
+    const front = box.position
+      .clone()
+      .set(0, 0, 1)
+      .applyQuaternion(box.root.quaternion);
+    g.player.position.copy(box.position).addScaledVector(front, 2.2);
+    g.player.position.y = 1.7;
+  });
+}
+await peer.waitForTimeout(400);
+await host.evaluate(() => {
+  window.__vesper.interact();
+  window.__vesper.interact();
+});
+await peer.waitForFunction(
+  () => window.__vesper.world.interactions.find((i) => i.kind === "box").busy,
+);
+await host.evaluate(() => window.__vesper.pause());
+await peer.waitForFunction(() => window.__vesper.state === "paused");
+const frozen = await host.evaluate(
+  () => window.__vesper.world.interactions.find((i) => i.kind === "box").timer,
+);
+await host.waitForTimeout(200);
+check(
+  "Co-op pause freezes the Reliquary draw",
+  frozen ===
+    (await host.evaluate(
+      () =>
+        window.__vesper.world.interactions.find((i) => i.kind === "box").timer,
+    )),
+);
+await host.evaluate(() => window.__vesper.resume());
+await peer.waitForFunction(
+  () =>
+    !!window.__vesper.world.interactions.find((i) => i.kind === "box").offered,
+  null,
+  { timeout: 30000 },
+);
+const offers = await Promise.all(
+  [host, peer].map((page) =>
+    page.evaluate(() => {
+      const g = window.__vesper,
+        b = g.world.interactions.find((i) => i.kind === "box");
+      return {
+        id: b.offered,
+        points: g.player.points,
+        timer: b.offerTimer,
+        sequence: b.sequence,
+      };
+    }),
+  ),
+);
+check(
+  "Host and guest share the reward, countdown and purchase sequence",
+  offers[0].id === offers[1].id &&
+    Math.abs(offers[0].timer - offers[1].timer) < 1 &&
+    offers[0].sequence === offers[1].sequence,
+);
+check(
+  "Repeated purchase input charges only 950 essences",
+  offers[0].points === 4050 && offers[1].points === 5000,
+);
+await peer.evaluate(() => window.__vesper.interact());
+await peer.waitForFunction(() => window.__vesper.weapons.length === 2);
+await host.waitForFunction(
+  () => !window.__vesper.world.interactions.find((i) => i.kind === "box").busy,
+);
+const claim = await peer.evaluate(() => ({
+  id: window.__vesper.weapon.id,
+  points: window.__vesper.player.points,
+}));
+check(
+  "The guest receives the host's weapon without another charge",
+  claim.id === offers[0].id && claim.points === 5000,
+);
+// Restore normal damage before the combat scenarios below.
+await peer.evaluate(() => (window.__vesper.player.invulnerable = 0));
+
 // Movement sync: move peer, host should see model follow
 await peer.evaluate(() => {
   const g = window.__vesper;

@@ -1,3 +1,5 @@
+import { RELIQUARY, reliquaryCycle } from "../content/reliquary.js";
+import { WEAPONS } from "../content/weapons.js";
 import {
   animateDeath,
   corpseBlood,
@@ -73,13 +75,52 @@ export class WorldReplica {
     const box = g.run.world.interactions.find((i) => i.kind === "box");
     if (box && s.box) {
       const [busy, offered, display] = s.box;
-      box.busy = !!busy;
-      box.offered = offered;
-      const wanted = display;
-      if (wanted && box.display?.name !== `weapon-${wanted}`)
-        g.run.world.showBoxWeapon(wanted);
-      else if (!wanted && box.display) {
-        box.root.remove(box.display);
+      const wasBusy = box.busy,
+        previousOffer = box.offered,
+        previousCycle = box.cycle;
+      const previousSecond = Math.ceil(box.offerTimer || 0);
+      const distance = box.position.distanceTo(g.run.player.position);
+      const gain = Math.max(0, 1 - distance / 22) ** 2;
+      const cue = (name, id = offered) =>
+        g.sound.reliquary?.(name, gain, WEAPONS[id]?.rarity, box.cycle);
+      const [timer, offerTimer, sequence, outcome] = s.relic || [
+        busy && !offered ? RELIQUARY.drawDuration : 0,
+        offered ? RELIQUARY.offerDuration : 0,
+        0,
+        0,
+      ];
+      const newDraw = busy && (!wasBusy || sequence !== box.sequence);
+      Object.assign(box, {
+        busy: !!busy,
+        offered,
+        timer,
+        offerTimer,
+        sequence,
+        outcome,
+      });
+      box.cycle = reliquaryCycle(RELIQUARY.drawDuration - timer);
+      if (newDraw) cue("open");
+      else if (
+        busy &&
+        !offered &&
+        box.cycle >= 0 &&
+        previousCycle !== box.cycle
+      )
+        cue("tick");
+      if (offered && (newDraw || offered !== previousOffer)) cue("reveal");
+      if (
+        offered &&
+        offerTimer > 0 &&
+        offerTimer <= 5 &&
+        Math.ceil(offerTimer) !== previousSecond
+      )
+        cue("warning");
+      if (wasBusy && !busy)
+        cue(outcome === 1 ? "take" : "expire", previousOffer);
+      if (display && box.display?.userData.weaponId !== display)
+        g.run.world.showBoxWeapon(display);
+      else if (!display && box.display) {
+        box.display.removeFromParent();
         box.display = null;
       }
     }

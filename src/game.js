@@ -430,6 +430,7 @@ export class Game {
       interaction:
         this.run.session?.rescue.prompt() ||
         this.interactionText(this.nearInteraction()),
+      reliquary: this.interactions.reliquaryHUD(),
       perks: [...this.run.player.perks],
       downed: this.run.downed,
       rescue: this.run.session?.rescue.hud(),
